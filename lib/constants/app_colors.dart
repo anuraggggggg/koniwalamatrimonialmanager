@@ -108,4 +108,8 @@ class AppColors {
   static const Color danger = Color(0xFFD32F2F);
   static const Color dangerContainer = Color(0xFFFFEBEE);
   static const Color whatsappGreen = Color(0xFF00A859);
+  static const Color lightGray = Color(0xFFF3F4F5);
+  static const Color darkGreen = Color(0xFF006E28);
+  static const Color darkGray = Color(0xFF454748) ;
+  static const Color reddishBrown = Color(0xFF584141) ;
 }

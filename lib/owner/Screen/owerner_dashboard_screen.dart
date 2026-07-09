@@ -646,9 +646,20 @@ class _HomeViewState extends State<HomeView> {
 
   BoxDecoration _ownerCardDecoration({double radius = 12}) {
     return BoxDecoration(
+
+      borderRadius: BorderRadius.circular(radius),
+      border: Border.all(color: const Color(0xFFE4E4E4)),
+
+    );
+  }
+
+  BoxDecoration _segmentControl({double radius = 12}) {
+    return BoxDecoration(
       color: Colors.white,
       borderRadius: BorderRadius.circular(radius),
-      border: Border.all(color: const Color(0xFFF6E5DB)),
+      border: Border.all(
+        color: AppColors.dashbaordcardtext.withValues(alpha: 0.2),
+      ),
       boxShadow: const [
         BoxShadow(
           color: AppColors.rmCardShadow,
@@ -1047,7 +1058,7 @@ class _HomeViewState extends State<HomeView> {
                     letterSpacing: 1,
                   ),
                 ),
-                SizedBox(height: 16.h),
+                SizedBox(height: 15.h),
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: Row(
@@ -1058,22 +1069,22 @@ class _HomeViewState extends State<HomeView> {
                           entry.value == _selectedPeriod,
                           () => _selectPeriod(entry.value),
                         ),
-                        SizedBox(width: 12.w),
+                        SizedBox(width: 6.w),
                       ],
                     ],
                   ),
                 ),
-                if ((dashboard?.period.displayText ?? '').isNotEmpty) ...[
-                  SizedBox(height: 12.h),
-                  Text(
-                    dashboard!.period.displayText,
-                    style: GoogleFonts.manrope(
-                      color: const Color(0xFF6E5C61),
-                      fontSize: 13.sp,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
+                // if ((dashboard?.period.displayText ?? '').isNotEmpty) ...[
+                //   SizedBox(height: 12.h),
+                //   Text(
+                //     dashboard!.period.displayText,
+                //     style: GoogleFonts.manrope(
+                //       color: const Color(0xFF6E5C61),
+                //       fontSize: 13.sp,
+                //       fontWeight: FontWeight.w700,
+                //     ),
+                //   ),
+                // ],
                 if (managerDashboardProvider.isLoading) ...[
                   SizedBox(height: 14.h),
                   LinearProgressIndicator(
@@ -1130,7 +1141,7 @@ class _HomeViewState extends State<HomeView> {
                       child: _buildStatCard(
                         'TOTAL LEADS',
                         _formatCompactNumber(kpi?.totalLeads ?? 0),
-                        label: 'Stable',
+                        // label: 'Stable',
                       ),
                     ),
                     SizedBox(width: 5.w),
@@ -1147,7 +1158,9 @@ class _HomeViewState extends State<HomeView> {
                 ),
                 SizedBox(height: 5.h),
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
+
                     Expanded(
                       child: _buildStatCard(
                         'FOLLOW-UPS',
@@ -1176,55 +1189,55 @@ class _HomeViewState extends State<HomeView> {
           // Critical Alerts
           _buildConnectivitySection(child: _buildCriticalAlerts(dashboard)),
 
-          SizedBox(height: 25.h),
+
+
+          Padding(
+            padding: const EdgeInsets.only(bottom: 0 , top: 16, left: 16),
+            child: Text(
+              'LIVE TEAM STATUS',
+              style: GoogleFonts.manrope(
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ),
 
           // Live Team Status
           _buildConnectivitySection(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 14),
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(20),
-                decoration: _ownerCardDecoration(),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'LIVE TEAM STATUS',
-                      style: GoogleFonts.manrope(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.5,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+
+                  // SizedBox(height: 10.h),
+                  // Text(
+                  //   '${dashboard?.liveTeamStatus.where((item) => item.status.toLowerCase() == 'online').length ?? 0} online - '
+                  //   '${dashboard?.liveTeamStatus.where((item) => item.todayAttendanceStatus.toLowerCase() == 'present').length ?? 0} present',
+                  //   style: GoogleFonts.manrope(
+                  //     color: const Color(0xFF6E5C61),
+                  //     fontSize: 13.sp,
+                  //     fontWeight: FontWeight.w700,
+                  //   ),
+                  // ),
+                  SizedBox(height: 12.h),
+                  if ((dashboard?.liveTeamStatus.isEmpty ?? true))
+                    _buildSectionEmptyState('No team activity available yet.')
+                  else
+                    SizedBox(
+
+                      child: ListView(
+                        scrollDirection: Axis.horizontal,
+                        children: [
+                          for (final item in dashboard!.liveTeamStatus.take(
+                            8,
+                          ))
+                            _buildTeamCard(item),
+                        ],
                       ),
                     ),
-                    SizedBox(height: 10.h),
-                    Text(
-                      '${dashboard?.liveTeamStatus.where((item) => item.status.toLowerCase() == 'online').length ?? 0} online - '
-                      '${dashboard?.liveTeamStatus.where((item) => item.todayAttendanceStatus.toLowerCase() == 'present').length ?? 0} present',
-                      style: GoogleFonts.manrope(
-                        color: const Color(0xFF6E5C61),
-                        fontSize: 13.sp,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    SizedBox(height: 12.h),
-                    if ((dashboard?.liveTeamStatus.isEmpty ?? true))
-                      _buildSectionEmptyState('No team activity available yet.')
-                    else
-                      SizedBox(
-                        height: 220.h,
-                        child: ListView(
-                          scrollDirection: Axis.horizontal,
-                          children: [
-                            for (final item in dashboard!.liveTeamStatus.take(
-                              8,
-                            ))
-                              _buildTeamCard(item),
-                          ],
-                        ),
-                      ),
-                  ],
-                ),
+                ],
               ),
             ),
           ),
@@ -1265,6 +1278,7 @@ class _HomeViewState extends State<HomeView> {
                     ],
                   ),
                   SizedBox(height: 18.h),
+
 
                   // Activity List
                   Container(
@@ -1358,8 +1372,8 @@ class _HomeViewState extends State<HomeView> {
                       'EMPLOYEE PERFORMANCE OVERVIEW',
                       style: GoogleFonts.manrope(
                         color: Color(0xFF181C1F),
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
                         letterSpacing: 0.5,
                       ),
                     ),
@@ -1369,7 +1383,7 @@ class _HomeViewState extends State<HomeView> {
                       'Group attendance, KPIs, and task progress in one section',
                       style: GoogleFonts.manrope(
                         color: Color(0xFF424754),
-                        fontSize: 16,
+                        fontSize: 12,
                         fontWeight: FontWeight.w400,
                       ),
                     ),
@@ -1410,8 +1424,8 @@ class _HomeViewState extends State<HomeView> {
                           'Task Overview',
                           style: GoogleFonts.manrope(
                             color: Color(0xFF181C1F),
-                            fontSize: 22,
-                            fontWeight: FontWeight.w800,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                         Container(
@@ -1420,13 +1434,12 @@ class _HomeViewState extends State<HomeView> {
                             vertical: 4,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.green[50],
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text(
                             '${agencyPerformance?.taskCompletionRate ?? 0}% Completed',
                             style: GoogleFonts.manrope(
-                              color: Colors.green[700],
+                              color: AppColors.reddishBrown,
                               fontSize: 14,
                               fontWeight: FontWeight.w800,
                             ),
@@ -1939,8 +1952,8 @@ class _HomeViewState extends State<HomeView> {
               label,
               style: GoogleFonts.manrope(
                 color: Color(0xFF2C2B2B),
-                fontSize: 17,
-                fontWeight: FontWeight.w700,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
               ),
             ),
             Text(
@@ -2679,9 +2692,10 @@ class _HomeViewState extends State<HomeView> {
           Text(
             label,
             style: GoogleFonts.manrope(
-              color: Colors.grey[500],
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
+              color: AppColors.darkGray,
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+
             ),
           ),
           SizedBox(height: 4.h),
@@ -2708,18 +2722,19 @@ class _HomeViewState extends State<HomeView> {
         onTap: onTap,
         borderRadius: BorderRadius.circular(22),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6
+          ),
           decoration: isSelected
               ? BoxDecoration(
                   color: _primaryColor,
                   borderRadius: BorderRadius.circular(22),
                   border: Border.all(color: _primaryColor, width: 1),
                 )
-              : _ownerCardDecoration(radius: 22),
+              : _segmentControl(radius: 22),
           child: Text(
             text,
             style: GoogleFonts.manrope(
-              fontSize: 15,
+              fontSize: 12,
               color: isSelected ? Colors.white : Colors.black87,
               fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
             ),
@@ -2748,9 +2763,11 @@ class _HomeViewState extends State<HomeView> {
         borderRadius: BorderRadius.circular(18),
         splashColor: _primaryColor.withValues(alpha: 0.05),
         child: Container(
+
+
           width: double.infinity,
           constraints: BoxConstraints(minHeight: 96.h),
-          padding: const EdgeInsets.fromLTRB(14, 10, 14, 8),
+          padding: const EdgeInsets.all(8),
           decoration: _ownerCardDecoration(radius: 18),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -2758,16 +2775,15 @@ class _HomeViewState extends State<HomeView> {
             children: [
               Row(
                 children: [
-                  Expanded(
-                    child: Padding(
-                      padding: EdgeInsets.only(top: 6.h),
+                  Center(
+                    child: Expanded(
                       child: Text(
                         title,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.manrope(
                           color: const Color(0xFF302D31),
-                          fontSize: 13,
+                          fontSize: 12,
                           fontWeight: FontWeight.w800,
                           height: 1.4,
                           letterSpacing: 0.6,
@@ -2777,98 +2793,101 @@ class _HomeViewState extends State<HomeView> {
                   ),
                 ],
               ),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.baseline,
-                textBaseline: TextBaseline.alphabetic,
-                children: [
-                  Expanded(
-                    flex: 3,
-                    child: Text(
-                      value,
-                      style: GoogleFonts.manrope(
-                        color: AppColors.primary,
-                        fontSize: 24,
-                        fontWeight: FontWeight.w900,
-                        height: 1.1,
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: [
+                    Expanded(
+                      flex: 2,
+                      child: Text(
+                        value,
+                        style: GoogleFonts.manrope(
+                          color: AppColors.primary,
+                          fontSize: 24,
+                          fontWeight: FontWeight.w900,
+                          height: 1.1,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      overflow: TextOverflow.ellipsis,
                     ),
-                  ),
-                  SizedBox(width: 4.w),
-                  Expanded(
-                    flex: 2,
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          if (trend != null)
-                            Flexible(
-                              child: Text(
-                                trend,
-                                style: GoogleFonts.manrope(
-                                  color: trendColor ?? Colors.green[700],
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          if (hasTrendIcon)
-                            Padding(
-                              padding: EdgeInsets.only(
-                                left: trend != null ? 4.0 : 0.0,
-                              ),
-                              child: Icon(
-                                Icons.trending_up,
-                                size: 14,
-                                color: trendColor ?? Colors.green[700],
-                              ),
-                            ),
-                          if (hasCycleIcon)
-                            Padding(
-                              padding: const EdgeInsets.only(left: 4.0),
-                              child: Icon(
-                                Icons.sync,
-                                size: 14,
-                                color: trendColor ?? const Color(0xFF388E3C),
-                              ),
-                            ),
-                          if (label != null)
-                            Flexible(
-                              child: Padding(
-                                padding: EdgeInsets.only(bottom: 3.h),
+                    SizedBox(width: 3.w),
+                    Expanded(
+                      flex: 2,
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (trend != null)
+                              Flexible(
                                 child: Text(
-                                  label,
+                                  trend,
                                   style: GoogleFonts.manrope(
-                                    color:
-                                        labelColor ??
-                                        (label == 'Stable'
-                                            ? Colors.orange[700]
-                                            : Colors.green[700]),
-                                    fontSize: 13,
+                                    color: trendColor ?? Colors.green[700],
+                                    fontSize: 14,
                                     fontWeight: FontWeight.w800,
                                   ),
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
-                            ),
-                          if (labelIcon != null)
-                            Padding(
-                              padding: EdgeInsets.only(
-                                left: label != null ? 4.0 : 0.0,
+                            if (hasTrendIcon)
+                              Padding(
+                                padding: EdgeInsets.only(
+                                  left: trend != null ? 4.0 : 0.0,
+                                ),
+                                child: Icon(
+                                  Icons.trending_up,
+                                  size: 14,
+                                  color: trendColor ?? Colors.green[700],
+                                ),
                               ),
-                              child: Icon(
-                                labelIcon,
-                                size: 14,
-                                color: trendColor ?? Colors.green[700],
+                            if (hasCycleIcon)
+                              Padding(
+                                padding: const EdgeInsets.only(left: 4.0),
+                                child: Icon(
+                                  Icons.sync,
+                                  size: 14,
+                                  color: trendColor ?? const Color(0xFF388E3C),
+                                ),
                               ),
-                            ),
-                        ],
+                            if (label != null)
+                              Flexible(
+                                child: Padding(
+                                  padding: EdgeInsets.only(bottom: 3.h),
+                                  child: Text(
+                                    label,
+                                    style: GoogleFonts.manrope(
+                                      color:
+                                          labelColor ??
+                                          (label == 'Stable'
+                                              ? Colors.orange[700]
+                                              : Colors.green[700]),
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ),
+                            if (labelIcon != null)
+                              Padding(
+                                padding: EdgeInsets.only(
+                                  left: label != null ? 4.0 : 0.0,
+                                ),
+                                child: Icon(
+                                  labelIcon,
+                                  size: 14,
+                                  color: trendColor ?? Colors.green[700],
+                                ),
+                              ),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ],
           ),
@@ -2927,7 +2946,7 @@ class _HomeViewState extends State<HomeView> {
                 ),
               ],
             ),
-            SizedBox(height: 20.h),
+            SizedBox(height: 16.h),
             if (overdueFollowUps == 0 &&
                 pendingReplies == 0 &&
                 unassignedLeads == 0 &&
@@ -2988,7 +3007,7 @@ class _HomeViewState extends State<HomeView> {
   }
   ) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -3003,26 +3022,30 @@ class _HomeViewState extends State<HomeView> {
                   title,
                   style: GoogleFonts.manrope(
                     fontWeight: FontWeight.bold,
-                    fontSize: 17,
+                    fontSize: 14,
                   ),
                 ),
                 Text(
                   subtitle,
                   style: GoogleFonts.manrope(
                     color: Colors.grey[500],
-                    fontSize: 14,
+                    fontSize: 10,
                   ),
                 ),
               ],
             ),
           ),
+          SizedBox(
+            width: 100.w,
+          ),
           OutlinedButton.icon(
             onPressed: onPressed,
-            icon: Icon(icon, size: 16, color: AppColors.primary),
+            icon: Icon(icon, size: 17, color: AppColors.primary),
             label: Text(
               buttonText,
               style: GoogleFonts.manrope(
                 fontSize: 17,
+                fontWeight: FontWeight.bold,
                 color: AppColors.primary,
               ),
             ),
@@ -3045,105 +3068,164 @@ class _HomeViewState extends State<HomeView> {
 
     return Container(
       width: 180,
-      margin: const EdgeInsets.only(right: 16),
+      margin: const EdgeInsets.only(right: 8),
       decoration: _ownerCardDecoration(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-            decoration: BoxDecoration(
-              color: statusColor.withValues(alpha: 0.08),
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(16),
-              ),
-            ),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  radius: 22,
-                  backgroundColor: statusColor.withValues(alpha: 0.16),
-                  child: Text(
-                    _initialsForName(item.name),
-                    style: GoogleFonts.manrope(
-                      color: statusColor,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
+      child: Center(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.only(top: 12, left: 2 , right: 2),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(
+                  top: Radius.circular(16),
                 ),
-                SizedBox(width: 10.w),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        item.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.manrope(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
+              ),
+              child: Center(
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+
+                    SizedBox(
+                      height: 90.h,
+                      width: 150.w,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: (item.image != null && item.image!.isNotEmpty)
+                            ? Image.network(
+                          item.image!,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              color: const Color(0xFFF3F4F5),
+                              alignment: Alignment.center,
+                              child: Text(
+                                item.name.isNotEmpty
+                                    ? item.name[0].toUpperCase()
+                                    : "?",
+                                style: GoogleFonts.manrope(
+                                  fontSize: 38.sp,
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.grey.shade700,
+                                ),
+                              ),
+                            );
+                          },
+                        )
+                            : Container(
+                          color: const Color(0xFFF3F4F5),
+                          alignment: Alignment.center,
+                          child: Text(
+                            item.name.isNotEmpty
+                                ? item.name[0].toUpperCase()
+                                : "?",
+                            style: GoogleFonts.manrope(
+                              fontSize: 38.sp,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.grey.shade700,
+                            ),
+                          ),
                         ),
                       ),
-                      Text(
-                        _formatRoleLabel(item.role),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.manrope(
-                          color: const Color(0xFF6E5C61),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
+                    ),
+
+                    // ==========================
+                    // Attendance Status Dot
+                    // ==========================
+                    Positioned(
+                      top: 5,
+                      right: 8,
+                      child: Container(
+                        width: 18.w,
+                        height: 18.w,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: item.todayAttendanceStatus
+                              .toLowerCase()
+                              .trim() ==
+                              "present"
+                              ? AppColors.darkGreen
+                              : const Color(0xFFEF4444),
+                          border: Border.all(
+                            color: Colors.white,
+                            width: 3,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Text(
+                      item.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.manrope(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+
+                  Center(
+                    child: Text(
+                      _formatRoleLabel(item.role),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.manrope(
+                        color: const Color(0xFF6E5C61),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+
+                  Center(
+                    child: Text(
+                      item.todayAttendanceStatus,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.manrope(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: statusColor,
+                      ),
+                    ),
+                  ),
+
+                  SizedBox(height: 6.h),
+
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildMiniStat(
+                          '${item.leadsHandled}',
+                          'Leads',
+                        ),
+                      ),
+                      SizedBox(width: 6.w),
+                      Expanded(
+                        child: _buildMiniStat(
+                          '${item.tasksCompleted}',
+                          'Tasks',
                         ),
                       ),
                     ],
                   ),
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-              child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item.todayAttendanceStatus,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.manrope(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: statusColor,
-                  ),
-                ),
-                SizedBox(height: 4.h),
-                Text(
-                  item.status.toUpperCase(),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.manrope(
-                    color: statusColor,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
+
+                  // Uncomment if you want to show profiles handled
+                  /*
                 SizedBox(height: 8.h),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Flexible(
-                      child: _buildMiniStat('${item.leadsHandled}', 'Leads'),
-                    ),
-                    SizedBox(width: 8.w),
-                    Flexible(
-                      child: _buildMiniStat('${item.tasksCompleted}', 'Tasks'),
-                    ),
-                  ],
-                ),
-                const Spacer(),
                 Text(
                   '${item.profilesHandled} profiles handled',
                   maxLines: 1,
@@ -3154,27 +3236,46 @@ class _HomeViewState extends State<HomeView> {
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-              ],
+                */
+                ],
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildMiniStat(String value, String label) {
-    return Column(
-      children: [
-        Text(
-          value,
-          style: GoogleFonts.manrope(fontSize: 15, fontWeight: FontWeight.bold),
+    return Padding(
+      padding: const EdgeInsets.all(8.0),
+      child: Center(
+        child: Container(
+          decoration: BoxDecoration(
+            color: AppColors.lightGray,
+
+            borderRadius: BorderRadius.circular(3.11),
+          ),
+          width: 70.w,
+          // height: 36.h,
+
+          child: Padding(
+            padding: const EdgeInsets.only(top: 5, bottom: 5),
+            child: Column(
+              children: [
+                Text(
+                  value,
+                  style: GoogleFonts.manrope(fontSize: 12, fontWeight: FontWeight.bold),
+                ),
+                Text(
+                  label,
+                  style: GoogleFonts.manrope(color: Colors.black, fontSize: 12, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+          ),
         ),
-        Text(
-          label,
-          style: GoogleFonts.manrope(color: Colors.grey[500], fontSize: 13),
-        ),
-      ],
+      ),
     );
   }
 
@@ -3276,46 +3377,76 @@ class _HomeViewState extends State<HomeView> {
                 Text(
                   item.name,
                   style: GoogleFonts.manrope(
-                    color: Color(0xFF1A1C1A),
+                    color: const Color(0xFF1A1C1A),
                     fontSize: 20,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
                 SizedBox(height: 3.h),
-                Text(
-                  _formatRoleLabel(item.role),
-                  style: GoogleFonts.manrope(
-                    color: const Color(0xFF6E5C61),
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
+                RichText(
+                  text: TextSpan(
+                    children: [
+                      TextSpan(
+                        text: '${item.pendingFollowUps} Pending',
+                        style: GoogleFonts.manrope(
+                          color: Colors.red.shade700,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      TextSpan(
+                        text: ' / ${item.completedFollowUps} Done',
+                        style: GoogleFonts.manrope(
+                          color: const Color(0xFF6E5C61),
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
           ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              _buildFollowUpMetricChip(
-                '${item.pendingFollowUps} pending',
-                AppColors.primary.withValues(alpha: 0.08),
-                AppColors.primary,
-              ),
-              SizedBox(height: 8.h),
-              _buildFollowUpMetricChip(
-                '${item.completedFollowUps} done',
-                Colors.green.withValues(alpha: 0.10),
-                Colors.green.shade700,
-              ),
-              SizedBox(height: 8.h),
-              _buildFollowUpMetricChip(
-                '${item.overdueFollowUps} overdue',
-                Colors.red.withValues(alpha: 0.10),
-                Colors.red.shade700,
-              ),
-            ],
+          _buildRoundIconButton(
+            icon: Icons.chat_bubble_outline,
+            background: AppColors.rmPrimary.withValues(alpha: 0.10),
+            iconColor: AppColors.rmPrimary,
+            onTap: () {
+              // TODO: open chat/message action for item
+            },
+          ),
+          SizedBox(width: 10.w),
+          _buildRoundIconButton(
+            icon: Icons.mic_none_rounded,
+            background: AppColors.rmPrimary,
+            iconColor: Colors.white,
+            onTap: () {
+              // TODO: trigger voice reminder for item
+            },
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildRoundIconButton({
+    required IconData icon,
+    required Color background,
+    required Color iconColor,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      customBorder: const CircleBorder(),
+      child: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: background,
+          shape: BoxShape.circle,
+        ),
+        child: Icon(icon, size: 20, color: iconColor),
       ),
     );
   }
