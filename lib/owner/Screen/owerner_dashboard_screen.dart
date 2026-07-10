@@ -1896,8 +1896,8 @@ class _HomeViewState extends State<HomeView> {
                           Navigator.of(context).pushNamed(AppRoutes.adminSettings),
                       // borderRadius: BorderRadius.circular(16.r),
                       child: SizedBox(
-                        height: 32.h,
-                        width: 32.h,
+                        height: 20.h,
+                        width: 20.h,
                         child: Image.asset(
                           'assets/settings_icon.png',
                           color: AppColors.black,
@@ -2984,7 +2984,7 @@ class _HomeViewState extends State<HomeView> {
                   '$overdueFollowUps follow-ups overdue',
                   'Relationship managers need to re-engage these leads.',
                   'Call',
-                  Icons.phone,
+    Icons.call_outlined,
                   onPressed: () => _callPhoneNumber(overdueCallLead?.phone),
                 ),
                 SizedBox(height: 16.h),
@@ -3008,7 +3008,7 @@ class _HomeViewState extends State<HomeView> {
                       ? 'Assign these leads to keep the funnel moving.'
                       : 'Reconnect before these opportunities go cold.',
                   'Assign',
-                  Icons.assignment_ind_outlined,
+                  Icons.check_circle_outlined,
                   onPressed: null,
                 ),
             ],
@@ -3027,7 +3027,7 @@ class _HomeViewState extends State<HomeView> {
   }
   ) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -3064,14 +3064,14 @@ class _HomeViewState extends State<HomeView> {
             label: Text(
               buttonText,
               style: GoogleFonts.manrope(
-                fontSize: 17,
+                fontSize: 12,
                 fontWeight: FontWeight.bold,
                 color: AppColors.primary,
               ),
             ),
             style: OutlinedButton.styleFrom(
               foregroundColor: _primaryColor,
-              side: BorderSide(color: _primaryColor.withValues(alpha: 0.2)),
+              side: BorderSide(color: _primaryColor),
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(24),

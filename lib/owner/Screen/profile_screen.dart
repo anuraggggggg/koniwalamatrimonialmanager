@@ -530,6 +530,7 @@ Email: ${employee.email}
                   'Closed Leads',
                   '${employee?.closedLeads ?? 0}',
                   iconAsset: 'assets/medal_icon.png',
+                  valueColor: AppColors.deepBurgundy
                 ),
               ),
             ],
@@ -547,6 +548,7 @@ Email: ${employee.email}
     IconData? icon,
     String? iconAsset,
     IconData? badge,
+          Color? valueColor,
   }) {
     Widget? trailing;
 
@@ -642,7 +644,7 @@ Email: ${employee.email}
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.manrope(
 
-                    color: AppColors.black,
+                    color: valueColor,
                     fontSize: 24.sp,
                     fontWeight: FontWeight.w800,
                     height: 1.2,
