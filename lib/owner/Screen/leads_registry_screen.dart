@@ -743,47 +743,48 @@ class _LeadsHeader extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (onMenuPressed != null) ...[
-          IconButton(
-            tooltip: 'Menu',
-            onPressed: onMenuPressed,
-            icon: Icon(Icons.menu, color: AppColors.rmPrimary, size: 26.sp),
-          ),
+          // IconButton(
+          //   tooltip: 'Menu',
+          //   onPressed: onMenuPressed,
+          //   icon: Icon(Icons.menu, color: AppColors.rmPrimary, size: 26.sp),
+          // ),
           SizedBox(width: 6.w),
         ],
         Expanded(
           child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 'Leads Registry',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.manrope(
-                  color: AppColors.rmPrimary,
+                style: GoogleFonts.playfairDisplay(
+                  color: AppColors.deepBurgundy,
                   fontSize: 24.sp,
-                  fontWeight: FontWeight.w800,
-                  height: 1.15,
+                  fontWeight: FontWeight.w700,
+                  height: 1.2,
                 ),
               ),
-              SizedBox(height: 8.h),
+              SizedBox(height: 6.h),
               Text(
                 'Curating matrimonial connections with archival precision.',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
                 style: GoogleFonts.manrope(
                   color: const Color(0xFF6F5F64),
-                  fontSize: 14.sp,
+                  fontSize: 12.sp,
                   fontWeight: FontWeight.w500,
-                  height: 1.45,
+                  height: 1.5,
                 ),
               ),
             ],
           ),
         ),
         SizedBox(width: 12.w),
-        _LeadFollowUpsButton(
-          onPressed: () {
-            Navigator.of(context).pushNamed(AppRoutes.leadFollowUps);
-          },
-        ),
+        // _LeadFollowUpsButton(
+        //   onPressed: () {
+        //     Navigator.of(context).pushNamed(AppRoutes.leadFollowUps);
+        //   },
+        // ),
         SizedBox(width: 8.w),
         _NewInquiryButton(
           onPressed: () async {
@@ -800,34 +801,34 @@ class _LeadsHeader extends StatelessWidget {
   }
 }
 
-class _LeadFollowUpsButton extends StatelessWidget {
-  const _LeadFollowUpsButton({required this.onPressed});
-
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 42.h,
-      height: 42.h,
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(8.r),
-        border: Border.all(color: AppColors.rmPrimary, width: 1.2),
-      ),
-      child: IconButton(
-        tooltip: 'Lead Follow-ups',
-        padding: EdgeInsets.zero,
-        onPressed: onPressed,
-        icon: Icon(
-          Icons.event_available_outlined,
-          color: AppColors.rmPrimary,
-          size: 22.sp,
-        ),
-      ),
-    );
-  }
-}
+// class _LeadFollowUpsButton extends StatelessWidget {
+//   const _LeadFollowUpsButton({required this.onPressed});
+//
+//   final VoidCallback onPressed;
+//
+//   @override
+//   Widget build(BuildContext context) {
+//     return Container(
+//       width: 42.h,
+//       height: 42.h,
+//       decoration: BoxDecoration(
+//         color: AppColors.white,
+//         borderRadius: BorderRadius.circular(8.r),
+//         border: Border.all(color: AppColors.rmPrimary, width: 1.2),
+//       ),
+//       child: IconButton(
+//         tooltip: 'Lead Follow-ups',
+//         padding: EdgeInsets.zero,
+//         onPressed: onPressed,
+//         icon: Icon(
+//           Icons.event_available_outlined,
+//           color: AppColors.rmPrimary,
+//           size: 22.sp,
+//         ),
+//       ),
+//     );
+//   }
+// }
 
 class _NewInquiryButton extends StatelessWidget {
   const _NewInquiryButton({required this.onPressed});
@@ -837,7 +838,7 @@ class _NewInquiryButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: AppColors.rmPrimary,
+      color: AppColors.deepBurgundy,
       borderRadius: BorderRadius.circular(8.r),
       child: InkWell(
         onTap: onPressed,
@@ -862,7 +863,7 @@ class _NewInquiryButton extends StatelessWidget {
                 'New Inquiry',
                 style: GoogleFonts.manrope(
                   color: AppColors.white,
-                  fontSize: 15.sp,
+                  fontSize: 12.sp,
                   fontWeight: FontWeight.w800,
                 ),
               ),
@@ -947,7 +948,7 @@ class _LeadsTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final foreground = selected
-        ? AppColors.rmPrimary
+        ? AppColors.deepBurgundy
         : AppColors.standardDarkTextColor;
 
     return Material(
@@ -977,7 +978,7 @@ class _LeadsTab extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.manrope(
                     color: foreground,
-                    fontSize: 16.sp,
+                    fontSize: 10.sp,
                     fontWeight: selected ? FontWeight.w800 : FontWeight.w700,
                   ),
                 ),
@@ -1292,7 +1293,7 @@ class _FilterHeader extends StatelessWidget {
           child: Text(
             'FILTER BY STAGE',
             style: GoogleFonts.manrope(
-              color: const Color(0xFF706368),
+              color: AppColors.darkGray,
               fontSize: 14.sp,
               fontWeight: FontWeight.w900,
               letterSpacing: .6,
@@ -1305,13 +1306,13 @@ class _FilterHeader extends StatelessWidget {
           label: Text(
             'Filters',
             style: GoogleFonts.manrope(
-              fontSize: 16.sp,
+              fontSize: 12.sp,
               fontWeight: FontWeight.w800,
             ),
           ),
           style: OutlinedButton.styleFrom(
-            foregroundColor: AppColors.rmPrimary,
-            side: const BorderSide(color: AppColors.rmPrimary),
+            foregroundColor: AppColors.deepBurgundy,
+            side: const BorderSide(color: AppColors.deepBurgundy),
             minimumSize: Size(86.w, 38.h),
             padding: EdgeInsets.symmetric(horizontal: 14.w),
             shape: RoundedRectangleBorder(
@@ -1381,7 +1382,7 @@ class _StageChip extends StatelessWidget {
             color: selected ? AppColors.white : const Color(0xFFFFFCFD),
             borderRadius: BorderRadius.circular(18.r),
             border: Border.all(
-              color: selected ? AppColors.rmPrimary : const Color(0xFFE9D8DE),
+              color: selected ? AppColors.deepBurgundy : const Color(0xFFE9D8DE),
               width: selected ? 1.1 : 1,
             ),
           ),
@@ -1494,7 +1495,7 @@ class _LeadCard extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.manrope(
-                        color: AppColors.rmPrimary,
+                        color: AppColors.deepBurgundy,
                         fontSize: 20.sp,
                         fontWeight: FontWeight.w900,
                         height: 1.1,
@@ -1519,7 +1520,7 @@ class _LeadCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.manrope(
                         color: const Color(0xFF727785),
-                        fontSize: 15.sp,
+                        fontSize: 12.sp,
                         fontWeight: FontWeight.w500,
                         height: 1.25,
                       ),
@@ -1888,8 +1889,9 @@ class _LeadsPagination extends StatelessWidget {
             Expanded(
               child: OutlinedButton(
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.rmPrimary,
-                  side: const BorderSide(color: Color(0xFFEECAD4)),
+                  backgroundColor: Colors.white,
+                  foregroundColor: AppColors.deepBurgundy,
+                  side: const BorderSide(color: AppColors.deepBurgundy),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(22.r),
                   ),
@@ -1901,7 +1903,7 @@ class _LeadsPagination extends StatelessWidget {
                   textAlign: TextAlign.center,
                   style: GoogleFonts.manrope(
                     fontWeight: FontWeight.w900,
-                    fontSize: 18.sp,
+                    fontSize: 15.sp,
                   ),
                 ),
               ),
@@ -1910,7 +1912,7 @@ class _LeadsPagination extends StatelessWidget {
             Expanded(
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.rmPrimary,
+                  backgroundColor: AppColors.deepBurgundy,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(22.r),

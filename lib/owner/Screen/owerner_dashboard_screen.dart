@@ -640,6 +640,8 @@ class _HomeViewState extends State<HomeView> {
     'This Year': 'this_year',
   };
 
+  String selectedCategory = "team";
+
   String _selectedPeriod = 'past_month';
 
   final Color _primaryColor = AppColors.primary;
@@ -649,6 +651,7 @@ class _HomeViewState extends State<HomeView> {
 
       borderRadius: BorderRadius.circular(radius),
       border: Border.all(color: const Color(0xFFE4E4E4)),
+      color: Colors.white
 
     );
   }
@@ -725,6 +728,8 @@ class _HomeViewState extends State<HomeView> {
       provider.error ?? 'Report data is not available for this role.',
     );
   }
+
+  
 
   void _showHrRoleReport({
     required List<HrEmployeeItem> hrEmployees,
@@ -974,6 +979,10 @@ class _HomeViewState extends State<HomeView> {
       });
     }
 
+    final filteredActivities = dashboard?.recentActivity
+        .where((activity) => activity.category == selectedCategory)
+        .toList() ??
+        [];
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(vertical: 32),
       child: Column(
@@ -1191,56 +1200,29 @@ class _HomeViewState extends State<HomeView> {
 
 
 
-          Padding(
-            padding: const EdgeInsets.only(bottom: 0 , top: 16, left: 16),
-            child: Text(
-              'LIVE TEAM STATUS',
-              style: GoogleFonts.manrope(
-                fontSize: 20,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.5,
-              ),
-            ),
-          ),
+    _buildConnectivitySection(
+    child: Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 14),
+    child: Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [const SizedBox(height: 16),
 
-          // Live Team Status
-          _buildConnectivitySection(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+    Text('LIVE TEAM STATUS',style: GoogleFonts.manrope(fontSize: 20,
+    fontWeight: FontWeight.w600, letterSpacing: 0.5,),),
 
-                  // SizedBox(height: 10.h),
-                  // Text(
-                  //   '${dashboard?.liveTeamStatus.where((item) => item.status.toLowerCase() == 'online').length ?? 0} online - '
-                  //   '${dashboard?.liveTeamStatus.where((item) => item.todayAttendanceStatus.toLowerCase() == 'present').length ?? 0} present',
-                  //   style: GoogleFonts.manrope(
-                  //     color: const Color(0xFF6E5C61),
-                  //     fontSize: 13.sp,
-                  //     fontWeight: FontWeight.w700,
-                  //   ),
-                  // ),
-                  SizedBox(height: 12.h),
-                  if ((dashboard?.liveTeamStatus.isEmpty ?? true))
-                    _buildSectionEmptyState('No team activity available yet.')
-                  else
-                    SizedBox(
+    SizedBox(height: 16.h),
 
-                      child: ListView(
-                        scrollDirection: Axis.horizontal,
-                        children: [
-                          for (final item in dashboard!.liveTeamStatus.take(
-                            8,
-                          ))
-                            _buildTeamCard(item),
-                        ],
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
+    if (dashboard?.liveTeamStatus.isEmpty ?? true)
+    _buildSectionEmptyState(
+    'No team activity available yet.',
+    ) else
+    SizedBox(height: 220.h, // Give the horizontal ListView a fixed height
+    child: ListView.builder(
+    scrollDirection: Axis.horizontal,
+    itemCount: dashboard!.liveTeamStatus.take(8).length,
+    itemBuilder: (context, index) {
+    final item = dashboard.liveTeamStatus[index];
+    return _buildTeamCard(item);},),),],),),),
           SizedBox(height: 25.h),
 
           // Follow-up Control
@@ -1258,99 +1240,107 @@ class _HomeViewState extends State<HomeView> {
           SizedBox(height: 25.h),
           _buildConnectivitySection(
             child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 14),
+              padding: EdgeInsets.symmetric(horizontal: 14.w),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  /// 1 TITLE
                   Row(
                     children: [
-                      Icon(Icons.circle, size: 10, color: Colors.red),
-                      SizedBox(width: 10.w),
+                      const Icon(
+                        Icons.circle,
+                        size: 10,
+                        color: Color(0xFFD62F2F),
+                      ),
+                      SizedBox(width: 8.w),
                       Text(
-                      'LIVE ACTIVITY',
-                      style: GoogleFonts.manrope(
-                        color: const Color(0xFF211A1B),
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        height: 1.67,
-                        letterSpacing: 1,
+                        'LIVE ACTIVITY',
+                        style: GoogleFonts.manrope(
+                          color: const Color(0xFF211A1B),
+                          fontSize: 15.sp,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1,
                         ),
                       ),
                     ],
                   ),
+
                   SizedBox(height: 18.h),
 
+                  /// FILTER CHIPS
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        _activityChip("Team", "team"),
+                        SizedBox(width: 10.w),
 
-                  // Activity List
+                        _activityChip("Leads", "leads"),
+                        SizedBox(width: 10.w),
+
+                        _activityChip("Matches", "matches"),
+                        SizedBox(width: 10.w),
+
+                        // _activityChip("Payments", "payments"),
+                      ],
+                    ),
+                  ),
+
+                  SizedBox(height: 18.h),
+
+                  /// ACTIVITY CARD
                   Container(
-                    padding: const EdgeInsets.all(24),
-                    decoration: _ownerCardDecoration(),
-                    child: (dashboard?.recentActivity.isEmpty ?? true)
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 18.w,
+                      vertical: 14.h,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16.r),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(.04),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: filteredActivities.isEmpty
                         ? _buildSectionEmptyState(
-                            'No recent activity in the selected period.',
-                          )
+                      'No recent activity in the selected period.',
+                    )
                         : Column(
-                            children: [
-                              for (
-                                var index = 0;
-                                index <
-                                    dashboard!.recentActivity.take(5).length;
-                                index++
-                              ) ...[
-                                if (index > 0) Divider(height: 32.h),
-                                _buildActivityRow(
-                                  Icon(
-                                    _activityIconForItem(
-                                      dashboard.recentActivity[index],
-                                    ),
-                                    size: 22.sp,
-                                    color: _activityColorForItem(
-                                      dashboard.recentActivity[index],
-                                    ),
-                                  ),
-                                  dashboard.recentActivity[index].title,
-                                  dashboard.recentActivity[index].description,
-                                  backgroundColor: _activityColorForItem(
-                                    dashboard.recentActivity[index],
-                                  ).withValues(alpha: 0.12),
-                                ),
-                              ],
-                              if (dashboard.recentActivity.length > 1000) ...[
-                                _buildActivityRow(
-                                  Icon(
-                                    _activityIconForItem(
-                                      dashboard.recentActivity[0],
-                                    ),
-                                    size: 22.sp,
-                                    color: _activityColorForItem(
-                                      dashboard.recentActivity[0],
-                                    ),
-                                  ),
-                                  dashboard.recentActivity[0].title,
-                                  'Added by Rahul • 2 mins ago',
-                                ),
-                                Divider(height: 32.h),
-                                _buildActivityRow(
-                                  Image.asset(
-                                    'assets/right_background_icon.png',
-                                    width: 40.w,
-                                    height: 40.h,
-                                  ),
-                                  'Match Sent to Sneha P.',
-                                  'System Generated • 15 mins ago',
-                                ),
-                                Divider(height: 32.h),
-                                _buildActivityRow(
-                                  Image.asset(
-                                    'assets/money_backgound_icon.png',
-                                    width: 40.w,
-                                    height: 40.h,
-                                  ),
-                                  'Payment received ₹50,000',
-                                  'System Generated • Just now',
-                                ),
-                              ],
-                            ],
+                      children: [
+                        for (int index = 0;
+                        index < filteredActivities.take(5).length;
+                        index++) ...[
+                          if (index != 0)
+                            Divider(
+                              height: 24.h,
+                              color: const Color(0xFFEAEAEA),
+                            ),
+
+                          _buildActivityRow(
+                            Icon(
+                              _activityIconForItem(filteredActivities[index]),
+                              size: 20.sp,
+                              color: _activityColorForItem(
+                                filteredActivities[index],
+                              ),
+                            ),
+                            filteredActivities[index].title,
+                            filteredActivities[index].description,
+                            backgroundColor: _activityColorForItem(
+                              filteredActivities[index],
+                            ).withOpacity(.12),
+                            onTap: () {
+                              final activity = filteredActivities[index];
+                              debugPrint(activity.title);
+                            },
                           ),
+                        ],
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -1484,7 +1474,14 @@ class _HomeViewState extends State<HomeView> {
               child: Container(
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
-                  color: AppColors.primary,
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Color(0xFF570013),
+                      Color(0xFF800020),
+                    ],
+                  ),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Column(
@@ -1503,7 +1500,7 @@ class _HomeViewState extends State<HomeView> {
                           style: GoogleFonts.manrope(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
-                            fontSize: 20,
+                            fontSize: 12,
                           ),
                         ),
                       ],
@@ -1515,7 +1512,7 @@ class _HomeViewState extends State<HomeView> {
                           'No AI suggestions are available for this period.',
                       style: GoogleFonts.manrope(
                         color: Colors.white,
-                        fontSize: 19,
+                        fontSize: 12,
                         height: 1.4,
                       ),
                     ),
@@ -1523,6 +1520,7 @@ class _HomeViewState extends State<HomeView> {
                     Row(
                       children: [
                         Expanded(
+                          flex : 3,
                           child: ElevatedButton(
                             onPressed: () {
                               Navigator.pushNamed(
@@ -1531,25 +1529,28 @@ class _HomeViewState extends State<HomeView> {
                               );
                             },
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.primary,
-                              foregroundColor: Colors.white,
+                              backgroundColor: AppColors.goldYellow,
+                              foregroundColor: AppColors.deepBurgundy,
                               elevation: 0,
-                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 20),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(8),
                               ),
                             ),
                             child: Text(
-                              primarySuggestion?.actionLabel ?? 'Review',
+                              primarySuggestion?.actionLabel ?? 'Execute',
                               style: GoogleFonts.manrope(
                                 fontWeight: FontWeight.bold,
-                                fontSize: 16,
+                                fontSize: 11  ,
+
+
                               ),
                             ),
                           ),
                         ),
                         SizedBox(width: 16.w),
                         Expanded(
+                          flex : 1,
                           child: TextButton(
                             onPressed: () {},
                             style: TextButton.styleFrom(
@@ -1557,14 +1558,15 @@ class _HomeViewState extends State<HomeView> {
                                 alpha: 0.1,
                               ),
                               foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              padding: const EdgeInsets.symmetric(vertical: 8),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(8),
                               ),
                             ),
                             child: Text(
                               'Dismiss',
-                              style: GoogleFonts.manrope(fontSize: 16),
+                              style: GoogleFonts.manrope(fontSize: 11, fontWeight: FontWeight.bold),
+
                             ),
                           ),
                         ),
@@ -1660,7 +1662,7 @@ class _HomeViewState extends State<HomeView> {
                         ),
                       ],
                     ),
-                    SizedBox(height: 32.h),
+                    SizedBox(height: 15.h),
                     SizedBox(
                       width: double.infinity,
                       child: OutlinedButton(
@@ -1683,8 +1685,8 @@ class _HomeViewState extends State<HomeView> {
                           _showAgencyReport(dashboard);
                         },
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.black,
-                          side: BorderSide(color: Colors.grey.shade300),
+                          foregroundColor: AppColors.primary,
+                          side: BorderSide(color: AppColors.primary,),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
@@ -1694,7 +1696,8 @@ class _HomeViewState extends State<HomeView> {
                           'View full report',
                           style: GoogleFonts.manrope(
                             fontWeight: FontWeight.bold,
-                            fontSize: 18,
+                            fontSize: 14,
+                            color: AppColors.primary
                           ),
                         ),
                       ),
@@ -1839,20 +1842,24 @@ class _HomeViewState extends State<HomeView> {
                       alignment: Alignment.center,
                       children: [
                         SizedBox(
-                          width: 34,
-                          height: 34,
+                          width: 40,
+                          height: 40,
                           child: CircularProgressIndicator(
                             value: 0.94,
-                            strokeWidth: 5,
+                            strokeWidth: 4,
                             backgroundColor: Colors.grey[100],
                             color: _primaryColor,
                           ),
                         ),
-                        Text(
-                          '94%',
-                          style: GoogleFonts.manrope(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w800,
+                        Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: Text(
+                            '94%',
+                            style: GoogleFonts.manrope(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                              color:  AppColors.whatsappGreen
+                            ),
                           ),
                         ),
                       ],
@@ -1887,13 +1894,13 @@ class _HomeViewState extends State<HomeView> {
                     InkWell(
                       onTap: () =>
                           Navigator.of(context).pushNamed(AppRoutes.adminSettings),
-                      borderRadius: BorderRadius.circular(16.r),
+                      // borderRadius: BorderRadius.circular(16.r),
                       child: SizedBox(
                         height: 32.h,
                         width: 32.h,
                         child: Image.asset(
                           'assets/settings_icon.png',
-                          color: AppColors.primary,
+                          color: AppColors.black,
                         ),
                       ),
                     ),
@@ -2632,47 +2639,60 @@ class _HomeViewState extends State<HomeView> {
   }
 
   Widget _buildActivityRow(
-    Widget iconWidget,
-    String title,
-    String subtitle, {
-    Color? backgroundColor,
-  }) {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: backgroundColor,
-            shape: BoxShape.circle,
-          ),
-          child: iconWidget,
-        ),
-        SizedBox(width: 16.w),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: GoogleFonts.manrope(
-                  color: const Color(0xFF181C1F),
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  height: 1.18,
-                ),
+      Widget iconWidget,
+      String title,
+      String subtitle, {
+        Color? backgroundColor,
+        VoidCallback? onTap,
+      }) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(12.r),
+      onTap: onTap,
+      child: Padding(
+        padding: EdgeInsets.symmetric(vertical: 8.h),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Container(
+              width: 32.w,
+              height: 32.h,
+              decoration: BoxDecoration(
+                color: backgroundColor ?? const Color(0xFFF5F5F5),
+                shape: BoxShape.circle,
               ),
-              Text(
-                subtitle,
-                style: GoogleFonts.manrope(
-                  color: Colors.grey[500],
-                  fontSize: 14,
-                ),
+              child: Center(child: iconWidget),
+            ),
+            SizedBox(width: 14.w),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: GoogleFonts.manrope(
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  SizedBox(height: 4.h),
+                  Text(
+                    subtitle,
+                    style: GoogleFonts.manrope(
+                      fontSize: 12.sp,
+                      color: const Color(0xFF6B7280),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+            Icon(
+              Icons.chevron_right,
+              color: AppColors.darkGray
+            ),
+          ],
         ),
-        Icon(Icons.chevron_right, size: 18, color: Colors.grey[400]),
-      ],
+      ),
     );
   }
 
@@ -2794,7 +2814,7 @@ class _HomeViewState extends State<HomeView> {
                 ],
               ),
               Padding(
-                padding: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.only(bottom: 20, left: 12, right: 12),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.baseline,
                   textBaseline: TextBaseline.alphabetic,
@@ -3099,7 +3119,7 @@ class _HomeViewState extends State<HomeView> {
                           fit: BoxFit.cover,
                           errorBuilder: (context, error, stackTrace) {
                             return Container(
-                              color: const Color(0xFFF3F4F5),
+                              color: Colors.white,
                               alignment: Alignment.center,
                               child: Text(
                                 item.name.isNotEmpty
@@ -3203,11 +3223,12 @@ class _HomeViewState extends State<HomeView> {
                     ),
                   ),
 
-                  SizedBox(height: 6.h),
+                  // SizedBox(height: 4.h),
 
                   Row(
                     children: [
                       Expanded(
+
                         child: _buildMiniStat(
                           '${item.leadsHandled}',
                           'Leads',
@@ -3589,4 +3610,37 @@ class _HomeViewState extends State<HomeView> {
       ),
     );
   }
+
+  Widget _activityChip(String title, String category) {
+    final bool isSelected = selectedCategory == category;
+
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          selectedCategory = category;
+        });
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? AppColors.primary
+              : AppColors.white,
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: Text(
+          title,
+          style: GoogleFonts.manrope(
+            color: isSelected ? Colors.white : Colors.black87,
+            fontWeight: FontWeight.w700,
+            fontSize: 12.sp,
+          ),
+        ),
+      ),
+    );
+  }
 }
+
+
+

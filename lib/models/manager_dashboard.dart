@@ -466,26 +466,39 @@ class ManagerAiTaskItem {
 
 class ManagerRecentActivityItem {
   final String id;
+  final String category;
   final String title;
   final String description;
   final String action;
   final String icon;
 
+  final String actorName;
+  final String actorRole;
+
   ManagerRecentActivityItem({
     required this.id,
+    required this.category,
     required this.title,
     required this.description,
     required this.action,
     required this.icon,
+    required this.actorName,
+    required this.actorRole,
   });
 
   factory ManagerRecentActivityItem.fromJson(Map<String, dynamic> json) {
     return ManagerRecentActivityItem(
       id: ManagerDashboard.readText(json['id']),
-      title: ManagerDashboard.readText(json['title'], fallback: 'Activity'),
+      category: ManagerDashboard.readText(json['category']),
+      title: ManagerDashboard.readText(
+        json['title'],
+        fallback: 'Activity',
+      ),
       description: ManagerDashboard.readText(json['description']),
       action: ManagerDashboard.readText(json['action']),
       icon: ManagerDashboard.readText(json['icon']),
+      actorName: ManagerDashboard.readText(json['actorName']),
+      actorRole: ManagerDashboard.readText(json['actorRole']),
     );
   }
 }

@@ -112,4 +112,8 @@ class AppColors {
   static const Color darkGreen = Color(0xFF006E28);
   static const Color darkGray = Color(0xFF454748) ;
   static const Color reddishBrown = Color(0xFF584141) ;
+  static const Color goldYellow = Color(0xFFFED65B);
+  static const Color deepBurgundy = Color(0xFF780037);
+  static const Color slateGray = Color(0xFF475569);
+  static const Color deepBurgundy10 = Color(0x1A780037);
 }

@@ -202,14 +202,14 @@ Email: ${employee.email}
         backgroundColor: AppColors.appBarBg,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: AppColors.primary),
+          icon: Icon(Icons.arrow_back, color: AppColors.deepBurgundy),
           onPressed: () => context.read<DashboardProvider>().selectTab(0),
         ),
         title: Text(
           'Employee Profile',
           style: GoogleFonts.manrope(
             color: AppColors.hrText,
-            fontSize: 19.sp,
+            fontSize: 18.sp,
             fontWeight: FontWeight.w700,
             height: 1.4.h,
             letterSpacing: 0,
@@ -271,7 +271,7 @@ Email: ${employee.email}
       boxShadow: useRoseCard
           ? const [
               BoxShadow(
-                color: AppColors.rmCardShadow,
+                color: AppColors.hrBackground,
                 blurRadius: 14,
                 offset: Offset(0, 6),
               ),
@@ -304,8 +304,8 @@ Email: ${employee.email}
       title,
       style: GoogleFonts.manrope(
         color: AppColors.rmHeading,
-        fontSize: 18.sp,
-        fontWeight: FontWeight.w800,
+        fontSize: 16.sp,
+        fontWeight: FontWeight.w700,
         height: 1.3,
       ),
     );
@@ -349,8 +349,8 @@ Email: ${employee.email}
                       textAlign: TextAlign.center,
                       style: GoogleFonts.manrope(
                         color: statusColor,
-                        fontSize: 11.sp,
-                        fontWeight: FontWeight.w800,
+                        fontSize: 10.sp,
+                        fontWeight: FontWeight.w700,
                         height: 1.4,
                         letterSpacing: 0.5,
                       ),
@@ -358,24 +358,38 @@ Email: ${employee.email}
                   ],
                 ),
               ),
-              Icon(Icons.more_vert, color: AppColors.rmHintText, size: 20.sp),
+              Icon(Icons.more_vert, color: AppColors.slateGray, size: 20.sp),
             ],
           ),
           SizedBox(height: 16.h),
           Stack(
             children: [
               Container(
-                padding: EdgeInsets.all(4.r),
+                padding: EdgeInsets.all(4.r), // Gap between gradient border and image
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  border: Border.all(color: AppColors.primary, width: 2.w),
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Color(0xFF780037), // Deep Burgundy
+                      Color(0xFFFED65B), // Gold
+                    ],
+                    stops: [0.4087, 1.0], // 40.87%, 100%
+                  ),
                 ),
-                child: CircleAvatar(
-                  radius: 45.r,
-                  backgroundImage: employee != null && employee.image.isNotEmpty
-                      ? NetworkImage(employee.image)
-                      : const AssetImage('assets/app.logo.png')
-                            as ImageProvider,
+                child: Container(
+                  padding: EdgeInsets.all(4.r), // Controls border thickness
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.white,
+                  ),
+                  child: CircleAvatar(
+                    radius: 45.r,
+                    backgroundImage: employee != null && employee.image.isNotEmpty
+                        ? NetworkImage(employee.image)
+                        : const AssetImage('assets/app.logo.png') as ImageProvider,
+                  ),
                 ),
               ),
               Positioned(
@@ -411,7 +425,7 @@ Email: ${employee.email}
             textAlign: TextAlign.center,
             style: GoogleFonts.manrope(
               color: AppColors.rmBodyText,
-              fontSize: 18.sp,
+              fontSize: 14.sp,
               fontWeight: FontWeight.w500,
               height: 1.4,
             ),
@@ -433,13 +447,13 @@ Email: ${employee.email}
             children: [
               _buildContactButton(
                 'assets/call_icon.png',
-                AppColors.primary,
+                const Color(0x1A780037),
                 onTap: () => _callEmployee(employee, user),
               ),
               SizedBox(width: 16.w),
               _buildContactButton(
                 'assets/chat_icon.png',
-                AppColors.primary,
+                const Color(0x1A780037),
                 onTap: () => _shareProfile(employee),
               ),
             ],
@@ -464,69 +478,64 @@ Email: ${employee.email}
         decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         child: Image.asset(
           imagePath,
-          width: 24.w,
-          height: 24.h,
-          color: AppColors.white,
+          width: 18.w,
+          height: 18.h,
+          color: AppColors.deepBurgundy,
         ),
       ),
     );
   }
 
   Widget _buildStatsGrid(HrEmployeeItem? employee) {
-    return _buildSectionCard(
-      useRoseCard: true,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildSectionTitle('Performance'),
-          SizedBox(height: 16.h),
-          IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Expanded(
-                  child: _buildStatCard(
-                    'Total Leads',
-                    '${employee?.assignedLeads ?? 0}',
-                    trend: employee?.isActive == true ? 'Active' : null,
-                  ),
+    return Column(
+      children: [
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: _buildStatCard(
+                  'Total Leads',
+                  '${employee?.assignedLeads ?? 0}',
+                  trend: employee?.isActive == true ? 'Active' : null,
                 ),
-                SizedBox(width: 12.w),
-                Expanded(
-                  child: _buildStatCard(
-                    'Profiles',
-                    '${employee?.dataEntryProfiles ?? 0}',
-                    hasChart: true,
-                  ),
+              ),
+              SizedBox(width: 12.w),
+              Expanded(
+                child: _buildStatCard(
+                  'Profiles',
+                  '${employee?.dataEntryProfiles ?? 0}',
+                  hasChart: false,
+                  iconAsset: "assets/margin.png"
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-          SizedBox(height: 12.h),
-          IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Expanded(
-                  child: _buildStatCard(
-                    'Tasks',
-                    '${employee?.assignedTasks ?? 0}',
-                    iconAsset: 'assets/call_icon.png',
-                  ),
+        ),
+        SizedBox(height: 12.h),
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: _buildStatCard(
+                  'Tasks',
+                  '${employee?.assignedTasks ?? 0}',
+                  iconAsset: 'assets/call_icon.png',
                 ),
-                SizedBox(width: 12.w),
-                Expanded(
-                  child: _buildStatCard(
-                    'Closed Leads',
-                    '${employee?.closedLeads ?? 0}',
-                    iconAsset: 'assets/medal_icon.png',
-                  ),
+              ),
+              SizedBox(width: 12.w),
+              Expanded(
+                child: _buildStatCard(
+                  'Closed Leads',
+                  '${employee?.closedLeads ?? 0}',
+                  iconAsset: 'assets/medal_icon.png',
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -570,9 +579,29 @@ Email: ${employee.email}
           _Bar(height: 20.h, isPrimary: true),
         ],
       );
-    } else if (iconAsset != null) {
-      trailing = Image.asset(iconAsset, width: 24.w, height: 24.h);
-    } else if (icon != null) {
+     } else if (iconAsset != null) {
+  double width = 24.w;
+  double height = 24.h;
+  EdgeInsets padding = EdgeInsets.zero;
+
+  if (iconAsset == 'assets/margin.png') {
+  width = 48.w;
+  height = 20.h;
+  padding = EdgeInsets.only(bottom: 4.h);
+  }
+
+  trailing = Padding(
+  padding: padding,
+  child: Image.asset(
+  iconAsset,
+  width: width,
+  height: height,
+  fit: BoxFit.contain,
+  ),
+  );
+  }
+
+    else if (icon != null) {
       trailing = Icon(icon, color: AppColors.primary, size: 20.sp);
     } else if (badge != null) {
       trailing = Icon(badge, color: AppColors.accent, size: 20.sp);
@@ -583,9 +612,9 @@ Email: ${employee.email}
       constraints: BoxConstraints(minHeight: 88.h),
       padding: EdgeInsets.all(14.r),
       decoration: BoxDecoration(
-        color: AppColors.lightGreyBg,
+        color: AppColors.white,
         borderRadius: BorderRadius.circular(14.r),
-        border: Border.all(color: const Color(0xFFF6E5DB)),
+        // border: Border.all(color: const Color(0xFFF6E5DB)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -595,7 +624,7 @@ Email: ${employee.email}
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: GoogleFonts.manrope(
-              color: AppColors.rmMutedText,
+              color: Color(0xFF424754),
               fontSize: 12.sp,
               fontWeight: FontWeight.w600,
               height: 1.3,
@@ -612,8 +641,9 @@ Email: ${employee.email}
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.manrope(
-                    color: _profileNumberColor,
-                    fontSize: 20.sp,
+
+                    color: AppColors.black,
+                    fontSize: 24.sp,
                     fontWeight: FontWeight.w800,
                     height: 1.2,
                   ),
@@ -637,7 +667,7 @@ Email: ${employee.email}
     final department = _displayDepartment(employee, user);
 
     return _buildSectionCard(
-      color: AppColors.primary,
+      color: AppColors.deepBurgundy,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -677,7 +707,7 @@ Email: ${employee.email}
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.manrope(
                     color: AppColors.white,
-                    fontSize: 13.sp,
+                    fontSize: 10.sp,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -739,16 +769,16 @@ Email: ${employee.email}
             height: 36.r,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: AppColors.contactButtonBg,
+              color: AppColors.white,
               borderRadius: BorderRadius.circular(10.r),
             ),
             child: leading is IconData
-                ? Icon(leading, color: AppColors.primary, size: 18.sp)
+                ? Icon(leading, color: AppColors.black, size: 18.sp)
                 : Image.asset(
                     leading.toString(),
                     width: 18.w,
                     height: 18.h,
-                    color: AppColors.primary,
+                    color: AppColors.black,
                   ),
           ),
           SizedBox(width: 12.w),
@@ -813,15 +843,15 @@ Email: ${employee.email}
             'Payroll ${payrollConfigured ? 'configured' : 'not configured'}',
             isLast: true,
           ),
-          SizedBox(height: 8.h),
+          SizedBox(height: 20.h),
           Center(
             child: TextButton(
               onPressed: () => _openAllActivity(employee, user),
               child: Text(
                 'VIEW ALL ACTIVITY',
                 style: GoogleFonts.manrope(
-                  color: AppColors.primary,
-                  fontSize: 14.sp,
+                  color: AppColors.deepBurgundy,
+                  fontSize: 10.sp,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 0.5,
                 ),
@@ -902,11 +932,10 @@ Email: ${employee.email}
     );
   }
 
+
+
   Widget _buildActionSection(BuildContext context) {
-    return _buildSectionCard(
-      useRoseCard: true,
-      child: _buildActionButtons(context),
-    );
+    return _buildActionButtons(context);
   }
 
   Widget _buildActionButtons(BuildContext context) {
@@ -920,8 +949,12 @@ Email: ${employee.email}
                 Navigator.of(context).pushNamed(AppRoutes.employeeManagement);
               },
               style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.primary,
-                side: BorderSide(color: AppColors.primary),
+                foregroundColor: AppColors.deepBurgundy,
+                side: BorderSide(
+                  color: AppColors.deepBurgundy,
+                  width: 1.5,
+                ),
+                backgroundColor: Colors.white,
                 padding: EdgeInsets.zero,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14.r),
@@ -947,13 +980,16 @@ Email: ${employee.email}
                 context.read<AppFlowProvider>().logout();
                 final authProvider = context.read<AuthProvider>();
                 authProvider.logout();
-                Navigator.of(
-                  context,
-                ).pushNamedAndRemoveUntil(AppRoutes.login, (route) => false);
+
+                Navigator.of(context).pushNamedAndRemoveUntil(
+                  AppRoutes.login,
+                      (route) => false,
+                );
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: AppColors.white,
+                backgroundColor: AppColors.deepBurgundy,
+                foregroundColor: Colors.white,
+                elevation: 0,
                 padding: EdgeInsets.zero,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14.r),

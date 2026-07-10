@@ -357,7 +357,7 @@ class _RmDashboardDrawer extends StatelessWidget {
                       ),
                     ],
                   ),
-                  SizedBox(height: 16.h),
+                  SizedBox(height: 14.h),
                   Row(
                     children: [
                       Expanded(
