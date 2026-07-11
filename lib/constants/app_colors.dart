@@ -116,4 +116,6 @@ class AppColors {
   static const Color deepBurgundy = Color(0xFF780037);
   static const Color slateGray = Color(0xFF475569);
   static const Color deepBurgundy10 = Color(0x1A780037);
+  static const Color maroonPrimary = Color(0xFF5B0B2D);
+  static const Color titleColor = Color(0xFF1E1F1F);
 }

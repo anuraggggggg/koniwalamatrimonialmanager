@@ -35,7 +35,7 @@ class RegistryScreen extends StatelessWidget {
         );
       },
       backgroundColor: AppColors.rmPrimary,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
+      shape: const CircleBorder(),
       child: const Icon(Icons.filter_list, color: AppColors.white),
     );
 
@@ -65,7 +65,7 @@ class RegistryScreen extends StatelessWidget {
                 ],
               )
             : Scaffold(
-                backgroundColor: AppColors.rmSoftPink,
+                backgroundColor: AppColors.white,
                 appBar: RegistryAppBar(onMenuPressed: onMenuPressed),
                 body: widgetBody,
                 floatingActionButton: fab,
@@ -140,7 +140,7 @@ class _RegistryProfilesMessage extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.circular(16.r),
-        border: Border.all(color: AppColors.rmPaleRoseBorder),
+        border: Border.all(color: AppColors.black),
         boxShadow: const [
           BoxShadow(
             color: AppColors.rmCardShadow,
@@ -391,23 +391,27 @@ class RegistryAppBar extends StatelessWidget implements PreferredSizeWidget {
     return AppBar(
       backgroundColor: AppColors.white,
       elevation: 0,
+      leading: IconButton(
+        icon: Icon(Icons.menu, color: AppColors.primary),
+        onPressed: onMenuPressed,
+      ),
       title: Text(
-        'Profiles',
-        style: GoogleFonts.poppins(
-          color: AppColors.rmPrimary,
-          fontSize: 20.sp,
-          fontWeight: FontWeight.w700,
+        'Profile',
+        style: GoogleFonts.manrope(
+          color: AppColors.black,
+          fontSize: 16.sp,
+          fontWeight: FontWeight.w600,
         ),
       ),
       centerTitle: true,
       actions: [
-        Padding(
-          padding: EdgeInsets.only(right: 16.w),
-          child: CircleAvatar(
-            radius: 18.r,
-            backgroundImage: const AssetImage('assets/wedding_hero 1.png'),
-          ),
-        ),
+        // Padding(
+        //   padding: EdgeInsets.only(right: 16.w),
+        //   child: CircleAvatar(
+        //     radius: 15.r,
+        //     backgroundImage: const AssetImage('assets/wedding_hero 1.png'),
+        //   ),
+        // ),
       ],
     );
   }
@@ -415,6 +419,8 @@ class RegistryAppBar extends StatelessWidget implements PreferredSizeWidget {
   @override
   Size get preferredSize => const Size.fromHeight(kToolbarHeight);
 }
+
+
 
 class RegistryBody extends StatefulWidget {
   const RegistryBody({super.key});
@@ -505,8 +511,8 @@ class _RegistryBodyState extends State<RegistryBody> {
           Text(
             'All Profiles',
             style: GoogleFonts.poppins(
-              color: AppColors.rmPrimary,
-              fontSize: 24.sp,
+              color: AppColors.titleColor,
+              fontSize: 27.sp,
               fontWeight: FontWeight.w800,
             ),
           ),
@@ -552,7 +558,7 @@ class _RegistryBodyState extends State<RegistryBody> {
             padding: EdgeInsets.symmetric(horizontal: 16.w),
             decoration: BoxDecoration(
               color: AppColors.white,
-              borderRadius: BorderRadius.circular(24.r),
+              borderRadius: BorderRadius.circular(12.r),
               border: Border.all(color: AppColors.inactiveNavItemColor),
             ),
             child: Row(
@@ -590,31 +596,30 @@ class _RegistryBodyState extends State<RegistryBody> {
                 child: Text(
                   listTitle,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.poppins(
+                  style: GoogleFonts.manrope(
                     color: AppColors.rmPrimary,
-                    fontSize: 18.sp,
-                    fontWeight: FontWeight.w800,
+                    fontSize: 20.sp,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
-              SizedBox(width: 8.w),
               Flexible(
                 flex: 2,
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    IconButton(
-                      icon: Icon(Icons.bookmark, color: AppColors.rmPrimary),
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'Select a profile card to open its shortlist.',
-                            ),
-                          ),
-                        );
-                      },
-                    ),
+                    // IconButton(
+                    //   icon: Icon(Icons.bookmark, color: AppColors.rmPrimary),
+                    //   onPressed: () {
+                    //     ScaffoldMessenger.of(context).showSnackBar(
+                    //       const SnackBar(
+                    //         content: Text(
+                    //           'Select a profile card to open its shortlist.',
+                    //         ),
+                    //       ),
+                    //     );
+                    //   },
+                    // ),
                     SizedBox(width: 4.w),
                     Flexible(
                       child: Text(
@@ -632,7 +637,7 @@ class _RegistryBodyState extends State<RegistryBody> {
                     Container(
                       padding: EdgeInsets.all(6.r),
                       decoration: BoxDecoration(
-                        color: AppColors.contactButtonBg,
+                        color: const Color(0xFFFFF2EB),
                         borderRadius: BorderRadius.circular(4.r),
                       ),
                       child: Row(
@@ -647,8 +652,9 @@ class _RegistryBodyState extends State<RegistryBody> {
                           Icon(
                             Icons.list,
                             size: 16.sp,
-                            color: AppColors.rmPrimary,
+                            color: AppColors.black,
                           ),
+
                         ],
                       ),
                     ),
@@ -657,7 +663,7 @@ class _RegistryBodyState extends State<RegistryBody> {
               ),
             ],
           ),
-          SizedBox(height: 12.h),
+          SizedBox(height: 32.h),
           // Profile List
           _RegistryProfilesContent(
             isLoading: profilesProvider.isLoading,
@@ -741,8 +747,8 @@ class _RegistryBodyState extends State<RegistryBody> {
                         overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.poppins(
                           color: AppColors.rmPrimary,
-                          fontSize: 18.sp,
-                          fontWeight: FontWeight.w800,
+                          fontSize: 24.sp,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                     ),
@@ -752,8 +758,8 @@ class _RegistryBodyState extends State<RegistryBody> {
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.poppins(
                         color: AppColors.rmBodyText,
-                        fontSize: 11.sp,
-                        fontWeight: FontWeight.w700,
+                        fontSize: 12.sp,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ],
@@ -764,8 +770,8 @@ class _RegistryBodyState extends State<RegistryBody> {
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.poppins(
                     color: AppColors.rmPrimary,
-                    fontSize: 13.sp,
-                    fontWeight: FontWeight.w600,
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
                 SizedBox(height: 8.h),
@@ -776,7 +782,7 @@ class _RegistryBodyState extends State<RegistryBody> {
                   style: GoogleFonts.poppins(
                     color: AppColors.rmPrimary,
                     fontSize: 12.sp,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
                 Text(
@@ -791,7 +797,7 @@ class _RegistryBodyState extends State<RegistryBody> {
                 ),
                 SizedBox(height: 8.h),
                 Text(
-                  'Actress - ${profile.community} - Non-Manglik',
+                  '${profile.community} - ${profile.manglikLabel}',
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.poppins(
                     color: AppColors.rmPrimary,

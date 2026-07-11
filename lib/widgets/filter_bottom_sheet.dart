@@ -15,14 +15,14 @@ class FilterBottomSheet extends StatefulWidget {
 }
 
 class _FilterBottomSheetState extends State<FilterBottomSheet> {
-  String _selectedCategory = 'Direct';
-  RangeValues _ageRange = const RangeValues(25, 30);
-  String _selectedCommunity = 'Agrawal';
-  final List<String> _selectedLocations = ['Mumbai'];
+  String _selectedCategory = 'All';
+  RangeValues _ageRange = const RangeValues(25, 35);
+  String _selectedCommunity = 'Any Community';
+  final List<String> _selectedLocations = ['Mumbai', 'London'];
   int _selectedSkinToneIndex = 0;
-  String _selectedGotra = 'Mittal';
-  String _selectedProfession = 'Engineer';
-  String _selectedStatus = 'Active';
+  String _selectedGotra = 'All Gotras';
+  String _selectedProfession = 'All Professions';
+  String _selectedStatus = 'All Status';
   bool _isApplying = false;
 
   final Color _primaryColor = AppColors.primary;
@@ -30,12 +30,14 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final bottomSystemInset = MediaQuery.of(context).padding.bottom;
+
     return Container(
       padding: EdgeInsets.only(
         top: 8.h,
         left: 20.w,
         right: 20.w,
-        bottom: 24.h,
+        bottom: 24.h + bottomSystemInset,
       ),
       decoration: BoxDecoration(
         color: _backgroundColor,
@@ -72,16 +74,16 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
               TextButton(
                 onPressed: () {
                   setState(() {
-                    _selectedCategory = 'Direct';
-                    _ageRange = const RangeValues(25, 30);
-                    _selectedCommunity = 'Agrawal';
+                    _selectedCategory = 'All';
+                    _ageRange = const RangeValues(25, 35);
+                    _selectedCommunity = 'Any Community';
                     _selectedLocations
                       ..clear()
-                      ..add('Mumbai');
+                      ..addAll(['Mumbai', 'London']);
                     _selectedSkinToneIndex = 0;
-                    _selectedGotra = 'Mittal';
-                    _selectedProfession = 'Engineer';
-                    _selectedStatus = 'Active';
+                    _selectedGotra = 'All Gotras';
+                    _selectedProfession = 'All Professions';
+                    _selectedStatus = 'All Status';
                   });
                 },
                 child: Text(
@@ -98,21 +100,21 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
           const Divider(),
           SizedBox(height: 16.h),
 
-          Expanded(
+          Flexible(
             child: SingleChildScrollView(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Category
+                  // Category
                   _buildSectionTitle('CATEGORY'),
                   SizedBox(height: 12.h),
-                  Wrap(
-                    spacing: 12.w,
-                    runSpacing: 12.h,
+                  Row(
                     children: [
                       _buildCategoryChip('All'),
-                      _buildCategoryChip('Direct'),
+                      SizedBox(width: 8.w),
                       _buildCategoryChip('Premium'),
+                      SizedBox(width: 8.w),
                       _buildEliteChip(),
                     ],
                   ),
@@ -222,23 +224,23 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                     children: _selectedLocations
                         .map(
                           (loc) => Chip(
-                            label: Text(
-                              loc,
-                              style: TextStyle(fontSize: 12.sp),
-                            ),
-                            deleteIcon: Icon(Icons.close, size: 14.sp),
-                            onDeleted: () {
-                              setState(() {
-                                _selectedLocations.remove(loc);
-                              });
-                            },
-                            backgroundColor: const Color(0xFFFDECF3),
-                            side: BorderSide.none,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8.r),
-                            ),
-                          ),
-                        )
+                        label: Text(
+                          loc,
+                          style: TextStyle(fontSize: 12.sp),
+                        ),
+                        deleteIcon: Icon(Icons.close, size: 14.sp),
+                        onDeleted: () {
+                          setState(() {
+                            _selectedLocations.remove(loc);
+                          });
+                        },
+                        backgroundColor: const Color(0xFFFDECF3),
+                        side: BorderSide.none,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8.r),
+                        ),
+                      ),
+                    )
                         .toList(),
                   ),
                   SizedBox(height: 24.h),
@@ -336,7 +338,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                 final filters = {
                   if (category != null) 'category': category,
                   'ageRange':
-                      '${_ageRange.start.round()}-${_ageRange.end.round()}',
+                  '${_ageRange.start.round()}-${_ageRange.end.round()}',
                   if (community != null) 'community': community,
                   if (_selectedLocations.isNotEmpty)
                     'currentResidential': _selectedLocations.join(','),
@@ -424,16 +426,20 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
   }
 
   Widget _buildCategoryChip(String label) {
-    bool isSelected = _selectedCategory == label;
+    final bool isSelected = _selectedCategory == label;
+
     return GestureDetector(
       onTap: () => setState(() => _selectedCategory = label),
       child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 8.h),
+        height: 40.h,
+        padding: EdgeInsets.symmetric(horizontal: 16.w),
+        alignment: Alignment.center,
         decoration: BoxDecoration(
           color: isSelected ? _primaryColor : Colors.white,
-          borderRadius: BorderRadius.circular(8.r),
+          borderRadius: BorderRadius.circular(12.r),
           border: Border.all(
             color: isSelected ? _primaryColor : const Color(0xFFCAC4D0),
+            width: 1,
           ),
         ),
         child: Text(
@@ -453,7 +459,8 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
     return GestureDetector(
       onTap: () => setState(() => _selectedCategory = 'Elite'),
       child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
+        alignment: Alignment.center,
+        padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
         decoration: BoxDecoration(
           color: isSelected ? _primaryColor : Colors.white,
           borderRadius: BorderRadius.circular(8.r),
@@ -462,9 +469,10 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
           ),
         ),
         child: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              Icons.stars,
+              Icons.add_circle,
               color: isSelected ? Colors.white : const Color(0xFFB8860B),
               size: 16.sp,
             ),
@@ -484,11 +492,11 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
   }
 
   Widget _buildSkinToneItem(
-    int index,
-    Color color,
-    String label, {
-    bool isAny = false,
-  }) {
+      int index,
+      Color color,
+      String label, {
+        bool isAny = false,
+      }) {
     bool isSelected = _selectedSkinToneIndex == index;
     return GestureDetector(
       onTap: () => setState(() => _selectedSkinToneIndex = index),
@@ -507,10 +515,10 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
             ),
             child: isSelected
                 ? Icon(
-                    Icons.check,
-                    size: 22.sp,
-                    color: isAny ? _primaryColor : Colors.white,
-                  )
+              Icons.check,
+              size: 22.sp,
+              color: isAny ? _primaryColor : Colors.white,
+            )
                 : null,
           ),
           SizedBox(height: 6.h),
@@ -528,10 +536,10 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
   }
 
   Widget _buildDropdown(
-    String value,
-    ValueChanged<String?> onChanged,
-    List<String> items,
-  ) {
+      String value,
+      ValueChanged<String?> onChanged,
+      List<String> items,
+      ) {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 16.w),
       decoration: BoxDecoration(

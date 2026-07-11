@@ -83,10 +83,11 @@ class _OwernerDashboardScreenState extends State<OwernerDashboardScreen> {
           }
 
           final showParentAppBar =
-              selectedIndex != 2 &&
-              selectedIndex != 3 &&
-              selectedIndex != 4 &&
-              selectedIndex != 5;
+              selectedIndex != 1 &&
+                  selectedIndex != 2 &&
+                  selectedIndex != 3 &&
+                  selectedIndex != 4 &&
+                  selectedIndex != 5;
 
           return Scaffold(
             key: _scaffoldKey,
@@ -136,7 +137,7 @@ class _OwernerDashboardScreenState extends State<OwernerDashboardScreen> {
         type: BottomNavigationBarType.fixed,
         backgroundColor: Colors.white,
         selectedItemColor: AppColors.primary,
-        unselectedItemColor: Colors.grey,
+        unselectedItemColor: Colors.black,
         selectedFontSize: 12.sp,
         unselectedFontSize: 11.sp,
         selectedLabelStyle: GoogleFonts.manrope(
@@ -145,13 +146,13 @@ class _OwernerDashboardScreenState extends State<OwernerDashboardScreen> {
         ),
         unselectedLabelStyle: GoogleFonts.manrope(
           fontSize: 11.sp,
-          fontWeight: FontWeight.w500,
+          fontWeight: FontWeight.w700,
         ),
         showSelectedLabels: true,
         showUnselectedLabels: true,
         items: [
           BottomNavigationBarItem(
-            icon: _bottomNavImageIcon(Colors.grey),
+            icon: _bottomNavImageIcon(Colors.black),
             activeIcon: _bottomNavImageIcon(AppColors.primary),
             label: 'Dashboard',
           ),
@@ -3286,7 +3287,7 @@ class _HomeViewState extends State<HomeView> {
               children: [
                 Text(
                   value,
-                  style: GoogleFonts.manrope(fontSize: 12, fontWeight: FontWeight.bold),
+                  style: GoogleFonts.manrope(fontSize: 10, fontWeight: FontWeight.bold),
                 ),
                 Text(
                   label,
