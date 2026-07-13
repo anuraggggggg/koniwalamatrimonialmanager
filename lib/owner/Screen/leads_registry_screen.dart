@@ -1,8 +1,6 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:koniwalamatrimonial/constants/api_constants.dart';
 import 'package:koniwalamatrimonial/constants/app_colors.dart';
 import 'package:koniwalamatrimonial/owner/models/lead_registry_item.dart';
 import 'package:koniwalamatrimonial/owner/providers/leads_provider.dart';
@@ -42,10 +40,14 @@ class _LeadsRegistryBody extends StatefulWidget {
 }
 
 class _LeadsRegistryBodyState extends State<_LeadsRegistryBody> {
+  static const List<String> _leadForOptions = ['Groom', 'Bride'];
   int _selectedStage = 0;
   _LeadsView _selectedView = _LeadsView.registry;
   bool _hasRequestedLeads = false;
   String? _requestedAccessToken;
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+  bool _showAllRegistryLeads = false;
 
   List<_StageFilter> _stageFilters(List<LeadRegistryItem> leads) => [
     _StageFilter(label: 'All Registry', count: leads.length),
@@ -89,6 +91,26 @@ class _LeadsRegistryBodyState extends State<_LeadsRegistryBody> {
     return leads.where((lead) => _stageKey(lead.stage) == stage).length;
   }
 
+  bool _matchesSearch(LeadRegistryItem lead, String query) {
+    if (query.trim().isEmpty) {
+      return true;
+    }
+
+    final normalized = query.trim().toLowerCase();
+    final haystack = <String>[
+      lead.name,
+      lead.phone,
+      lead.email,
+      lead.city,
+      lead.assignedTo,
+      lead.source,
+      lead.stage,
+      lead.leadFor,
+    ].join(' ').toLowerCase();
+
+    return haystack.contains(normalized);
+  }
+
   String _stageKey(String stage) {
     return stage.toUpperCase().replaceAll(' ', '_');
   }
@@ -123,20 +145,32 @@ class _LeadsRegistryBodyState extends State<_LeadsRegistryBody> {
   }
 
   @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final leadsProvider = context.watch<LeadsProvider>();
     final authProvider = context.watch<AuthProvider>();
     final leads = leadsProvider.leads;
     final stageFilters = _stageFilters(leads);
-    final visibleLeads = _visibleLeads(leads, stageFilters);
+    final stageScopedLeads = _visibleLeads(leads, stageFilters);
+    final visibleLeads = stageScopedLeads
+        .where((lead) => _matchesSearch(lead, _searchQuery))
+        .toList();
     final canEditLeads = _canEditLeads(authProvider.userModel?.user?.role);
+    final convertedCount = _countLeadsForStage(leads, 'CONVERTED');
+    final registryPreviewLeads = _showAllRegistryLeads
+        ? visibleLeads
+        : visibleLeads.take(3).toList();
 
     return Material(
       color: Colors.transparent,
       child: SafeArea(
         bottom: false,
         child: SingleChildScrollView(
-          padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 16.h),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -144,62 +178,98 @@ class _LeadsRegistryBodyState extends State<_LeadsRegistryBody> {
                 onMenuPressed: widget.onMenuPressed,
                 onNewInquiryCreated: () {
                   context.read<LeadsProvider>().fetchLeads(
-                        authProvider.userModel?.accessToken,
-                        forceRefresh: true,
-                      );
+                    authProvider.userModel?.accessToken,
+                    forceRefresh: true,
+                  );
                 },
               ),
-              SizedBox(height: 12.h),
-              _LeadsViewTabs(
-                selectedView: _selectedView,
-                onSelected: (view) => setState(() => _selectedView = view),
+              Padding(
+                padding: EdgeInsets.fromLTRB(16.w, 18.h, 16.w, 20.h),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _LeadsSearchField(
+                      controller: _searchController,
+                      onChanged: (value) {
+                        setState(() {
+                          _searchQuery = value;
+                          _showAllRegistryLeads = false;
+                        });
+                      },
+                    ),
+                    SizedBox(height: 16.h),
+                    _LeadsViewTabs(
+                      selectedView: _selectedView,
+                      onSelected: (view) =>
+                          setState(() => _selectedView = view),
+                    ),
+                    SizedBox(height: 22.h),
+                    if (_selectedView == _LeadsView.registry) ...[
+                      _FilterHeader(onFilterPressed: () {}),
+                      SizedBox(height: 10.h),
+                      _StageFilterList(
+                        filters: stageFilters,
+                        selectedIndex: _selectedStage,
+                        onSelected: (index) {
+                          setState(() {
+                            _selectedStage = index;
+                            _showAllRegistryLeads = false;
+                          });
+                        },
+                      ),
+                      SizedBox(height: 18.h),
+                      _LeadsContent(
+                        isLoading: leadsProvider.isLoading,
+                        error: leadsProvider.error,
+                        leads: registryPreviewLeads,
+                        totalLeadCount: visibleLeads.length,
+                        isExpanded: _showAllRegistryLeads,
+                        onToggleExpanded: visibleLeads.length > 3
+                            ? () => setState(
+                                () => _showAllRegistryLeads =
+                                    !_showAllRegistryLeads,
+                              )
+                            : null,
+                        onRetry: () => context.read<LeadsProvider>().retry(),
+                        isRemovingLead: leadsProvider.isRemovingLead,
+                        canEditLead: canEditLeads,
+                        onEditLead: (lead) =>
+                            _showEditLeadDialog(context, lead),
+                        onDeleteLead: (lead) => _handleDeleteLead(
+                          context,
+                          lead,
+                          authProvider.userModel?.accessToken,
+                        ),
+                      ),
+                      SizedBox(height: 18.h),
+                      _ArchiveInsightCard(
+                        totalLeads: leads.length,
+                        filteredLeads: visibleLeads.length,
+                      ),
+                      SizedBox(height: 16.h),
+                      _CuratorMilestoneCard(
+                        totalLeads: leads.length,
+                        convertedCount: convertedCount,
+                      ),
+                    ] else if (_selectedView == _LeadsView.pipeline)
+                      _LeadsPipelineContent(
+                        isLoading: leadsProvider.isLoading,
+                        error: leadsProvider.error,
+                        leads: leads,
+                        filters: stageFilters,
+                        onRetry: () => context.read<LeadsProvider>().retry(),
+                      )
+                    else
+                      _LeadsHubContent(
+                        isLoading: leadsProvider.isLoading,
+                        error: leadsProvider.error,
+                        leads: leads,
+                        onRetry: () => context.read<LeadsProvider>().retry(),
+                      ),
+                    SizedBox(height: 20.h),
+                  ],
+                ),
               ),
-              SizedBox(height: 18.h),
-              if (_selectedView == _LeadsView.registry) ...[
-                _FilterHeader(onFilterPressed: () {}),
-                SizedBox(height: 8.h),
-                _StageFilterList(
-                  filters: stageFilters,
-                  selectedIndex: _selectedStage,
-                  onSelected: (index) =>
-                      setState(() => _selectedStage = index),
-                ),
-                SizedBox(height: 14.h),
-                _LeadsContent(
-                  isLoading: leadsProvider.isLoading,
-                  error: leadsProvider.error,
-                  leads: visibleLeads,
-                  onRetry: () => context.read<LeadsProvider>().retry(),
-                  isRemovingLead: leadsProvider.isRemovingLead,
-                  canEditLead: canEditLeads,
-                  onEditLead: (lead) => _showEditLeadDialog(context, lead),
-                  onDeleteLead: (lead) => _handleDeleteLead(
-                    context,
-                    lead,
-                    authProvider.userModel?.accessToken,
-                  ),
-                ),
-                SizedBox(height: 22.h),
-                _LeadsPagination(
-                  visibleCount: visibleLeads.length,
-                  totalCount: leads.length,
-                ),
-              ] else if (_selectedView == _LeadsView.pipeline)
-                _LeadsPipelineContent(
-                  isLoading: leadsProvider.isLoading,
-                  error: leadsProvider.error,
-                  leads: leads,
-                  filters: stageFilters,
-                  onRetry: () => context.read<LeadsProvider>().retry(),
-                )
-              else
-                _LeadsHubContent(
-                  isLoading: leadsProvider.isLoading,
-                  error: leadsProvider.error,
-                  leads: leads,
-                  onRetry: () => context.read<LeadsProvider>().retry(),
-                ),
-              SizedBox(height: 20.h),
             ],
           ),
         ),
@@ -218,9 +288,10 @@ class _LeadsRegistryBodyState extends State<_LeadsRegistryBody> {
     }
 
     debugPrint('Delete confirmed for lead id=${lead.id}');
-    final message = await context
-        .read<LeadsProvider>()
-        .deleteLead(lead, accessToken);
+    final message = await context.read<LeadsProvider>().deleteLead(
+      lead,
+      accessToken,
+    );
 
     if (!context.mounted) {
       return;
@@ -251,16 +322,18 @@ class _LeadsRegistryBodyState extends State<_LeadsRegistryBody> {
     final cityController = TextEditingController(text: lead.city);
     final sourceController = TextEditingController(text: lead.source);
     final leadForController = TextEditingController(text: lead.leadFor);
-    var selectedManagerId = managers.any(
-      (manager) => manager.id == lead.assignedToId,
-    )
+    var selectedLeadFor = _leadForOptions.contains(lead.leadFor)
+        ? lead.leadFor
+        : null;
+    var selectedManagerId =
+        managers.any((manager) => manager.id == lead.assignedToId)
         ? lead.assignedToId
         : null;
     var selectedManagerName = selectedManagerId == null
         ? lead.assignedTo
         : managers
-            .firstWhere((manager) => manager.id == selectedManagerId)
-            .name;
+              .firstWhere((manager) => manager.id == selectedManagerId)
+              .name;
 
     try {
       final result = await showDialog<_EditLeadResult>(
@@ -268,97 +341,207 @@ class _LeadsRegistryBodyState extends State<_LeadsRegistryBody> {
         builder: (dialogContext) {
           return StatefulBuilder(
             builder: (stateContext, setDialogState) {
-              return AlertDialog(
-                title: Text(
-                  'Edit Lead',
-                  style: GoogleFonts.manrope(fontWeight: FontWeight.w800),
-                ),
-                content: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _EditLeadField(label: 'Name', controller: nameController),
-                      SizedBox(height: 10.h),
-                      _EditLeadField(
-                        label: 'Phone',
-                        controller: phoneController,
-                      ),
-                      SizedBox(height: 10.h),
-                      _EditLeadField(
-                        label: 'Email',
-                        controller: emailController,
-                      ),
-                      SizedBox(height: 10.h),
-                      _EditLeadField(
-                        label: 'Stage',
-                        controller: stageController,
-                      ),
-                      SizedBox(height: 10.h),
-                      _EditLeadField(label: 'City', controller: cityController),
-                      SizedBox(height: 10.h),
-                      _RelationshipManagerField(
-                        managers: managers,
-                        selectedManagerId: selectedManagerId,
-                        fallbackLabel: selectedManagerName,
-                        onChanged: (managerId) {
-                          final matches = managers.where(
-                            (manager) => manager.id == managerId,
-                          );
-                          setDialogState(() {
-                            selectedManagerId = managerId;
-                            selectedManagerName = matches.isEmpty
-                                ? selectedManagerName
-                                : matches.first.name;
-                          });
-                        },
-                      ),
-                      SizedBox(height: 10.h),
-                      _EditLeadField(
-                        label: 'Source',
-                        controller: sourceController,
-                      ),
-                      SizedBox(height: 10.h),
-                      _EditLeadField(
-                        label: 'Lead For',
-                        controller: leadForController,
+              return Dialog(
+                insetPadding: EdgeInsets.symmetric(horizontal: 20.w),
+                backgroundColor: AppColors.transparent,
+                child: Container(
+                  padding: EdgeInsets.fromLTRB(18.w, 18.h, 18.w, 18.h),
+                  decoration: BoxDecoration(
+                    color: AppColors.white,
+                    borderRadius: BorderRadius.circular(22.r),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x12000000),
+                        blurRadius: 28,
+                        offset: Offset(0, 12),
                       ),
                     ],
                   ),
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Edit Lead',
+                                    style: GoogleFonts.manrope(
+                                      color: const Color(0xFF1F1C19),
+                                      fontSize: 22.sp,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                  SizedBox(height: 4.h),
+                                  Text(
+                                    'Update the lead details and assignment information.',
+                                    style: GoogleFonts.manrope(
+                                      color: const Color(0xFF6F6661),
+                                      fontSize: 13.sp,
+                                      fontWeight: FontWeight.w500,
+                                      height: 1.45,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            SizedBox(width: 8.w),
+                            InkWell(
+                              onTap: () => Navigator.of(dialogContext).pop(),
+                              borderRadius: BorderRadius.circular(16.r),
+                              child: Container(
+                                width: 34.w,
+                                height: 34.w,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF9F2EE),
+                                  borderRadius: BorderRadius.circular(16.r),
+                                ),
+                                child: Icon(
+                                  Icons.close_rounded,
+                                  size: 18.sp,
+                                  color: const Color(0xFF625B56),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 18.h),
+                        _EditLeadField(
+                          label: 'Name',
+                          controller: nameController,
+                        ),
+                        SizedBox(height: 12.h),
+                        _EditLeadField(
+                          label: 'Phone',
+                          controller: phoneController,
+                          keyboardType: TextInputType.phone,
+                        ),
+                        SizedBox(height: 12.h),
+                        _EditLeadField(
+                          label: 'Email',
+                          controller: emailController,
+                          keyboardType: TextInputType.emailAddress,
+                        ),
+                        SizedBox(height: 12.h),
+                        _EditLeadField(
+                          label: 'Stage',
+                          controller: stageController,
+                        ),
+                        SizedBox(height: 12.h),
+                        _EditLeadField(
+                          label: 'City',
+                          controller: cityController,
+                        ),
+                        SizedBox(height: 12.h),
+                        _RelationshipManagerField(
+                          managers: managers,
+                          selectedManagerId: selectedManagerId,
+                          fallbackLabel: selectedManagerName,
+                          onChanged: (managerId) {
+                            final matches = managers.where(
+                              (manager) => manager.id == managerId,
+                            );
+                            setDialogState(() {
+                              selectedManagerId = managerId;
+                              selectedManagerName = matches.isEmpty
+                                  ? selectedManagerName
+                                  : matches.first.name;
+                            });
+                          },
+                        ),
+                        SizedBox(height: 12.h),
+                        _EditLeadField(
+                          label: 'Source',
+                          controller: sourceController,
+                        ),
+                        SizedBox(height: 12.h),
+                        _EditLeadDropdownField(
+                          label: 'Lead For',
+                          value: selectedLeadFor,
+                          hintText: 'Select profile type',
+                          items: _leadForOptions,
+                          onChanged: (value) {
+                            setDialogState(() {
+                              selectedLeadFor = value;
+                              leadForController.text = value ?? '';
+                            });
+                          },
+                        ),
+                        SizedBox(height: 18.h),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: () =>
+                                    Navigator.of(dialogContext).pop(),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: const Color(0xFF6F5F64),
+                                  side: const BorderSide(
+                                    color: Color(0xFFE5D3C8),
+                                  ),
+                                  minimumSize: Size.fromHeight(46.h),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14.r),
+                                  ),
+                                ),
+                                child: Text(
+                                  'Cancel',
+                                  style: GoogleFonts.manrope(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 14.sp,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            SizedBox(width: 12.w),
+                            Expanded(
+                              child: ElevatedButton(
+                                onPressed: () =>
+                                    Navigator.of(dialogContext).pop(
+                                      _EditLeadResult(
+                                        name: nameController.text,
+                                        phone: phoneController.text,
+                                        email: emailController.text,
+                                        stage: stageController.text,
+                                        city: cityController.text,
+                                        source: sourceController.text,
+                                        leadFor:
+                                            selectedLeadFor ??
+                                            leadForController.text,
+                                        assignedToId:
+                                            selectedManagerId ??
+                                            lead.assignedToId,
+                                        assignedToName: selectedManagerName,
+                                      ),
+                                    ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.primary,
+                                  foregroundColor: AppColors.white,
+                                  elevation: 0,
+                                  minimumSize: Size.fromHeight(46.h),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14.r),
+                                  ),
+                                ),
+                                child: Text(
+                                  'Save',
+                                  style: GoogleFonts.manrope(
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 14.sp,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.of(dialogContext).pop(),
-                    child: Text(
-                      'Cancel',
-                      style: GoogleFonts.manrope(
-                        color: const Color(0xFF6F5F64),
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () => Navigator.of(dialogContext).pop(
-                      _EditLeadResult(
-                        name: nameController.text,
-                        phone: phoneController.text,
-                        email: emailController.text,
-                        stage: stageController.text,
-                        city: cityController.text,
-                        source: sourceController.text,
-                        leadFor: leadForController.text,
-                        assignedToId: selectedManagerId ?? lead.assignedToId,
-                        assignedToName: selectedManagerName,
-                      ),
-                    ),
-                    child: Text(
-                      'Save',
-                      style: GoogleFonts.manrope(
-                        color: AppColors.rmPrimary,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                ],
               );
             },
           );
@@ -369,8 +552,10 @@ class _LeadsRegistryBodyState extends State<_LeadsRegistryBody> {
         return;
       }
 
-      final currentAccessToken =
-          context.read<AuthProvider>().userModel?.accessToken;
+      final currentAccessToken = context
+          .read<AuthProvider>()
+          .userModel
+          ?.accessToken;
       final message = await leadsProvider.updateLead(
         lead: lead,
         accessToken: currentAccessToken,
@@ -401,6 +586,7 @@ class _LeadsRegistryBodyState extends State<_LeadsRegistryBody> {
       stageController.dispose();
       cityController.dispose();
       sourceController.dispose();
+      leadForController.dispose();
     }
   }
 
@@ -429,24 +615,19 @@ class _LeadsRegistryBodyState extends State<_LeadsRegistryBody> {
               ),
               child: Text(
                 'No, Cancel',
-                style: GoogleFonts.manrope(
-                  fontWeight: FontWeight.w700,
-                ),
+                style: GoogleFonts.manrope(fontWeight: FontWeight.w700),
               ),
             ),
             ElevatedButton(
-              onPressed: () => Navigator.of(
-                dialogContext,
-              ).pop(lead.id.isNotEmpty),
+              onPressed: () =>
+                  Navigator.of(dialogContext).pop(lead.id.isNotEmpty),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFD1213E),
                 foregroundColor: Colors.white,
               ),
               child: Text(
                 lead.id.isNotEmpty ? 'Yes, Delete' : 'Close',
-                style: GoogleFonts.manrope(
-                  fontWeight: FontWeight.w800,
-                ),
+                style: GoogleFonts.manrope(fontWeight: FontWeight.w800),
               ),
             ),
           ],
@@ -478,6 +659,9 @@ class _LeadsContent extends StatelessWidget {
     required this.isLoading,
     required this.error,
     required this.leads,
+    required this.totalLeadCount,
+    required this.isExpanded,
+    required this.onToggleExpanded,
     required this.onRetry,
     required this.isRemovingLead,
     required this.canEditLead,
@@ -488,6 +672,9 @@ class _LeadsContent extends StatelessWidget {
   final bool isLoading;
   final String? error;
   final List<LeadRegistryItem> leads;
+  final int totalLeadCount;
+  final bool isExpanded;
+  final VoidCallback? onToggleExpanded;
   final VoidCallback onRetry;
   final bool Function(LeadRegistryItem lead) isRemovingLead;
   final bool canEditLead;
@@ -497,35 +684,147 @@ class _LeadsContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
-      return Padding(
-        padding: EdgeInsets.symmetric(vertical: 28.h),
+      return Container(
+        width: double.infinity,
+        padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 32.h),
+        decoration: BoxDecoration(
+          color: AppColors.white,
+          borderRadius: BorderRadius.circular(18.r),
+          border: Border.all(color: const Color(0xFFF0DFD4)),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x12C67A42),
+              blurRadius: 26,
+              offset: Offset(0, 10),
+            ),
+          ],
+        ),
         child: const Center(child: CircularProgressIndicator()),
       );
     }
 
     if (error != null) {
-      return _LeadsMessage(
-        message: error!,
-        actionLabel: 'Retry',
-        onActionPressed: onRetry,
+      return Container(
+        width: double.infinity,
+        padding: EdgeInsets.all(16.r),
+        decoration: BoxDecoration(
+          color: AppColors.white,
+          borderRadius: BorderRadius.circular(18.r),
+          border: Border.all(color: const Color(0xFFF0DFD4)),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x12C67A42),
+              blurRadius: 26,
+              offset: Offset(0, 10),
+            ),
+          ],
+        ),
+        child: _LeadsMessage(
+          message: error!,
+          actionLabel: 'Retry',
+          onActionPressed: onRetry,
+        ),
       );
     }
 
     if (leads.isEmpty) {
-      return const _LeadsMessage(message: 'No leads found.');
+      return Container(
+        width: double.infinity,
+        padding: EdgeInsets.all(16.r),
+        decoration: BoxDecoration(
+          color: AppColors.white,
+          borderRadius: BorderRadius.circular(18.r),
+          border: Border.all(color: const Color(0xFFF0DFD4)),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x12C67A42),
+              blurRadius: 26,
+              offset: Offset(0, 10),
+            ),
+          ],
+        ),
+        child: const _LeadsMessage(message: 'No leads found.'),
+      );
     }
 
-    return ListView.separated(
-      itemCount: leads.length,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      separatorBuilder: (context, index) => SizedBox(height: 16.h),
-      itemBuilder: (context, index) => _LeadCard(
-        lead: leads[index],
-        isDeleting: isRemovingLead(leads[index]),
-        canEdit: canEditLead,
-        onEdit: () => onEditLead(leads[index]),
-        onDelete: () => onDeleteLead(leads[index]),
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.fromLTRB(12.w, 12.h, 12.w, 12.h),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(18.r),
+        border: Border.all(color: const Color(0xFFF0DFD4)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x12C67A42),
+            blurRadius: 26,
+            offset: Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          ListView.separated(
+            itemCount: leads.length,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            separatorBuilder: (context, index) => SizedBox(height: 12.h),
+            itemBuilder: (context, index) => _LeadCard(
+              lead: leads[index],
+              isDeleting: isRemovingLead(leads[index]),
+              canEdit: canEditLead,
+              onEdit: () => onEditLead(leads[index]),
+              onDelete: () => onDeleteLead(leads[index]),
+            ),
+          ),
+          if (onToggleExpanded != null) ...[
+            SizedBox(height: 14.h),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                onPressed: onToggleExpanded,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  side: const BorderSide(color: AppColors.primary),
+                  minimumSize: Size.fromHeight(48.h),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14.r),
+                  ),
+                ),
+                child: Text(
+                  isExpanded ? 'Show Less' : 'View All Leads ->',
+                  style: GoogleFonts.manrope(
+                    fontSize: 15.sp,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ),
+          ] else if (totalLeadCount > 0) ...[
+            SizedBox(height: 14.h),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                onPressed: null,
+                style: OutlinedButton.styleFrom(
+                  disabledForegroundColor: AppColors.primary,
+                  side: const BorderSide(color: AppColors.primary),
+                  minimumSize: Size.fromHeight(48.h),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14.r),
+                  ),
+                ),
+                child: Text(
+                  'View All Leads ->',
+                  style: GoogleFonts.manrope(
+                    fontSize: 15.sp,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -556,37 +855,83 @@ class _EditLeadResult {
 }
 
 class _EditLeadField extends StatelessWidget {
-  const _EditLeadField({required this.label, required this.controller});
+  const _EditLeadField({
+    required this.label,
+    required this.controller,
+    this.keyboardType,
+  });
 
   final String label;
   final TextEditingController controller;
+  final TextInputType? keyboardType;
 
   @override
   Widget build(BuildContext context) {
     return TextField(
       controller: controller,
+      keyboardType: keyboardType,
       style: GoogleFonts.manrope(
         color: AppColors.rmHeading,
         fontSize: 14.sp,
         fontWeight: FontWeight.w700,
       ),
-      decoration: InputDecoration(
-        labelText: label,
-        labelStyle: GoogleFonts.manrope(
-          color: const Color(0xFF6F5F64),
-          fontSize: 13.sp,
-          fontWeight: FontWeight.w700,
-        ),
-        contentPadding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8.r),
-          borderSide: const BorderSide(color: Color(0xFFEECAD4)),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8.r),
-          borderSide: const BorderSide(color: AppColors.rmPrimary),
-        ),
+      decoration: _editLeadDecoration(label),
+    );
+  }
+}
+
+class _EditLeadDropdownField extends StatelessWidget {
+  const _EditLeadDropdownField({
+    required this.label,
+    required this.value,
+    required this.items,
+    required this.onChanged,
+    this.hintText,
+  });
+
+  final String label;
+  final String? value;
+  final List<String> items;
+  final ValueChanged<String?> onChanged;
+  final String? hintText;
+
+  @override
+  Widget build(BuildContext context) {
+    return DropdownButtonFormField<String>(
+      initialValue: value,
+      isExpanded: true,
+      decoration: _editLeadDecoration(label),
+      icon: Icon(
+        Icons.keyboard_arrow_down_rounded,
+        color: const Color(0xFF6F5F64),
+        size: 22.sp,
       ),
+      hint: hintText == null
+          ? null
+          : Text(
+              hintText!,
+              style: GoogleFonts.manrope(
+                color: const Color(0xFF8C817D),
+                fontSize: 14.sp,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+      items: items
+          .map(
+            (item) => DropdownMenuItem<String>(
+              value: item,
+              child: Text(
+                item,
+                style: GoogleFonts.manrope(
+                  color: AppColors.rmHeading,
+                  fontSize: 14.sp,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          )
+          .toList(),
+      onChanged: onChanged,
     );
   }
 }
@@ -608,7 +953,7 @@ class _RelationshipManagerField extends StatelessWidget {
   Widget build(BuildContext context) {
     if (managers.isEmpty) {
       return InputDecorator(
-        decoration: _decoration('Assigned To'),
+        decoration: _editLeadDecoration('Assigned To'),
         child: Text(
           fallbackLabel.isEmpty ? '-' : fallbackLabel,
           style: GoogleFonts.manrope(
@@ -621,12 +966,22 @@ class _RelationshipManagerField extends StatelessWidget {
     }
 
     return DropdownButtonFormField<String>(
-      value: selectedManagerId,
+      initialValue: selectedManagerId,
       isExpanded: true,
-      decoration: _decoration('Assigned To'),
+      decoration: _editLeadDecoration('Assigned To'),
       hint: Text(
         fallbackLabel.isEmpty ? 'Select relationship manager' : fallbackLabel,
         overflow: TextOverflow.ellipsis,
+        style: GoogleFonts.manrope(
+          color: const Color(0xFF8C817D),
+          fontSize: 14.sp,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+      icon: Icon(
+        Icons.keyboard_arrow_down_rounded,
+        color: const Color(0xFF6F5F64),
+        size: 22.sp,
       ),
       items: managers
           .map(
@@ -647,26 +1002,32 @@ class _RelationshipManagerField extends StatelessWidget {
       onChanged: onChanged,
     );
   }
+}
 
-  static InputDecoration _decoration(String label) {
-    return InputDecoration(
-      labelText: label,
-      labelStyle: GoogleFonts.manrope(
-        color: const Color(0xFF6F5F64),
-        fontSize: 13.sp,
-        fontWeight: FontWeight.w700,
-      ),
-      contentPadding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8.r),
-        borderSide: const BorderSide(color: Color(0xFFEECAD4)),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8.r),
-        borderSide: const BorderSide(color: AppColors.rmPrimary),
-      ),
-    );
-  }
+InputDecoration _editLeadDecoration(String label) {
+  return InputDecoration(
+    labelText: label,
+    labelStyle: GoogleFonts.manrope(
+      color: const Color(0xFF6F5F64),
+      fontSize: 13.sp,
+      fontWeight: FontWeight.w700,
+    ),
+    filled: true,
+    fillColor: const Color(0xFFFFFBF9),
+    contentPadding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 14.h),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14.r),
+      borderSide: const BorderSide(color: Color(0xFFE7D7CF)),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14.r),
+      borderSide: const BorderSide(color: AppColors.rmPrimary),
+    ),
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14.r),
+      borderSide: const BorderSide(color: Color(0xFFE7D7CF)),
+    ),
+  );
 }
 
 class _LeadsMessage extends StatelessWidget {
@@ -739,62 +1100,58 @@ class _LeadsHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (onMenuPressed != null) ...[
-          // IconButton(
-          //   tooltip: 'Menu',
-          //   onPressed: onMenuPressed,
-          //   icon: Icon(Icons.menu, color: AppColors.rmPrimary, size: 26.sp),
-          // ),
-          SizedBox(width: 6.w),
-        ],
-        Expanded(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.start,
+        Container(
+          padding: EdgeInsets.fromLTRB(10.w, 10.h, 10.w, 12.h),
+          decoration: const BoxDecoration(
+            color: AppColors.white,
+            border: Border(bottom: BorderSide(color: Color(0xFFF2DED1))),
+          ),
+          child: Row(
             children: [
-              Text(
-                'Leads Registry',
-                style: GoogleFonts.playfairDisplay(
-                  color: AppColors.deepBurgundy,
-                  fontSize: 24.sp,
-                  fontWeight: FontWeight.w700,
-                  height: 1.2,
-                ),
-              ),
-              SizedBox(height: 6.h),
-              Text(
-                'Curating matrimonial connections with archival precision.',
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.manrope(
-                  color: const Color(0xFF6F5F64),
-                  fontSize: 12.sp,
-                  fontWeight: FontWeight.w500,
-                  height: 1.5,
+              Expanded(
+                child: Text(
+                  'Leads Registration',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.playfairDisplay(
+                    color: const Color(0xFF1F1A17),
+                    fontSize: 22.sp,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             ],
           ),
         ),
-        SizedBox(width: 12.w),
-        // _LeadFollowUpsButton(
-        //   onPressed: () {
-        //     Navigator.of(context).pushNamed(AppRoutes.leadFollowUps);
-        //   },
-        // ),
-        SizedBox(width: 8.w),
-        _NewInquiryButton(
-          onPressed: () async {
-            final created = await Navigator.of(
-              context,
-            ).pushNamed(AppRoutes.newInquiry);
-            if (created == true) {
-              onNewInquiryCreated?.call();
-            }
-          },
+        Padding(
+          padding: EdgeInsets.fromLTRB(16.w, 18.h, 16.w, 0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Curating matrimonial connections with archival precision.',
+                style: GoogleFonts.manrope(
+                  color: const Color(0xFF2A2927),
+                  fontSize: 14.sp,
+                  fontWeight: FontWeight.w500,
+                  height: 1.55,
+                ),
+              ),
+              SizedBox(height: 16.h),
+              _NewInquiryButton(
+                onPressed: () async {
+                  final created = await Navigator.of(
+                    context,
+                  ).pushNamed(AppRoutes.newInquiry);
+                  if (created == true) {
+                    onNewInquiryCreated?.call();
+                  }
+                },
+              ),
+            ],
+          ),
         ),
       ],
     );
@@ -837,37 +1194,24 @@ class _NewInquiryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: AppColors.deepBurgundy,
-      borderRadius: BorderRadius.circular(8.r),
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: BorderRadius.circular(8.r),
-        child: Container(
-          height: 42.h,
-          padding: EdgeInsets.symmetric(horizontal: 16.w),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 20.w,
-                height: 20.w,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: AppColors.white, width: 1.4),
-                ),
-                child: Icon(Icons.add, color: AppColors.white, size: 13.sp),
-              ),
-              SizedBox(width: 8.w),
-              Text(
-                'New Inquiry',
-                style: GoogleFonts.manrope(
-                  color: AppColors.white,
-                  fontSize: 12.sp,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ],
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton(
+        onPressed: onPressed,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.primary,
+          foregroundColor: AppColors.white,
+          elevation: 0,
+          minimumSize: Size.fromHeight(46.h),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12.r),
+          ),
+        ),
+        child: Text(
+          '+ New Inquiry',
+          style: GoogleFonts.manrope(
+            fontSize: 14.sp,
+            fontWeight: FontWeight.w800,
           ),
         ),
       ),
@@ -875,56 +1219,77 @@ class _NewInquiryButton extends StatelessWidget {
   }
 }
 
+class _LeadsSearchField extends StatelessWidget {
+  const _LeadsSearchField({required this.controller, required this.onChanged});
+
+  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 50.h,
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(12.r),
+        border: Border.all(color: const Color(0xFFEEDFD5)),
+      ),
+      child: TextField(
+        controller: controller,
+        onChanged: onChanged,
+        style: GoogleFonts.manrope(
+          color: const Color(0xFF1B1B1B),
+          fontSize: 14.sp,
+          fontWeight: FontWeight.w600,
+        ),
+        decoration: InputDecoration(
+          border: InputBorder.none,
+          prefixIcon: Icon(
+            Icons.search_rounded,
+            color: const Color(0xFF7A7370),
+            size: 23.sp,
+          ),
+          hintText: 'Search by name, phone, email, city, note, or executive',
+          hintStyle: GoogleFonts.manrope(
+            color: const Color(0xFF8B8684),
+            fontSize: 14.sp,
+            fontWeight: FontWeight.w500,
+          ),
+          contentPadding: EdgeInsets.symmetric(vertical: 14.h),
+        ),
+      ),
+    );
+  }
+}
+
 class _LeadsViewTabs extends StatelessWidget {
-  const _LeadsViewTabs({
-    required this.selectedView,
-    required this.onSelected,
-  });
+  const _LeadsViewTabs({required this.selectedView, required this.onSelected});
 
   final _LeadsView selectedView;
   final ValueChanged<_LeadsView> onSelected;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 52.h,
-      padding: EdgeInsets.all(5.r),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(9.r),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x08000000),
-            blurRadius: 16,
-            offset: Offset(0, 8),
-          ),
-        ],
-      ),
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
       child: Row(
         children: [
-          Expanded(
-            child: _LeadsTab(
-              label: 'Registry View',
-              icon: Icons.table_rows_outlined,
-              selected: selectedView == _LeadsView.registry,
-              onTap: () => onSelected(_LeadsView.registry),
-            ),
+          _LeadsTab(
+            label: 'Registry View',
+            selected: selectedView == _LeadsView.registry,
+            onTap: () => onSelected(_LeadsView.registry),
           ),
-          Expanded(
-            child: _LeadsTab(
-              label: 'Pipeline',
-              icon: Icons.view_week_outlined,
-              selected: selectedView == _LeadsView.pipeline,
-              onTap: () => onSelected(_LeadsView.pipeline),
-            ),
+          SizedBox(width: 10.w),
+          _LeadsTab(
+            label: 'Pipeline Board',
+            selected: selectedView == _LeadsView.pipeline,
+            onTap: () => onSelected(_LeadsView.pipeline),
           ),
-          Expanded(
-            child: _LeadsTab(
-              label: 'Hub',
-              icon: Icons.forum_outlined,
-              selected: selectedView == _LeadsView.hub,
-              onTap: () => onSelected(_LeadsView.hub),
-            ),
+          SizedBox(width: 10.w),
+          _LeadsTab(
+            label: 'Communication',
+            selected: selectedView == _LeadsView.hub,
+            onTap: () => onSelected(_LeadsView.hub),
           ),
         ],
       ),
@@ -935,55 +1300,39 @@ class _LeadsViewTabs extends StatelessWidget {
 class _LeadsTab extends StatelessWidget {
   const _LeadsTab({
     required this.label,
-    required this.icon,
     required this.onTap,
     this.selected = false,
   });
 
   final String label;
-  final IconData icon;
   final VoidCallback onTap;
   final bool selected;
 
   @override
   Widget build(BuildContext context) {
-    final foreground = selected
-        ? AppColors.deepBurgundy
-        : AppColors.standardDarkTextColor;
-
     return Material(
       color: AppColors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(7.r),
+        borderRadius: BorderRadius.circular(18.r),
         child: Container(
-          alignment: Alignment.center,
+          height: 34.h,
+          padding: EdgeInsets.symmetric(horizontal: 16.w),
           decoration: BoxDecoration(
-            color: selected ? const Color(0xFFFFF5F8) : AppColors.transparent,
-            borderRadius: BorderRadius.circular(7.r),
+            color: selected ? AppColors.white : AppColors.transparent,
+            borderRadius: BorderRadius.circular(18.r),
             border: selected
-                ? Border.all(color: const Color(0xFFFBE0E9), width: 1)
+                ? Border.all(color: AppColors.primary, width: 1)
                 : null,
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 22.sp, color: foreground),
-              SizedBox(width: 8.w),
-              Flexible(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.manrope(
-                    color: foreground,
-                    fontSize: 10.sp,
-                    fontWeight: selected ? FontWeight.w800 : FontWeight.w700,
-                  ),
-                ),
-              ),
-            ],
+          alignment: Alignment.center,
+          child: Text(
+            label,
+            style: GoogleFonts.manrope(
+              color: const Color(0xFF282623),
+              fontSize: 13.sp,
+              fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+            ),
           ),
         ),
       ),
@@ -1061,10 +1410,7 @@ class _LeadsPipelineContent extends StatelessWidget {
 }
 
 class _PipelineStageCard extends StatelessWidget {
-  const _PipelineStageCard({
-    required this.filter,
-    required this.progress,
-  });
+  const _PipelineStageCard({required this.filter, required this.progress});
 
   final _StageFilter filter;
   final double progress;
@@ -1097,7 +1443,10 @@ class _PipelineStageCard extends StatelessWidget {
               Container(
                 width: 10.w,
                 height: 10.w,
-                decoration: BoxDecoration(color: accent, shape: BoxShape.circle),
+                decoration: BoxDecoration(
+                  color: accent,
+                  shape: BoxShape.circle,
+                ),
               ),
               SizedBox(width: 10.w),
               Expanded(
@@ -1293,30 +1642,29 @@ class _FilterHeader extends StatelessWidget {
           child: Text(
             'FILTER BY STAGE',
             style: GoogleFonts.manrope(
-              color: AppColors.darkGray,
+              color: const Color(0xFF2F2C29),
               fontSize: 14.sp,
-              fontWeight: FontWeight.w900,
-              letterSpacing: .6,
+              fontWeight: FontWeight.w800,
             ),
           ),
         ),
         OutlinedButton.icon(
           onPressed: onFilterPressed,
-          icon: const Icon(Icons.tune, size: 20),
+          icon: Icon(Icons.tune_rounded, size: 18.sp),
           label: Text(
             'Filters',
             style: GoogleFonts.manrope(
-              fontSize: 12.sp,
+              fontSize: 14.sp,
               fontWeight: FontWeight.w800,
             ),
           ),
           style: OutlinedButton.styleFrom(
-            foregroundColor: AppColors.deepBurgundy,
-            side: const BorderSide(color: AppColors.deepBurgundy),
-            minimumSize: Size(86.w, 38.h),
-            padding: EdgeInsets.symmetric(horizontal: 14.w),
+            foregroundColor: AppColors.primary,
+            side: const BorderSide(color: AppColors.primary),
+            minimumSize: Size(86.w, 36.h),
+            padding: EdgeInsets.symmetric(horizontal: 16.w),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8.r),
+              borderRadius: BorderRadius.circular(10.r),
             ),
           ),
         ),
@@ -1369,6 +1717,8 @@ class _StageChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hasDot = filter.dotColor != null;
+
     return Material(
       color: AppColors.transparent,
       child: InkWell(
@@ -1376,21 +1726,19 @@ class _StageChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(18.r),
         child: Container(
           height: 30.h,
-          constraints: BoxConstraints(minWidth: selected ? 120.w : 74.w),
-          padding: EdgeInsets.symmetric(horizontal: 13.w),
+          padding: EdgeInsets.symmetric(horizontal: 14.w),
           decoration: BoxDecoration(
-            color: selected ? AppColors.white : const Color(0xFFFFFCFD),
+            color: selected ? AppColors.primary : AppColors.white,
             borderRadius: BorderRadius.circular(18.r),
             border: Border.all(
-              color: selected ? AppColors.deepBurgundy : const Color(0xFFE9D8DE),
-              width: selected ? 1.1 : 1,
+              color: selected ? AppColors.primary : const Color(0xFFE5CFC0),
             ),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              if (filter.dotColor != null) ...[
+              if (!selected && hasDot) ...[
                 Container(
                   width: 8.w,
                   height: 8.w,
@@ -1404,23 +1752,28 @@ class _StageChip extends StatelessWidget {
               Text(
                 filter.label,
                 style: GoogleFonts.manrope(
-                  color: selected
-                      ? AppColors.rmPrimary
-                      : const Color(0xFF62565B),
-                  fontSize: 15.sp,
+                  color: selected ? AppColors.white : const Color(0xFF4C4744),
+                  fontSize: 14.sp,
                   fontWeight: FontWeight.w800,
                 ),
               ),
               if (filter.count != null) ...[
                 SizedBox(width: 8.w),
-                Text(
-                  '${filter.count}',
-                  style: GoogleFonts.manrope(
-                    color: selected
-                        ? AppColors.rmPrimary
-                        : const Color(0xFF62565B),
-                    fontSize: 14.sp,
-                    fontWeight: FontWeight.w900,
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 1.h),
+                  decoration: BoxDecoration(
+                    color: selected ? AppColors.white : const Color(0xFFFFF6F1),
+                    borderRadius: BorderRadius.circular(10.r),
+                  ),
+                  child: Text(
+                    '${filter.count}',
+                    style: GoogleFonts.manrope(
+                      color: selected
+                          ? AppColors.primary
+                          : const Color(0xFF6B6662),
+                      fontSize: 11.sp,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ),
               ],
@@ -1449,86 +1802,85 @@ class _LeadCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final imageProvider = _leadImageProvider(lead.image);
-
     return Container(
-      padding: EdgeInsets.fromLTRB(13.w, 12.h, 13.w, 10.h),
+      padding: EdgeInsets.fromLTRB(16.w, 14.h, 16.w, 12.h),
       decoration: BoxDecoration(
         color: AppColors.white,
-        borderRadius: BorderRadius.circular(10.r),
-        border: Border.all(color: const Color(0xFFEECAD4)),
-        boxShadow: const [
-          BoxShadow(
-            color: AppColors.rmCardShadow,
-            blurRadius: 14,
-            offset: Offset(0, 6),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(16.r),
+        border: Border.all(color: const Color(0xFFE7DBD5)),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              CircleAvatar(
-                radius: 32.r,
-                backgroundColor: const Color(0xFFF7D9E3),
-                backgroundImage: imageProvider,
-                child: imageProvider == null
-                    ? Text(
-                        lead.initials,
-                        style: GoogleFonts.manrope(
-                          color: AppColors.rmPrimary,
-                          fontSize: 24.sp,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      )
-                    : null,
-              ),
-              SizedBox(width: 14.w),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      lead.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.manrope(
-                        color: AppColors.deepBurgundy,
-                        fontSize: 20.sp,
-                        fontWeight: FontWeight.w900,
-                        height: 1.1,
-                      ),
-                    ),
-                    SizedBox(height: 5.h),
-                    Text(
-                      lead.phone,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.manrope(
-                        color: const Color(0xFF564146),
-                        fontSize: 16.sp,
-                        fontWeight: FontWeight.w700,
-                        height: 1.2,
-                      ),
-                    ),
-                    SizedBox(height: 2.h),
-                    Text(
-                      lead.email,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.manrope(
-                        color: const Color(0xFF727785),
-                        fontSize: 12.sp,
-                        fontWeight: FontWeight.w500,
-                        height: 1.25,
-                      ),
-                    ),
-                  ],
+                child: Text(
+                  lead.name,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.manrope(
+                    color: const Color(0xFF201D1A),
+                    fontSize: 20.sp,
+                    fontWeight: FontWeight.w800,
+                    height: 1.1,
+                  ),
                 ),
               ),
-              SizedBox(width: 8.w),
+              SizedBox(width: 12.w),
+              _StatusPill(
+                style: _LeadStageStyle.fromStage(lead.stage),
+                label: lead.stage,
+              ),
+            ],
+          ),
+          SizedBox(height: 14.h),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: _LeadDetailBlock(label: 'Phone', value: lead.phone),
+              ),
+              SizedBox(width: 16.w),
+              Expanded(
+                child: _LeadDetailBlock(label: 'City', value: lead.city),
+              ),
+            ],
+          ),
+          SizedBox(height: 10.h),
+          _LeadDetailBlock(label: 'Email', value: lead.email),
+          SizedBox(height: 10.h),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: _LeadDetailBlock(
+                  label: 'Assigned To',
+                  value: lead.assignedTo,
+                ),
+              ),
+              SizedBox(width: 16.w),
+              Expanded(
+                child: _LeadDetailBlock(label: 'Source', value: lead.source),
+              ),
+            ],
+          ),
+          SizedBox(height: 14.h),
+          Divider(color: const Color(0xFFF0E3DB), height: 1.h),
+          SizedBox(height: 12.h),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Created: ${lead.createdOn}',
+                  style: GoogleFonts.manrope(
+                    color: const Color(0xFF2A2825),
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
               _LeadActions(
                 isDeleting: isDeleting,
                 canEdit: canEdit,
@@ -1537,19 +1889,6 @@ class _LeadCard extends StatelessWidget {
               ),
             ],
           ),
-          SizedBox(height: 10.h),
-          Row(
-            children: [
-              _StatusPill(
-                style: _LeadStageStyle.fromStage(lead.stage),
-                label: lead.stage,
-              ),
-              SizedBox(width: 8.w),
-              _LocationPill(label: lead.city),
-            ],
-          ),
-          SizedBox(height: 8.h),
-          _LeadMetaBox(lead: lead),
         ],
       ),
     );
@@ -1575,10 +1914,10 @@ class _LeadActions extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         _ActionIcon(icon: Icons.swap_horiz_rounded, color: AppColors.black),
-        SizedBox(width: 11.w),
+        SizedBox(width: 12.w),
         if (canEdit) ...[
           _ActionIcon(icon: Icons.edit, color: AppColors.black, onTap: onEdit),
-          SizedBox(width: 11.w),
+          SizedBox(width: 12.w),
         ],
         _ActionIcon(
           icon: Icons.delete_outline,
@@ -1589,33 +1928,6 @@ class _LeadActions extends StatelessWidget {
       ],
     );
   }
-}
-
-ImageProvider? _leadImageProvider(String image) {
-  final text = image.trim();
-  if (text.isEmpty) {
-    return null;
-  }
-
-  if (text.startsWith('http')) {
-    return NetworkImage(text);
-  }
-
-  if (text.startsWith('assets/')) {
-    return AssetImage(text);
-  }
-
-  final file = File(text);
-  if (file.existsSync()) {
-    return FileImage(file);
-  }
-
-  if (text.startsWith('/')) {
-    final apiOrigin = ApiConstants.baseUrl.replaceFirst('/api/v1', '');
-    return NetworkImage('$apiOrigin$text');
-  }
-
-  return null;
 }
 
 class _ActionIcon extends StatelessWidget {
@@ -1637,7 +1949,7 @@ class _ActionIcon extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(6.r),
       child: SizedBox(
-        width: 20.w,
+        width: 24.w,
         height: 24.h,
         child: isLoading
             ? Padding(
@@ -1647,8 +1959,44 @@ class _ActionIcon extends StatelessWidget {
                   valueColor: AlwaysStoppedAnimation<Color>(color),
                 ),
               )
-            : Icon(icon, size: 20.sp, color: color),
+            : Icon(icon, size: 22.sp, color: color),
       ),
+    );
+  }
+}
+
+class _LeadDetailBlock extends StatelessWidget {
+  const _LeadDetailBlock({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: GoogleFonts.manrope(
+            color: const Color(0xFF66615D),
+            fontSize: 13.sp,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        SizedBox(height: 2.h),
+        Text(
+          value,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: GoogleFonts.manrope(
+            color: const Color(0xFF1D1B18),
+            fontSize: 15.sp,
+            fontWeight: FontWeight.w800,
+            height: 1.25,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -1664,60 +2012,20 @@ class _StatusPill extends StatelessWidget {
     final colors = style.colors;
 
     return Container(
-      height: 24.h,
-      padding: EdgeInsets.symmetric(horizontal: 10.w),
+      height: 30.h,
+      padding: EdgeInsets.symmetric(horizontal: 12.w),
       decoration: BoxDecoration(
         color: colors.background,
-        borderRadius: BorderRadius.circular(14.r),
+        borderRadius: BorderRadius.circular(9.r),
         border: Border.all(color: colors.border),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 6.w,
-            height: 6.w,
-            decoration: BoxDecoration(
-              color: colors.dot,
-              shape: BoxShape.circle,
-            ),
-          ),
-          SizedBox(width: 5.w),
-          Text(
-            label,
-            style: GoogleFonts.manrope(
-              color: colors.text,
-              fontSize: 14.sp,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _LocationPill extends StatelessWidget {
-  const _LocationPill({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 28.h,
-      padding: EdgeInsets.symmetric(horizontal: 16.w),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF4F0F1),
-        borderRadius: BorderRadius.circular(14.r),
       ),
       child: Center(
         child: Text(
           label,
           style: GoogleFonts.manrope(
-            color: const Color(0xFF5F5358),
+            color: colors.text,
             fontSize: 14.sp,
-            fontWeight: FontWeight.w800,
+            fontWeight: FontWeight.w700,
           ),
         ),
       ),
@@ -1725,71 +2033,158 @@ class _LocationPill extends StatelessWidget {
   }
 }
 
-class _LeadMetaBox extends StatelessWidget {
-  const _LeadMetaBox({required this.lead});
+class _ArchiveInsightCard extends StatelessWidget {
+  const _ArchiveInsightCard({
+    required this.totalLeads,
+    required this.filteredLeads,
+  });
 
-  final LeadRegistryItem lead;
+  final int totalLeads;
+  final int filteredLeads;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.fromLTRB(14.w, 10.h, 14.w, 10.h),
+      padding: EdgeInsets.all(14.r),
       decoration: BoxDecoration(
-        color: const Color(0xFFF9F9FB),
-        borderRadius: BorderRadius.circular(8.r),
-        border: Border.all(color: const Color(0xFFF3E5EA)),
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(16.r),
+        border: Border.all(color: const Color(0xFFEEDFD5)),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _LeadMetaRow(label: 'Assigned To:', value: lead.assignedTo),
-          SizedBox(height: 4.h),
-          _LeadMetaRow(label: 'Lead For:', value: lead.leadFor),
-          SizedBox(height: 4.h),
-          _LeadMetaRow(label: 'Source:', value: lead.source),
-          SizedBox(height: 4.h),
-          _LeadMetaRow(label: 'Created On:', value: lead.createdOn),
+          Text(
+            'Archive Insight',
+            style: GoogleFonts.manrope(
+              color: const Color(0xFF22201D),
+              fontSize: 18.sp,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          SizedBox(height: 8.h),
+          Text(
+            'Lead Distribution Snapshot',
+            style: GoogleFonts.manrope(
+              color: const Color(0xFF272420),
+              fontSize: 14.sp,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          SizedBox(height: 10.h),
+          Text(
+            'The registry now reflects actual lead records from the backend. Showing $filteredLeads curated lead${filteredLeads == 1 ? '' : 's'} from a live archive of $totalLeads records.',
+            style: GoogleFonts.manrope(
+              color: const Color(0xFF5C5753),
+              fontSize: 14.sp,
+              fontWeight: FontWeight.w500,
+              height: 1.6,
+            ),
+          ),
+          SizedBox(height: 14.h),
+          Text(
+            'View Analysis ->',
+            style: GoogleFonts.manrope(
+              color: AppColors.primary,
+              fontSize: 16.sp,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
         ],
       ),
     );
   }
 }
 
-class _LeadMetaRow extends StatelessWidget {
-  const _LeadMetaRow({required this.label, required this.value});
+class _CuratorMilestoneCard extends StatelessWidget {
+  const _CuratorMilestoneCard({
+    required this.totalLeads,
+    required this.convertedCount,
+  });
 
-  final String label;
-  final String value;
+  final int totalLeads;
+  final int convertedCount;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: Text(
-            label,
+    final progress = totalLeads == 0 ? 0.0 : convertedCount / totalLeads;
+    final percentage = (progress * 100).round().clamp(0, 100);
+
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 18.h),
+      decoration: BoxDecoration(
+        color: AppColors.primary,
+        borderRadius: BorderRadius.circular(16.r),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  "Curator's Milestone",
+                  style: GoogleFonts.playfairDisplay(
+                    color: AppColors.white,
+                    fontSize: 20.sp,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              Icon(
+                Icons.workspace_premium_outlined,
+                color: AppColors.white,
+                size: 20.sp,
+              ),
+            ],
+          ),
+          SizedBox(height: 16.h),
+          Text(
+            'Lead intake is now mapped directly to the registry schema, ensuring archival fidelity across active branches.',
             style: GoogleFonts.manrope(
-              color: const Color(0xFF727785),
-              fontSize: 15.sp,
-              fontWeight: FontWeight.w600,
+              color: AppColors.white,
+              fontSize: 14.sp,
+              fontWeight: FontWeight.w500,
+              height: 1.55,
             ),
           ),
-        ),
-        SizedBox(width: 12.w),
-        Flexible(
-          child: Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.right,
-            style: GoogleFonts.manrope(
-              color: const Color(0xFF181C1F),
-              fontSize: 15.sp,
-              fontWeight: FontWeight.w800,
+          SizedBox(height: 18.h),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Archive Goal',
+                  style: GoogleFonts.manrope(
+                    color: AppColors.white,
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              Text(
+                '$percentage%',
+                style: GoogleFonts.manrope(
+                  color: AppColors.white,
+                  fontSize: 16.sp,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 10.h),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(99.r),
+            child: LinearProgressIndicator(
+              value: progress.clamp(0, 1),
+              minHeight: 8.h,
+              backgroundColor: const Color(0xFFA94F11),
+              valueColor: const AlwaysStoppedAnimation<Color>(AppColors.white),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -1855,85 +2250,6 @@ enum _LeadStageStyle {
       default:
         return _LeadStageStyle.newLead;
     }
-  }
-}
-
-class _LeadsPagination extends StatelessWidget {
-  const _LeadsPagination({
-    required this.visibleCount,
-    required this.totalCount,
-  });
-
-  final int visibleCount;
-  final int totalCount;
-
-  @override
-  Widget build(BuildContext context) {
-    final displayEnd = visibleCount == 0 ? 0 : visibleCount;
-
-    return Column(
-      children: [
-        Center(
-          child: Text(
-            'Displaying queue ${visibleCount == 0 ? 0 : 1}-$displayEnd of $totalCount assigned leads',
-            style: GoogleFonts.manrope(
-              fontSize: 16.sp,
-              fontWeight: FontWeight.w700,
-              color: const Color(0xFF6F5F64),
-            ),
-          ),
-        ),
-        SizedBox(height: 10.h),
-        Row(
-          children: [
-            Expanded(
-              child: OutlinedButton(
-                style: OutlinedButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  foregroundColor: AppColors.deepBurgundy,
-                  side: const BorderSide(color: AppColors.deepBurgundy),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(22.r),
-                  ),
-                  padding: EdgeInsets.symmetric(vertical: 16.h),
-                ),
-                onPressed: () {},
-                child: Text(
-                  'Previous\nSequence',
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.manrope(
-                    fontWeight: FontWeight.w900,
-                    fontSize: 15.sp,
-                  ),
-                ),
-              ),
-            ),
-            SizedBox(width: 12.w),
-            Expanded(
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.deepBurgundy,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(22.r),
-                  ),
-                  padding: EdgeInsets.symmetric(vertical: 16.h),
-                  elevation: 0,
-                ),
-                onPressed: () {},
-                child: Text(
-                  'Next Segment',
-                  style: GoogleFonts.manrope(
-                    fontWeight: FontWeight.w900,
-                    fontSize: 18.sp,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
   }
 }
 

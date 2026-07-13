@@ -481,19 +481,19 @@ class _EmployeeManagementScreenState extends State<EmployeeManagementScreen> {
             color: AppColors.rmPrimary,
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
-              padding: EdgeInsets.fromLTRB(14.w, 14.h, 14.w, 24.h),
+              padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 24.h),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _HeaderBlock(employee: headerEmployee),
-                  SizedBox(height: 22.h),
+                  SizedBox(height: 20.h),
                   GridView.count(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
                     crossAxisCount: 2,
                     mainAxisSpacing: 12.h,
                     crossAxisSpacing: 12.w,
-                    childAspectRatio: 1.05,
+                    childAspectRatio: 0.92,
                     children: [
                       _SummaryCard(
                         title: 'Active Registry',
@@ -525,7 +525,7 @@ class _EmployeeManagementScreenState extends State<EmployeeManagementScreen> {
                       ),
                     ],
                   ),
-                  SizedBox(height: 12.h),
+                  SizedBox(height: 16.h),
                   _SearchFilterRow(
                     controller: _searchController,
                     onChanged: (value) {
@@ -544,7 +544,7 @@ class _EmployeeManagementScreenState extends State<EmployeeManagementScreen> {
                       ),
                     ),
                   ],
-                  SizedBox(height: 12.h),
+                  SizedBox(height: 16.h),
                   if (!canAccessEmployeeManagement)
                     const _MessageCard(
                       message:
@@ -574,6 +574,7 @@ class _EmployeeManagementScreenState extends State<EmployeeManagementScreen> {
                             employee: previewEmployees[index],
                             onEdit: () {
                               final employee = previewEmployees[index];
+                              final messenger = ScaffoldMessenger.of(context);
                               _showEditEmployeeDialog(
                                 initialName: employee.name,
                                 initialEmail: employee.email,
@@ -614,7 +615,7 @@ class _EmployeeManagementScreenState extends State<EmployeeManagementScreen> {
                                     return null;
                                   }
 
-                                  ScaffoldMessenger.of(context).showSnackBar(
+                                  messenger.showSnackBar(
                                     SnackBar(
                                       content: Text(
                                         'Updated ${data['name']} records.',
@@ -667,6 +668,7 @@ class _EmployeeManagementScreenState extends State<EmployeeManagementScreen> {
                         }
 
                         final selectedEmployee = employee;
+                        final messenger = ScaffoldMessenger.of(context);
                         _showEditEmployeeDialog(
                           initialName: selectedEmployee.name,
                           initialEmail: selectedEmployee.email,
@@ -705,7 +707,7 @@ class _EmployeeManagementScreenState extends State<EmployeeManagementScreen> {
                               return null;
                             }
 
-                            ScaffoldMessenger.of(context).showSnackBar(
+                            messenger.showSnackBar(
                               SnackBar(
                                 content: Text(
                                   'Updated ${data['name']} records.',
@@ -846,6 +848,8 @@ class _SummaryCard extends StatelessWidget {
                 children: [
                   Text(
                     title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.manrope(
                       color: AppColors.rmBodyText,
                       fontSize: 15.sp,
@@ -853,17 +857,23 @@ class _SummaryCard extends StatelessWidget {
                     ),
                   ),
                   const Spacer(),
-                  Text(
-                    value,
-                    style: GoogleFonts.manrope(
-                      color: AppColors.rmHeading,
-                      fontSize: 33.sp,
-                      fontWeight: FontWeight.w800,
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      value,
+                      style: GoogleFonts.manrope(
+                        color: AppColors.rmHeading,
+                        fontSize: 33.sp,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                   ),
                   SizedBox(height: 6.h),
                   Text(
                     subtitle,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.manrope(
                       color: accentColor,
                       fontSize: 13.sp,
@@ -889,51 +899,51 @@ class _SearchFilterRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: Container(
-            height: 44.h,
-            padding: EdgeInsets.symmetric(horizontal: 12.w),
-            decoration: BoxDecoration(
-              color: AppColors.white,
-              borderRadius: BorderRadius.circular(12.r),
-              border: Border.all(color: const Color(0xFFD5CCD1)),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.search, size: 22.sp, color: AppColors.rmMutedText),
-                SizedBox(width: 10.w),
-                Expanded(
-                  child: TextField(
-                    controller: controller,
-                    onChanged: onChanged,
-                    onSubmitted: onChanged,
-                    textInputAction: TextInputAction.search,
-                    style: GoogleFonts.manrope(
-                      color: AppColors.rmPrimary,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isCompact = constraints.maxWidth < 340.w;
+
+        final searchField = Container(
+          height: 44.h,
+          padding: EdgeInsets.symmetric(horizontal: 12.w),
+          decoration: BoxDecoration(
+            color: AppColors.white,
+            borderRadius: BorderRadius.circular(12.r),
+            border: Border.all(color: const Color(0xFFD5CCD1)),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.search, size: 22.sp, color: AppColors.rmMutedText),
+              SizedBox(width: 10.w),
+              Expanded(
+                child: TextField(
+                  controller: controller,
+                  onChanged: onChanged,
+                  onSubmitted: onChanged,
+                  textInputAction: TextInputAction.search,
+                  style: GoogleFonts.manrope(
+                    color: AppColors.rmPrimary,
+                    fontSize: 16.sp,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  decoration: InputDecoration(
+                    hintText: 'Search by name, email or ID...',
+                    hintStyle: GoogleFonts.manrope(
+                      color: AppColors.rmMutedText,
                       fontSize: 16.sp,
                       fontWeight: FontWeight.w500,
                     ),
-                    decoration: InputDecoration(
-                      hintText: 'Search by name, email or ID...',
-                      hintStyle: GoogleFonts.manrope(
-                        color: AppColors.rmMutedText,
-                        fontSize: 16.sp,
-                        fontWeight: FontWeight.w500,
-                      ),
-                      border: InputBorder.none,
-                      isDense: true,
-                      contentPadding: EdgeInsets.zero,
-                    ),
+                    border: InputBorder.none,
+                    isDense: true,
+                    contentPadding: EdgeInsets.zero,
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ),
-        SizedBox(width: 8.w),
-        Container(
+        );
+
+        final filterButton = Container(
           height: 44.h,
           padding: EdgeInsets.symmetric(horizontal: 14.w),
           decoration: BoxDecoration(
@@ -942,6 +952,8 @@ class _SearchFilterRow extends StatelessWidget {
             border: Border.all(color: const Color(0xFFD5CCD1)),
           ),
           child: Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(Icons.filter_list, size: 18.sp, color: AppColors.rmPrimary),
               SizedBox(width: 6.w),
@@ -955,8 +967,26 @@ class _SearchFilterRow extends StatelessWidget {
               ),
             ],
           ),
-        ),
-      ],
+        );
+
+        if (isCompact) {
+          return Column(
+            children: [
+              searchField,
+              SizedBox(height: 8.h),
+              Align(alignment: Alignment.centerRight, child: filterButton),
+            ],
+          );
+        }
+
+        return Row(
+          children: [
+            Expanded(child: searchField),
+            SizedBox(width: 8.w),
+            filterButton,
+          ],
+        );
+      },
     );
   }
 }
@@ -994,10 +1024,11 @@ class _EmployeeRegistryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final hasImage = employee.image.isNotEmpty;
     final imageProvider = _employeeImageProvider(employee.image);
+    final actionButtonSize = 32.w;
 
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.all(12.w),
+      padding: EdgeInsets.all(14.w),
       decoration: BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.circular(16.r),
@@ -1068,8 +1099,11 @@ class _EmployeeRegistryCard extends StatelessWidget {
                 children: [
                   InkWell(
                     onTap: onEdit,
+                    borderRadius: BorderRadius.circular(8.r),
                     child: Container(
-                      padding: EdgeInsets.all(6.w),
+                      width: actionButtonSize,
+                      height: actionButtonSize,
+                      alignment: Alignment.center,
                       decoration: BoxDecoration(
                         color: const Color(0xFFF2E7EA),
                         borderRadius: BorderRadius.circular(8.r),
@@ -1084,8 +1118,11 @@ class _EmployeeRegistryCard extends StatelessWidget {
                   SizedBox(width: 8.w),
                   InkWell(
                     onTap: onDelete,
+                    borderRadius: BorderRadius.circular(8.r),
                     child: Container(
-                      padding: EdgeInsets.all(6.w),
+                      width: actionButtonSize,
+                      height: actionButtonSize,
+                      alignment: Alignment.center,
                       decoration: BoxDecoration(
                         color: const Color(0xFFFFF1F4),
                         borderRadius: BorderRadius.circular(8.r),
@@ -1151,10 +1188,12 @@ class _EmployeeInfoBox extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
+      constraints: BoxConstraints(minHeight: 72.h),
       padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 10.h),
       decoration: BoxDecoration(
         color: const Color(0xFFFFF8FA),
         borderRadius: BorderRadius.circular(10.r),
+        border: Border.all(color: AppColors.rmPaleRoseBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1354,6 +1393,7 @@ class _TemplateDirectorySection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             Expanded(
               child: Text(
@@ -1516,19 +1556,39 @@ class _TemplateDirectoryCard extends StatelessWidget {
                 children: [
                   InkWell(
                     onTap: onEdit,
-                    child: Icon(
-                      Icons.edit_outlined,
-                      size: 16.sp,
-                      color: AppColors.rmBodyText,
+                    borderRadius: BorderRadius.circular(7.r),
+                    child: Container(
+                      width: 28.w,
+                      height: 28.w,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF6EEF2),
+                        borderRadius: BorderRadius.circular(7.r),
+                      ),
+                      child: Icon(
+                        Icons.edit_outlined,
+                        size: 15.sp,
+                        color: AppColors.rmBodyText,
+                      ),
                     ),
                   ),
                   SizedBox(width: 10.w),
                   InkWell(
                     onTap: onDelete,
-                    child: Icon(
-                      Icons.delete_outline,
-                      size: 16.sp,
-                      color: const Color(0xFFD94A4A),
+                    borderRadius: BorderRadius.circular(7.r),
+                    child: Container(
+                      width: 28.w,
+                      height: 28.w,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFF1F4),
+                        borderRadius: BorderRadius.circular(7.r),
+                      ),
+                      child: Icon(
+                        Icons.delete_outline,
+                        size: 15.sp,
+                        color: const Color(0xFFD94A4A),
+                      ),
                     ),
                   ),
                 ],

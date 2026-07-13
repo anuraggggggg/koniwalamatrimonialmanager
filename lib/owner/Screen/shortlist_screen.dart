@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
+import 'package:intl/intl.dart';
 import 'package:koniwalamatrimonial/constants/api_constants.dart';
 import 'package:koniwalamatrimonial/constants/app_colors.dart';
 import 'package:koniwalamatrimonial/owner/models/match_comparison_args.dart';
@@ -30,6 +31,9 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
   bool _hasRequestedShortlist = false;
   final Set<String> _addingShortlistProfileIds = <String>{};
   final Set<String> _sendingShortlistCandidateIds = <String>{};
+  String _shortlistSearchQuery = '';
+  bool _sortNewestFirst = true;
+  bool _shortlistGridView = false;
 
   String get _currentProfileId {
     final profileId = widget.profile?.originalId.trim() ?? '';
@@ -38,11 +42,10 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
 
   bool get _hasCurrentProfile => _currentProfileId.isNotEmpty;
 
-  bool get _showLegacyGroomCard => false;
-
   bool get _isCurrentProfileGroom => widget.profile?.type == 'Groom';
 
-  String get _candidateProfileType => _isCurrentProfileGroom ? 'bride' : 'groom';
+  String get _candidateProfileType =>
+      _isCurrentProfileGroom ? 'bride' : 'groom';
 
   String get _candidateOppositeGenderOf =>
       _isCurrentProfileGroom ? 'male' : 'female';
@@ -81,569 +84,599 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
     final headerImage = profile?.image ?? 'assets/wedding_hero 1.png';
 
     return DefaultTabController(
-      length: 2,
-      child: Scaffold(
-        backgroundColor: AppColors.rmSoftPink,
-        body: NestedScrollView(
-          headerSliverBuilder: (context, innerBoxIsScrolled) => [
-            SliverAppBar(
-              expandedHeight: 200.h,
-              backgroundColor: AppColors.white,
-              leading: IconButton(
-                icon: const Icon(Icons.arrow_back, color: AppColors.rmPrimary),
-                onPressed: () => Navigator.pop(context),
-              ),
-              flexibleSpace: FlexibleSpaceBar(
-                background: Stack(
-                  children: [
-                    _buildHeaderImage(headerImage),
-                    Positioned(
-                      top: 80.h,
-                      left: 16.w,
-                      right: 16.w,
-                      child: Container(
-                        padding: EdgeInsets.fromLTRB(12.r, 0.r, 10.r, 12.r),
-                        decoration: BoxDecoration(
-                          color: AppColors.white,
-                          borderRadius: BorderRadius.circular(16.r),
-                          border: Border.all(color: AppColors.rmPaleRoseBorder),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _buildInfoGrid(profile),
-                            // SizedBox(height: 10.h),
-                            // const Divider(),
-                            _buildInfoItem(
-                              Icons.attach_money,
-                              'Budget Not Specified',
-                              'Budget',
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(16.r, 8.h, 16.r, 4.r),
-                child: Column(
-                  children: [
-                    OutlinedButton(
-                      onPressed: () {},
-                      style: OutlinedButton.styleFrom(
-                        minimumSize: Size(double.infinity, 40.h),
-                        side: BorderSide(color: AppColors.rmPrimary),
-                      ),
-                      child: Text(
-                        'View $displayName Profile',
-                        style: GoogleFonts.manrope(
-                          color: AppColors.rmPrimary,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15.sp,
-                        ),
-                      ),
-                    ),
-                    SizedBox(height: 8.h),
-                    ElevatedButton(
-                      onPressed: () {
-                        if (!_hasCurrentProfile) {
-                          _showSnackBar(
-                            context,
-                            'Open shortlist from a profile card before adding candidates.',
-                            isError: true,
-                          );
-                          return;
-                        }
+      length: 3,
+      child: Builder(
+        builder: (tabContext) {
+          final tabController = DefaultTabController.of(tabContext);
 
-                        final accessToken = context
-                            .read<AuthProvider>()
-                            .userModel
-                            ?.accessToken;
-                        context.read<RegistryProfilesProvider>().fetchProfiles(
-                          accessToken,
-                          forceRefresh: true,
-                          oppositeGenderOf: _candidateOppositeGenderOf,
-                          profileType: _candidateProfileType,
-                        );
-                        showModalBottomSheet(
-                          context: context,
-                          isScrollControlled: true,
-                          backgroundColor: AppColors.transparent,
-                          builder: (context) => Material(
-                            color: AppColors.transparent,
-                            child: SingleChildScrollView(
-                              padding: EdgeInsets.only(
-                                bottom: MediaQuery.of(
-                                  context,
-                                ).viewInsets.bottom,
+          return Scaffold(
+            backgroundColor: const Color(0xFFFFFBF8),
+            body: SafeArea(
+              bottom: false,
+              child: AnimatedBuilder(
+                animation: tabController,
+                builder: (context, _) {
+                  final tabIndex = tabController.index;
+
+                  return Column(
+                    children: [
+                      _buildTopBar(context),
+                      Expanded(
+                        child: SingleChildScrollView(
+                          padding: EdgeInsets.fromLTRB(18.w, 10.h, 18.w, 26.h),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(18.r),
+                                child: _buildHeaderImage(headerImage),
                               ),
-                              child: Container(
-                                padding: EdgeInsets.all(16.r),
-                                constraints: BoxConstraints(minHeight: 400.h),
+                              SizedBox(height: 6.h),
+                              Container(
+                                width: double.infinity,
+                                padding: EdgeInsets.fromLTRB(
+                                  14.w,
+                                  12.h,
+                                  14.w,
+                                  12.h,
+                                ),
                                 decoration: BoxDecoration(
                                   color: AppColors.white,
-                                  borderRadius: BorderRadius.vertical(
-                                    top: Radius.circular(20.r),
+                                  borderRadius: BorderRadius.circular(18.r),
+                                  border: Border.all(
+                                    color: const Color(0xFFEEDFD5),
                                   ),
+                                  boxShadow: const [
+                                    BoxShadow(
+                                      color: Color(0x12B25C18),
+                                      blurRadius: 18,
+                                      offset: Offset(0, 8),
+                                    ),
+                                  ],
                                 ),
                                 child: Column(
-                                  mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Text(
-                                      'Add $_candidateProfileLabel Profiles',
-                                      style: GoogleFonts.manrope(
-                                        fontSize: 20.sp,
-                                        fontWeight: FontWeight.w800,
-                                      ),
-                                    ),
-                                    SizedBox(height: 6.h),
-                                    Text(
-                                      'Select a profile to add directly into $displayName\'s shortlist.',
-                                      style: GoogleFonts.manrope(
-                                        color: AppColors.rmHeading,
-                                        fontSize: 14.sp,
-                                        fontWeight: FontWeight.w400,
-                                        height: 1.43,
-                                      ),
-                                    ),
-                                    SizedBox(height: 16.h),
-                                    Container(
-                                      height: 40.h,
-                                      padding: EdgeInsets.symmetric(
-                                        horizontal: 16.w,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: AppColors.white,
-                                        borderRadius: BorderRadius.circular(
-                                          20.r,
-                                        ),
-                                        border: Border.all(
-                                          color: AppColors.rmBorder,
-                                        ),
-                                      ),
-                                      child: Row(
-                                        children: [
-                                          const Icon(
-                                            Icons.search,
-                                            color: AppColors.rmMutedText,
-                                          ),
-                                          SizedBox(width: 8.w),
-                                          Expanded(
-                                            child: TextField(
-                                              decoration: InputDecoration(
-                                                hintText: 'Search profiles...',
-                                                hintStyle: GoogleFonts.manrope(
-                                                  color: AppColors.rmMutedText,
-                                                  fontSize: 14.sp,
-                                                ),
-                                                border: InputBorder.none,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    SizedBox(height: 7.h),
-                                    Consumer<RegistryProfilesProvider>(
-                                      builder: (context, profilesProvider, _) {
-                                        return _buildGroomProfilesSheetList(
-                                          profilesProvider,
-                                        );
-                                      },
-                                    ),
-                                    if (_showLegacyGroomCard)
+                                    _buildInfoGrid(profile),
+                                    SizedBox(height: 4.h),
                                     Container(
                                       width: double.infinity,
-                                      padding: const EdgeInsets.all(10),
-                                      decoration: ShapeDecoration(
-                                        color: AppColors.white,
-                                        shape: RoundedRectangleBorder(
-                                          side: BorderSide(
-                                            width: 1,
-                                            color: AppColors.hrMetricBorder,
-                                          ),
-                                          borderRadius: BorderRadius.circular(
-                                            20,
-                                          ),
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal: 10.w,
+                                        vertical: 10.h,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFFFF8F2),
+                                        borderRadius: BorderRadius.circular(
+                                          12.r,
                                         ),
                                       ),
-                                      child: Column(
-                                        children: [
-                                          Row(
-                                            children: [
-                                              ClipRRect(
-                                                borderRadius:
-                                                    BorderRadius.circular(10.r),
-                                                child: Image.asset(
-                                                  'assets/wedding_hero 1.png',
-                                                  width: 70.w,
-                                                  height: 70.w,
-                                                  fit: BoxFit.cover,
-                                                ),
-                                              ),
-                                              SizedBox(width: 14.w),
-                                              Expanded(
-                                                child: Column(
-                                                  crossAxisAlignment:
-                                                      CrossAxisAlignment.start,
-                                                  children: [
-                                                    Row(
-                                                      children: [
-                                                        Expanded(
-                                                          child: Text(
-                                                            'Bhavesh Chaudhary',
-                                                            style: GoogleFonts.manrope(
-                                                              fontSize: 16.sp,
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .w800,
-                                                              color: AppColors
-                                                                  .rmPrimary,
-                                                            ),
-                                                            overflow:
-                                                                TextOverflow
-                                                                    .ellipsis,
-                                                          ),
-                                                        ),
-                                                        SizedBox(width: 8.w),
-                                                        TextButton(
-                                                          onPressed: () {},
-                                                          style: TextButton.styleFrom(
-                                                            minimumSize:
-                                                                Size.zero,
-                                                            padding:
-                                                                EdgeInsets.symmetric(
-                                                                  horizontal:
-                                                                      6.w,
-                                                                  vertical: 4.h,
-                                                                ),
-                                                            tapTargetSize:
-                                                                MaterialTapTargetSize
-                                                                    .shrinkWrap,
-                                                          ),
-                                                          child: Row(
-                                                            mainAxisSize:
-                                                                MainAxisSize
-                                                                    .min,
-                                                            children: [
-                                                              Image.asset(
-                                                                'assets/view_icon.png',
-                                                                width: 16.w,
-                                                                height: 16.w,
-                                                              ),
-                                                              SizedBox(
-                                                                width: 4.w,
-                                                              ),
-                                                              Text(
-                                                                'View',
-                                                                overflow:
-                                                                    TextOverflow
-                                                                        .ellipsis,
-                                                                style: GoogleFonts.manrope(
-                                                                  color: AppColors
-                                                                      .rmPrimary,
-                                                                  fontWeight:
-                                                                      FontWeight
-                                                                          .w700,
-                                                                  fontSize:
-                                                                      14.sp,
-                                                                ),
-                                                              ),
-                                                            ],
-                                                          ),
-                                                        ),
-                                                      ],
-                                                    ),
-                                                    Text(
-                                                      'ID: #WA-3762',
-                                                      style:
-                                                          GoogleFonts.manrope(
-                                                            fontSize: 12.sp,
-                                                            color: AppColors
-                                                                .rmMutedText,
-                                                          ),
-                                                    ),
-                                                    SizedBox(height: 2.h),
-                                                    Text(
-                                                      '29 Yrs • 6\'2" • Surat',
-                                                      style:
-                                                          GoogleFonts.manrope(
-                                                            fontSize: 13.sp,
-                                                          ),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                          SizedBox(height: 14.h),
-                                          Row(
-                                            children: [
-                                              Expanded(
-                                                child: OutlinedButton(
-                                                  onPressed: () {},
-                                                  style: OutlinedButton.styleFrom(
-                                                    side: BorderSide(
-                                                      color:
-                                                          AppColors.rmPrimary,
-                                                    ),
-                                                    shape: RoundedRectangleBorder(
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                            18.r,
-                                                          ),
-                                                    ),
-                                                    padding:
-                                                        EdgeInsets.symmetric(
-                                                          horizontal: 8.w,
-                                                        ),
-                                                    minimumSize: Size(0, 36.h),
-                                                  ),
-                                                  child: Row(
-                                                    mainAxisAlignment:
-                                                        MainAxisAlignment
-                                                            .center,
-                                                    children: [
-                                                      Image.asset(
-                                                        'assets/view_icon.png',
-                                                        width: 16.w,
-                                                        height: 16.w,
-                                                      ),
-                                                      SizedBox(width: 4.w),
-                                                      Flexible(
-                                                        child: Text(
-                                                          'View',
-                                                          style:
-                                                              GoogleFonts.manrope(
-                                                                color: AppColors
-                                                                    .rmPrimary,
-                                                                fontSize: 13.sp,
-                                                                fontWeight:
-                                                                    FontWeight
-                                                                        .w700,
-                                                              ),
-                                                          overflow: TextOverflow
-                                                              .ellipsis,
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                ),
-                                              ),
-                                              SizedBox(width: 12.w),
-                                              Expanded(
-                                                child: ElevatedButton(
-                                                  onPressed: () {},
-                                                  style: ElevatedButton.styleFrom(
-                                                    backgroundColor:
-                                                        AppColors.rmPrimary,
-                                                    shape: RoundedRectangleBorder(
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                            18.r,
-                                                          ),
-                                                    ),
-                                                    padding:
-                                                        EdgeInsets.symmetric(
-                                                          horizontal: 8.w,
-                                                        ),
-                                                    minimumSize: Size(0, 36.h),
-                                                  ),
-                                                  child: Row(
-                                                    mainAxisAlignment:
-                                                        MainAxisAlignment
-                                                            .center,
-                                                    children: [
-                                                      Image.asset(
-                                                        'assets/add_white_icon.png',
-                                                        width: 16.w,
-                                                        height: 16.w,
-                                                      ),
-                                                      SizedBox(width: 4.w),
-                                                      Flexible(
-                                                        child: Text(
-                                                          'Add to Shortlist',
-                                                          style:
-                                                              GoogleFonts.manrope(
-                                                                color: AppColors
-                                                                    .white,
-                                                                fontSize: 13.sp,
-                                                                fontWeight:
-                                                                    FontWeight
-                                                                        .w700,
-                                                              ),
-                                                          overflow: TextOverflow
-                                                              .ellipsis,
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ],
+                                      child: _buildInfoItem(
+                                        Icons.account_balance_wallet_outlined,
+                                        'Budget Not Specified',
+                                        'Budget',
+                                        fullWidth: true,
                                       ),
                                     ),
-                                    SizedBox(height: 16.h),
                                   ],
                                 ),
                               ),
-                            ),
-                          ),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.rmPrimary,
-                        minimumSize: Size(double.infinity, 44.h),
-                      ),
-                      child: Text(
-                        'Add $_candidateProfileLabel Profiles',
-                        style: GoogleFonts.manrope(
-                          color: AppColors.white,
-                          fontSize: 15.sp,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                    SizedBox(height: 14.h),
-                    Container(
-                      color: AppColors.white,
-                      child: TabBar(
-                        isScrollable: true,
-                        labelColor: AppColors.rmPrimary,
-                        unselectedLabelColor: AppColors.rmMutedText,
-                        indicatorColor: AppColors.rmPrimary,
-                        indicatorWeight: 2.w,
-                        indicatorPadding: EdgeInsets.symmetric(
-                          horizontal: 16.w,
-                        ),
-                        labelStyle: GoogleFonts.manrope(
-                          fontWeight: FontWeight.w800,
-                          fontSize: 13.sp,
-                        ),
-                        unselectedLabelStyle: GoogleFonts.manrope(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13.sp,
-                        ),
-                        tabs: const [
-                          Tab(text: 'Manual Shortlists'),
-                          Tab(text: 'AI Shortlists'),
-                        ],
-                      ),
-                    ),
-                    Padding(
-                      padding: EdgeInsets.fromLTRB(8.r, 8.r, 8.r, 0),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Container(
-                              height: 50.h,
-                              padding: EdgeInsets.symmetric(horizontal: 16.w),
-                              decoration: BoxDecoration(
-                                color: AppColors.white,
-                                borderRadius: BorderRadius.circular(18.r),
-                                border: Border.all(color: AppColors.rmBorder),
-                              ),
-                              child: Row(
+                              SizedBox(height: 8.h),
+                              Row(
                                 children: [
-                                  const Icon(
-                                    Icons.search,
-                                    color: AppColors.rmMutedText,
-                                    size: 20,
+                                  Expanded(
+                                    child: OutlinedButton.icon(
+                                      onPressed: widget.profile == null
+                                          ? null
+                                          : () =>
+                                                Navigator.of(context).pushNamed(
+                                                  AppRoutes.profileDetail,
+                                                  arguments: widget.profile,
+                                                ),
+                                      icon: Icon(
+                                        Icons.visibility_outlined,
+                                        size: 18.sp,
+                                      ),
+                                      label: const Text('ViewProfile'),
+                                      style: OutlinedButton.styleFrom(
+                                        foregroundColor: AppColors.rmPrimary,
+                                        side: const BorderSide(
+                                          color: AppColors.rmPaleRoseBorder,
+                                        ),
+                                        backgroundColor: AppColors.white,
+                                        minimumSize: Size(
+                                          double.infinity,
+                                          48.h,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            14.r,
+                                          ),
+                                        ),
+                                        elevation: 0,
+                                      ),
+                                    ),
                                   ),
                                   SizedBox(width: 8.w),
                                   Expanded(
-                                    child: Text(
-                                      'Search...',
-                                      style: GoogleFonts.manrope(
-                                        color: AppColors.rmMutedText,
-                                        fontSize: 16.sp,
+                                    child: OutlinedButton.icon(
+                                      onPressed: () => _showSnackBar(
+                                        context,
+                                        'Chat support will be available soon.',
+                                      ),
+                                      icon: Icon(
+                                        Icons.chat_bubble_outline_rounded,
+                                        size: 18.sp,
+                                      ),
+                                      label: const Text('Open chat'),
+                                      style: OutlinedButton.styleFrom(
+                                        foregroundColor: AppColors.rmPrimary,
+                                        side: const BorderSide(
+                                          color: AppColors.rmPaleRoseBorder,
+                                        ),
+                                        backgroundColor: AppColors.white,
+                                        minimumSize: Size(
+                                          double.infinity,
+                                          48.h,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            14.r,
+                                          ),
+                                        ),
+                                        elevation: 0,
                                       ),
                                     ),
                                   ),
                                 ],
                               ),
-                            ),
+                              SizedBox(height: 10.h),
+                              ElevatedButton.icon(
+                                onPressed: () {
+                                  if (!_hasCurrentProfile) {
+                                    _showSnackBar(
+                                      context,
+                                      'Open shortlist from a profile card before adding candidates.',
+                                      isError: true,
+                                    );
+                                    return;
+                                  }
+
+                                  final accessToken = context
+                                      .read<AuthProvider>()
+                                      .userModel
+                                      ?.accessToken;
+                                  context
+                                      .read<RegistryProfilesProvider>()
+                                      .fetchProfiles(
+                                        accessToken,
+                                        forceRefresh: true,
+                                        oppositeGenderOf:
+                                            _candidateOppositeGenderOf,
+                                        profileType: _candidateProfileType,
+                                      );
+                                  _showAddProfilesSheet(displayName);
+                                },
+                                icon: Icon(Icons.person_add_alt_1, size: 18.sp),
+                                label: Text(
+                                  'Add $_candidateProfileLabel Profiles',
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.rmPrimary,
+                                  foregroundColor: AppColors.white,
+                                  minimumSize: Size(double.infinity, 44.h),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14.r),
+                                  ),
+                                  elevation: 0,
+                                  textStyle: GoogleFonts.manrope(
+                                    fontSize: 15.sp,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ),
+                              SizedBox(height: 18.h),
+                              TabBar(
+                                isScrollable: true,
+                                tabAlignment: TabAlignment.start,
+                                labelColor: AppColors.rmPrimary,
+                                unselectedLabelColor: AppColors.rmMutedText,
+                                indicatorColor: AppColors.rmPrimary,
+                                indicatorWeight: 2.2,
+                                labelStyle: GoogleFonts.manrope(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 13.sp,
+                                ),
+                                unselectedLabelStyle: GoogleFonts.manrope(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13.sp,
+                                ),
+                                tabs: const [
+                                  Tab(text: 'All Shortlists'),
+                                  Tab(text: 'Manual Shortlists'),
+                                  Tab(text: 'AI Shortlists'),
+                                ],
+                              ),
+                              SizedBox(height: 18.h),
+                              Container(
+                                height: 50.h,
+                                padding: EdgeInsets.symmetric(horizontal: 14.w),
+                                decoration: BoxDecoration(
+                                  color: AppColors.white,
+                                  borderRadius: BorderRadius.circular(16.r),
+                                  border: Border.all(
+                                    color: const Color(0xFFE9DDD5),
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.search_rounded,
+                                      color: AppColors.rmMutedText,
+                                      size: 20.sp,
+                                    ),
+                                    SizedBox(width: 8.w),
+                                    Expanded(
+                                      child: TextField(
+                                        onChanged: (value) => setState(
+                                          () => _shortlistSearchQuery = value,
+                                        ),
+                                        style: GoogleFonts.manrope(
+                                          color: AppColors.rmHeading,
+                                          fontSize: 14.sp,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                        decoration: InputDecoration(
+                                          hintText:
+                                              'Search by name, ID, city, or keyword...',
+                                          hintStyle: GoogleFonts.manrope(
+                                            color: AppColors.rmMutedText,
+                                            fontSize: 14.sp,
+                                          ),
+                                          border: InputBorder.none,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              SizedBox(height: 14.h),
+                              // Row(
+                              //   children: [
+                              //     OutlinedButton.icon(
+                              //       onPressed: () => _showSnackBar(
+                              //         context,
+                              //         'Filters panel coming soon.',
+                              //       ),
+                              //       icon: Icon(Icons.tune, size: 16.sp),
+                              //       label: const Text('FILTERS'),
+                              //       style: OutlinedButton.styleFrom(
+                              //         foregroundColor: AppColors.rmPrimary,
+                              //         side: const BorderSide(
+                              //           color:
+                              //               AppColors.rmComparisonButtonBorder,
+                              //         ),
+                              //         minimumSize: Size(0, 38.h),
+                              //         shape: RoundedRectangleBorder(
+                              //           borderRadius: BorderRadius.circular(
+                              //             999.r,
+                              //           ),
+                              //         ),
+                              //       ),
+                              //     ),
+                              //     const Spacer(),
+                              //     OutlinedButton.icon(
+                              //       onPressed: () => setState(
+                              //         () =>
+                              //             _sortNewestFirst = !_sortNewestFirst,
+                              //       ),
+                              //       icon: Icon(
+                              //         Icons.swap_vert_rounded,
+                              //         size: 16.sp,
+                              //       ),
+                              //       label: Text(
+                              //         _sortNewestFirst
+                              //             ? 'NEWEST SHORTLISTED'
+                              //             : 'OLDEST SHORTLISTED',
+                              //       ),
+                              //       style: OutlinedButton.styleFrom(
+                              //         foregroundColor: AppColors.rmPrimary,
+                              //         side: const BorderSide(
+                              //           color:
+                              //               AppColors.rmComparisonButtonBorder,
+                              //         ),
+                              //         minimumSize: Size(0, 38.h),
+                              //         shape: RoundedRectangleBorder(
+                              //           borderRadius: BorderRadius.circular(
+                              //             999.r,
+                              //           ),
+                              //         ),
+                              //       ),
+                              //     ),
+                              //   ],
+                              // ),
+                              SizedBox(height: 26.h),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      '${_visibleShortlistedProfiles(tabIndex).length} Profiles Shortlisted Total',
+                                      style: GoogleFonts.manrope(
+                                        color: AppColors.rmPrimary,
+                                        fontSize: 15.sp,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                  ),
+                                  Container(
+                                    padding: EdgeInsets.all(4.r),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.white,
+                                      borderRadius: BorderRadius.circular(12.r),
+                                      boxShadow: const [
+                                        BoxShadow(
+                                          color: Color(0x10CD6124),
+                                          blurRadius: 12,
+                                          offset: Offset(0, 4),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        _buildLayoutToggle(
+                                          icon: Icons.view_agenda_rounded,
+                                          selected: !_shortlistGridView,
+                                          onTap: () => setState(
+                                            () => _shortlistGridView = false,
+                                          ),
+                                        ),
+                                        SizedBox(width: 4.w),
+                                        _buildLayoutToggle(
+                                          icon: Icons.grid_view_rounded,
+                                          selected: _shortlistGridView,
+                                          onTap: () => setState(
+                                            () => _shortlistGridView = true,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              SizedBox(height: 14.h),
+                              _buildList(tabIndex: tabIndex),
+                            ],
                           ),
-                          SizedBox(width: 8.w),
-                          IconButton(
-                            onPressed: () {},
-                            icon: const Icon(Icons.tune, size: 22),
-                          ),
-                        ],
+                        ),
                       ),
-                    ),
-                  ],
-                ),
+                    ],
+                  );
+                },
               ),
             ),
-          ],
-          body: TabBarView(
-            children: [_buildList(), const SizedBox.shrink()],
-          ),
-        ),
+          );
+        },
       ),
     );
   }
 
   Widget _buildGroomProfilesSheetList(
     RegistryProfilesProvider profilesProvider,
+    String searchQuery,
   ) {
     if (profilesProvider.isLoading) {
-      return Padding(
-        padding: EdgeInsets.symmetric(vertical: 28.h),
-        child: const Center(child: CircularProgressIndicator()),
+      return Center(
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: 28.h),
+          child: const CircularProgressIndicator(),
+        ),
       );
     }
 
     if (profilesProvider.error != null) {
-      return _ShortlistMessage(
-        message: profilesProvider.error!,
-        actionLabel: 'Retry',
-        onActionPressed: () {
-          final accessToken = context
-              .read<AuthProvider>()
-              .userModel
-              ?.accessToken;
-          context.read<RegistryProfilesProvider>().fetchProfiles(
-            accessToken,
-            forceRefresh: true,
-            oppositeGenderOf: _candidateOppositeGenderOf,
-            profileType: _candidateProfileType,
-          );
-        },
+      return Center(
+        child: _ShortlistMessage(
+          message: profilesProvider.error!,
+          actionLabel: 'Retry',
+          onActionPressed: () {
+            final accessToken = context
+                .read<AuthProvider>()
+                .userModel
+                ?.accessToken;
+            context.read<RegistryProfilesProvider>().fetchProfiles(
+              accessToken,
+              forceRefresh: true,
+              oppositeGenderOf: _candidateOppositeGenderOf,
+              profileType: _candidateProfileType,
+            );
+          },
+        ),
       );
     }
 
+    final normalizedQuery = searchQuery.trim().toLowerCase();
     final candidateProfiles = profilesProvider.profiles
         .where(
           (profile) =>
               profile.type == _candidateProfileLabel &&
-              profile.originalId != _currentProfileId,
+              profile.originalId != _currentProfileId &&
+              (normalizedQuery.isEmpty ||
+                  profile.name.toLowerCase().contains(normalizedQuery) ||
+                  profile.id.toLowerCase().contains(normalizedQuery) ||
+                  profile.city.toLowerCase().contains(normalizedQuery) ||
+                  profile.work.toLowerCase().contains(normalizedQuery) ||
+                  profile.profession.toLowerCase().contains(normalizedQuery)),
         )
         .toList();
 
     if (candidateProfiles.isEmpty) {
-      return _ShortlistMessage(
-        message: 'No ${_candidateProfileLabel.toLowerCase()} profiles found.',
+      return Center(
+        child: _ShortlistMessage(
+          message: normalizedQuery.isEmpty
+              ? 'No ${_candidateProfileLabel.toLowerCase()} profiles found.'
+              : 'No ${_candidateProfileLabel.toLowerCase()} profiles match your search.',
+        ),
       );
     }
 
-    return ConstrainedBox(
-      constraints: BoxConstraints(maxHeight: 420.h),
-      child: ListView.separated(
-        shrinkWrap: true,
-        itemCount: candidateProfiles.length,
-        separatorBuilder: (_, _) => SizedBox(height: 10.h),
-        itemBuilder: (context, index) {
-          return _buildGroomProfileSheetCard(candidateProfiles[index]);
-        },
-      ),
+    return ListView.separated(
+      padding: EdgeInsets.only(top: 6.h, bottom: 10.h),
+      itemCount: candidateProfiles.length,
+      separatorBuilder: (_, _) => SizedBox(height: 12.h),
+      itemBuilder: (context, index) {
+        return _buildGroomProfileSheetCard(candidateProfiles[index]);
+      },
+    );
+  }
+
+  void _showAddProfilesSheet(String displayName) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.transparent,
+      builder: (sheetContext) {
+        var searchQuery = '';
+
+        return StatefulBuilder(
+          builder: (modalContext, setModalState) {
+            return Material(
+              color: AppColors.transparent,
+              child: SafeArea(
+                top: false,
+                child: FractionallySizedBox(
+                  heightFactor: 0.9,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: AppColors.white,
+                      borderRadius: BorderRadius.vertical(
+                        top: Radius.circular(28.r),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Center(
+                          child: Padding(
+                            padding: EdgeInsets.only(top: 10.h),
+                            child: Container(
+                              width: 46.w,
+                              height: 5.h,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFE7DAD0),
+                                borderRadius: BorderRadius.circular(999.r),
+                              ),
+                            ),
+                          ),
+                        ),
+                        Padding(
+                          padding: EdgeInsets.fromLTRB(18.w, 16.h, 12.w, 8.h),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Add $_candidateProfileLabel Profiles',
+                                      style: GoogleFonts.notoSerif(
+                                        color: AppColors.rmHeading,
+                                        fontSize: 22.sp,
+                                        fontWeight: FontWeight.w800,
+                                        height: 1.1,
+                                      ),
+                                    ),
+                                    SizedBox(height: 6.h),
+                                    Text(
+                                      'Select a profile to add directly into $displayName\'s shortlist.',
+                                      style: GoogleFonts.manrope(
+                                        color: AppColors.rmBodyText,
+                                        fontSize: 13.sp,
+                                        fontWeight: FontWeight.w500,
+                                        height: 1.45,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              IconButton(
+                                onPressed: () =>
+                                    Navigator.of(modalContext).pop(),
+                                icon: Icon(
+                                  Icons.close_rounded,
+                                  color: AppColors.rmMutedText,
+                                  size: 20.sp,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Padding(
+                          padding: EdgeInsets.fromLTRB(18.w, 6.h, 18.w, 8.h),
+                          child: Container(
+                            height: 46.h,
+                            padding: EdgeInsets.symmetric(horizontal: 14.w),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFFBF8),
+                              borderRadius: BorderRadius.circular(14.r),
+                              border: Border.all(
+                                color: const Color(0xFFE7DAD0),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.search_rounded,
+                                  color: AppColors.rmMutedText,
+                                  size: 20.sp,
+                                ),
+                                SizedBox(width: 10.w),
+                                Expanded(
+                                  child: TextField(
+                                    onChanged: (value) => setModalState(
+                                      () => searchQuery = value,
+                                    ),
+                                    style: GoogleFonts.manrope(
+                                      color: AppColors.rmHeading,
+                                      fontSize: 14.sp,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                    decoration: InputDecoration(
+                                      hintText:
+                                          'Search ${_candidateProfileLabel.toLowerCase()} profiles...',
+                                      hintStyle: GoogleFonts.manrope(
+                                        color: AppColors.rmMutedText,
+                                        fontSize: 14.sp,
+                                      ),
+                                      border: InputBorder.none,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          child: Padding(
+                            padding: EdgeInsets.fromLTRB(18.w, 0, 18.w, 14.h),
+                            child: Consumer<RegistryProfilesProvider>(
+                              builder: (context, profilesProvider, _) {
+                                return _buildGroomProfilesSheetList(
+                                  profilesProvider,
+                                  searchQuery,
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -652,20 +685,25 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(10),
-      decoration: ShapeDecoration(
+      padding: EdgeInsets.all(12.r),
+      decoration: BoxDecoration(
         color: AppColors.white,
-        shape: RoundedRectangleBorder(
-          side: BorderSide(width: 1, color: AppColors.hrMetricBorder),
-          borderRadius: BorderRadius.circular(20),
-        ),
+        borderRadius: BorderRadius.circular(18.r),
+        border: Border.all(color: const Color(0xFFE7DAD0)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A000000),
+            blurRadius: 12,
+            offset: Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         children: [
           Row(
             children: [
               ClipRRect(
-                borderRadius: BorderRadius.circular(10.r),
+                borderRadius: BorderRadius.circular(12.r),
                 child: _buildRegistryProfileThumb(profile.image),
               ),
               SizedBox(width: 14.w),
@@ -681,7 +719,7 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
                             style: GoogleFonts.manrope(
                               fontSize: 16.sp,
                               fontWeight: FontWeight.w800,
-                              color: AppColors.rmPrimary,
+                              color: AppColors.rmHeading,
                             ),
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -700,10 +738,10 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Image.asset(
-                                'assets/view_icon.png',
-                                width: 16.w,
-                                height: 16.w,
+                              Icon(
+                                Icons.visibility_outlined,
+                                color: AppColors.rmPrimary,
+                                size: 16.sp,
                               ),
                               SizedBox(width: 4.w),
                               Text(
@@ -712,7 +750,7 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
                                 style: GoogleFonts.manrope(
                                   color: AppColors.rmPrimary,
                                   fontWeight: FontWeight.w700,
-                                  fontSize: 14.sp,
+                                  fontSize: 13.sp,
                                 ),
                               ),
                             ],
@@ -725,12 +763,17 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
                       style: GoogleFonts.manrope(
                         fontSize: 12.sp,
                         color: AppColors.rmMutedText,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                    SizedBox(height: 2.h),
+                    SizedBox(height: 4.h),
                     Text(
-                      '${profile.age} Yrs - ${profile.height} - ${profile.city}',
-                      style: GoogleFonts.manrope(fontSize: 13.sp),
+                      '${profile.age} Yrs • ${profile.height} • ${profile.city}',
+                      style: GoogleFonts.manrope(
+                        fontSize: 13.sp,
+                        color: AppColors.rmBodyText,
+                        fontWeight: FontWeight.w600,
+                      ),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ],
@@ -747,18 +790,18 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
                   style: OutlinedButton.styleFrom(
                     side: BorderSide(color: AppColors.rmPrimary),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(18.r),
+                      borderRadius: BorderRadius.circular(14.r),
                     ),
                     padding: EdgeInsets.symmetric(horizontal: 8.w),
-                    minimumSize: Size(0, 36.h),
+                    minimumSize: Size(0, 40.h),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Image.asset(
-                        'assets/view_icon.png',
-                        width: 16.w,
-                        height: 16.w,
+                      Icon(
+                        Icons.visibility_outlined,
+                        color: AppColors.rmPrimary,
+                        size: 16.sp,
                       ),
                       SizedBox(width: 4.w),
                       Flexible(
@@ -767,7 +810,7 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
                           style: GoogleFonts.manrope(
                             color: AppColors.rmPrimary,
                             fontSize: 13.sp,
-                            fontWeight: FontWeight.w700,
+                            fontWeight: FontWeight.w800,
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -785,18 +828,19 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.rmPrimary,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(18.r),
+                      borderRadius: BorderRadius.circular(14.r),
                     ),
                     padding: EdgeInsets.symmetric(horizontal: 8.w),
-                    minimumSize: Size(0, 36.h),
+                    minimumSize: Size(0, 40.h),
+                    elevation: 0,
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Image.asset(
-                        'assets/add_white_icon.png',
-                        width: 16.w,
-                        height: 16.w,
+                      Icon(
+                        Icons.add_rounded,
+                        color: AppColors.white,
+                        size: 16.sp,
                       ),
                       SizedBox(width: 4.w),
                       Flexible(
@@ -851,7 +895,9 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
   }
 
   void _viewRegistryProfile(RegistryProfileItem profile) {
-    Navigator.of(context).pushNamed(AppRoutes.profileDetail, arguments: profile);
+    Navigator.of(
+      context,
+    ).pushNamed(AppRoutes.profileDetail, arguments: profile);
   }
 
   Future<void> _addGroomToShortlist(RegistryProfileItem profile) async {
@@ -974,16 +1020,15 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
     );
   }
 
-  bool _shouldRetryShortlistAddWithCandidateProfileId(
-    http.Response response,
-  ) {
+  bool _shouldRetryShortlistAddWithCandidateProfileId(http.Response response) {
     if (response.statusCode != 400 &&
         response.statusCode != 422 &&
         response.statusCode != 500) {
       return false;
     }
 
-    final message = (_extractApiErrorMessage(response.body) ?? '').toLowerCase();
+    final message = (_extractApiErrorMessage(response.body) ?? '')
+        .toLowerCase();
     return message.contains('candidateprofileid') ||
         message.contains('shortlistedprofileid') ||
         message.contains('property');
@@ -1118,42 +1163,98 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
     return _fetchShortlist(_requestedAccessToken);
   }
 
-  Widget _buildList() {
+  List<_ShortlistedProfile> _visibleShortlistedProfiles(int tabIndex) {
+    if (tabIndex == 2) {
+      return const [];
+    }
+
+    final query = _shortlistSearchQuery.trim().toLowerCase();
+    final filtered = _shortlistedProfiles.where((profile) {
+      if (query.isEmpty) {
+        return true;
+      }
+
+      return profile.name.toLowerCase().contains(query) ||
+          profile.shortCode.toLowerCase().contains(query) ||
+          profile.city.toLowerCase().contains(query) ||
+          profile.work.toLowerCase().contains(query) ||
+          profile.company.toLowerCase().contains(query) ||
+          profile.religion.toLowerCase().contains(query) ||
+          profile.manglik.toLowerCase().contains(query);
+    }).toList();
+
+    filtered.sort((a, b) {
+      final left = a.shortlistedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+      final right = b.shortlistedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+      return _sortNewestFirst ? right.compareTo(left) : left.compareTo(right);
+    });
+
+    return filtered;
+  }
+
+  Widget _buildList({required int tabIndex}) {
     if (_isLoadingShortlist) {
-      return ListView(
-        padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 28.h),
-        children: const [Center(child: CircularProgressIndicator())],
+      return Padding(
+        padding: EdgeInsets.symmetric(vertical: 40.h),
+        child: const Center(child: CircularProgressIndicator()),
       );
     }
 
     if (_shortlistError != null) {
-      return ListView(
-        padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 28.h),
-        children: [
-          _ShortlistMessage(
-            message: _shortlistError!,
-            actionLabel: 'Retry',
-            onActionPressed: _retryShortlist,
-          ),
-        ],
+      return Padding(
+        padding: EdgeInsets.only(top: 8.h),
+        child: _ShortlistMessage(
+          message: _shortlistError!,
+          actionLabel: 'Retry',
+          onActionPressed: _retryShortlist,
+        ),
       );
     }
 
-    if (_shortlistedProfiles.isEmpty) {
-      return ListView(
-        padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 28.h),
-        children: [
-          const _ShortlistMessage(message: 'No shortlisted profiles found.'),
-        ],
+    if (tabIndex == 2) {
+      return Padding(
+        padding: EdgeInsets.only(top: 8.h),
+        child: const _ShortlistMessage(
+          message: 'No AI shortlists available yet.',
+        ),
+      );
+    }
+
+    final profiles = _visibleShortlistedProfiles(tabIndex);
+    if (profiles.isEmpty) {
+      return Padding(
+        padding: EdgeInsets.only(top: 8.h),
+        child: const _ShortlistMessage(
+          message: 'No shortlisted profiles match your current filters.',
+        ),
+      );
+    }
+
+    if (_shortlistGridView) {
+      return GridView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        padding: EdgeInsets.only(bottom: 16.h),
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          crossAxisSpacing: 12.w,
+          mainAxisSpacing: 12.h,
+          childAspectRatio: 0.66,
+        ),
+        itemCount: profiles.length,
+        itemBuilder: (context, index) =>
+            _buildCompactProfileCard(context, profiles[index]),
       );
     }
 
     return ListView.separated(
-      padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
-      itemCount: _shortlistedProfiles.length,
-      separatorBuilder: (context, index) => SizedBox(height: 12.h),
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      padding: EdgeInsets.only(bottom: 16.h),
+      itemCount: profiles.length,
+      separatorBuilder: (context, index) => SizedBox(height: 14.h),
       itemBuilder: (context, index) =>
-          _buildProfileCard(context, _shortlistedProfiles[index]),
+          _buildProfileCard(context, profiles[index]),
     );
   }
 
@@ -1165,21 +1266,59 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.white,
-        borderRadius: BorderRadius.circular(16.r),
-        border: Border.all(color: AppColors.rmPaleRoseBorder),
+        borderRadius: BorderRadius.circular(18.r),
+        border: Border.all(color: const Color(0xFFEEDFD5)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x12B25C18),
+            blurRadius: 18,
+            offset: Offset(0, 8),
+          ),
+        ],
       ),
       child: Padding(
-        padding: EdgeInsets.all(12.r),
+        padding: EdgeInsets.all(14.r),
         child: Column(
           children: [
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(10.r),
-                  child: _ShortlistProfileImage(
-                    image: profile.image,
-                    width: 70.w,
-                    height: 70.w,
+                Container(
+                  width: 112.w,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(14.r),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: Stack(
+                    children: [
+                      _ShortlistProfileImage(
+                        image: profile.image,
+                        width: 112.w,
+                        height: 142.h,
+                      ),
+                      Positioned(
+                        left: 10.w,
+                        bottom: 10.h,
+                        child: Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 10.w,
+                            vertical: 5.h,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.rmPrimary,
+                            borderRadius: BorderRadius.circular(10.r),
+                          ),
+                          child: Text(
+                            '${profile.matchScore}% Match',
+                            style: GoogleFonts.manrope(
+                              color: AppColors.white,
+                              fontSize: 11.sp,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 SizedBox(width: 14.w),
@@ -1190,116 +1329,300 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
                       Text(
                         profile.name,
                         style: GoogleFonts.manrope(
-                          fontSize: 16.sp,
+                          fontSize: 17.sp,
                           fontWeight: FontWeight.w800,
                           color: AppColors.rmPrimary,
+                          height: 1.15,
                         ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      Text(
-                        '#${profile.shortCode} - ${profile.statusLabel}',
-                        style: GoogleFonts.manrope(
-                          fontSize: 12.sp,
-                          color: AppColors.success,
-                          fontWeight: FontWeight.w600,
-                        ),
+                        maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
                       SizedBox(height: 6.h),
                       Row(
                         children: [
-                          _buildShortInfoItem(
-                            Icons.person,
-                            '${profile.age} Yrs',
+                          Expanded(
+                            child: Text(
+                              '#${profile.shortCode}',
+                              style: GoogleFonts.manrope(
+                                fontSize: 12.sp,
+                                color: const Color(0xFF4B4747),
+                                fontWeight: FontWeight.w600,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
                           SizedBox(width: 8.w),
-                          _buildShortInfoItem(Icons.height, profile.height),
+                          Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 8.w,
+                              vertical: 4.h,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFE9F8ED),
+                              borderRadius: BorderRadius.circular(8.r),
+                            ),
+                            child: Text(
+                              profile.statusLabel.toUpperCase(),
+                              style: GoogleFonts.manrope(
+                                fontSize: 11.sp,
+                                color: const Color(0xFF149647),
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
                         ],
+                      ),
+                      SizedBox(height: 6.h),
+                      Wrap(
+                        spacing: 7.w,
+                        runSpacing: 4.h,
+                        children: [
+                          Text(
+                            '${profile.age} Yrs',
+                            style: GoogleFonts.manrope(
+                              fontSize: 13.sp,
+                              color: const Color(0xFF3A3434),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          Text(
+                            '•',
+                            style: GoogleFonts.manrope(
+                              color: AppColors.rmMutedText,
+                              fontSize: 13.sp,
+                            ),
+                          ),
+                          Text(
+                            profile.city,
+                            style: GoogleFonts.manrope(
+                              fontSize: 13.sp,
+                              color: const Color(0xFF3A3434),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          Text(
+                            '•',
+                            style: GoogleFonts.manrope(
+                              color: AppColors.rmMutedText,
+                              fontSize: 13.sp,
+                            ),
+                          ),
+                          Text(
+                            profile.height,
+                            style: GoogleFonts.manrope(
+                              fontSize: 13.sp,
+                              color: const Color(0xFF3A3434),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 10.h),
+                      _buildProfileDetailLine(
+                        Icons.work_outline_rounded,
+                        profile.work,
+                      ),
+                      SizedBox(height: 6.h),
+                      _buildProfileDetailLine(
+                        Icons.school_outlined,
+                        profile.company,
+                      ),
+                      SizedBox(height: 6.h),
+                      _buildProfileDetailLine(
+                        Icons.people_outline_rounded,
+                        profile.religion,
+                      ),
+                      SizedBox(height: 6.h),
+                      _buildProfileDetailLine(
+                        Icons.star_border_rounded,
+                        profile.manglik,
                       ),
                     ],
                   ),
                 ),
               ],
             ),
-            SizedBox(height: 12.h),
-            Wrap(
-              spacing: 6.w,
-              runSpacing: 6.h,
-              children: [
-                _buildTag(profile.work),
-                _buildTag(profile.company),
-                _buildTag(profile.manglik),
-              ],
-            ),
-            SizedBox(height: 14.h),
+            SizedBox(height: 16.h),
             ElevatedButton(
               onPressed: () => _openCompareProfile(profile),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.rmPrimary,
-                minimumSize: Size(double.infinity, 44.h),
+                minimumSize: Size(double.infinity, 46.h),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8.r),
+                  borderRadius: BorderRadius.circular(14.r),
                 ),
+                elevation: 0,
               ),
-              child: Text(
-                'Compare Profile',
-                style: GoogleFonts.manrope(
-                  fontSize: 14.sp,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.white,
-                ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.compare_arrows_rounded, size: 17.sp),
+                  SizedBox(width: 6.w),
+                  Text(
+                    'Compare Profile',
+                    style: GoogleFonts.manrope(
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.white,
+                    ),
+                  ),
+                ],
               ),
             ),
-            SizedBox(height: 8.h),
+            SizedBox(height: 10.h),
             Row(
               children: [
                 Expanded(
-                  child: OutlinedButton(
+                  child: OutlinedButton.icon(
                     onPressed: isSending
                         ? null
                         : () => _sendShortlistedProfile(profile),
-                    style: OutlinedButton.styleFrom(
-                      minimumSize: Size(0, 36.h),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8.r),
-                      ),
+                    icon: Icon(
+                      Icons.forum_outlined,
+                      size: 17.sp,
+                      color: AppColors.rmPrimary,
                     ),
-                    child: Text(
+                    label: Text(
                       isSending ? 'Sending...' : 'Send Profile',
                       style: GoogleFonts.manrope(
                         fontSize: 13.sp,
                         fontWeight: FontWeight.w700,
-                        color: AppColors.primary,
+                        color: AppColors.rmPrimary,
+                      ),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: Size(0, 44.h),
+                      side: const BorderSide(color: Color(0xFFFFA27A)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14.r),
                       ),
                     ),
                   ),
                 ),
-
-                SizedBox(width: 8.w),
+                SizedBox(width: 12.w),
                 Expanded(
-                  child: OutlinedButton(
+                  child: OutlinedButton.icon(
                     onPressed: () =>
                         _showRemoveFromShortlistSheet(context, profile),
-                    style: OutlinedButton.styleFrom(
-                      minimumSize: Size(0, 36.h),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8.r),
-                      ),
+                    icon: Icon(
+                      Icons.delete_outline_rounded,
+                      size: 17.sp,
+                      color: AppColors.danger,
                     ),
-                    child: Text(
+                    label: Text(
                       'Remove',
                       style: GoogleFonts.manrope(
                         fontSize: 13.sp,
                         fontWeight: FontWeight.w700,
-                        color: AppColors.primary,
+                        color: AppColors.danger,
+                      ),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: Size(0, 44.h),
+                      side: const BorderSide(color: Color(0xFFFFB4B4)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14.r),
                       ),
                     ),
                   ),
                 ),
               ],
             ),
+            SizedBox(height: 12.h),
+            Container(
+              width: double.infinity,
+              padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 12.h),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF8F2),
+                borderRadius: BorderRadius.circular(12.r),
+              ),
+              child: Text(
+                'Shortlisted on ${_formatShortlistedOn(profile.shortlistedAt)} by ${profile.shortlistedBy}',
+                style: GoogleFonts.manrope(
+                  fontSize: 12.5.sp,
+                  fontWeight: FontWeight.w500,
+                  color: const Color(0xFF463F3F),
+                  fontStyle: FontStyle.italic,
+                  height: 1.35,
+                ),
+              ),
+            ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildCompactProfileCard(
+    BuildContext context,
+    _ShortlistedProfile profile,
+  ) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(16.r),
+        border: Border.all(color: const Color(0xFFEEDFD5)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(16.r)),
+            child: _ShortlistProfileImage(
+              image: profile.image,
+              width: double.infinity,
+              height: 126.h,
+            ),
+          ),
+          Padding(
+            padding: EdgeInsets.all(10.r),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  profile.name,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.manrope(
+                    color: AppColors.rmPrimary,
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w800,
+                    height: 1.2,
+                  ),
+                ),
+                SizedBox(height: 4.h),
+                Text(
+                  '#${profile.shortCode}',
+                  style: GoogleFonts.manrope(
+                    color: AppColors.rmMutedText,
+                    fontSize: 11.sp,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                SizedBox(height: 8.h),
+                ElevatedButton(
+                  onPressed: () => _openCompareProfile(profile),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.rmPrimary,
+                    minimumSize: Size(double.infinity, 34.h),
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10.r),
+                    ),
+                  ),
+                  child: Text(
+                    'Compare',
+                    style: GoogleFonts.manrope(
+                      color: AppColors.white,
+                      fontSize: 12.sp,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1765,32 +2088,90 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
       );
   }
 
+  Widget _buildTopBar(BuildContext context) {
+    return Container(
+      color: AppColors.white,
+      padding: EdgeInsets.fromLTRB(12.w, 8.h, 12.w, 10.h),
+      child: Row(
+        children: [
+          IconButton(
+            onPressed: () => Navigator.of(context).maybePop(),
+            icon: Icon(
+              Icons.arrow_back_rounded,
+              color: const Color(0xFF232323),
+              size: 22.sp,
+            ),
+          ),
+          Expanded(
+            child: Text(
+              'shortlist',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.playfairDisplay(
+                color: const Color(0xFF2C2626),
+                fontSize: 18.sp,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          IconButton(
+            onPressed: () =>
+                _showSnackBar(context, 'More options coming soon.'),
+            icon: Icon(
+              Icons.more_vert_rounded,
+              color: const Color(0xFF232323),
+              size: 22.sp,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildInfoGrid(RegistryProfileItem? profile) {
-    return GridView.count(
+    final items = [
+      _buildInfoItem(
+        Icons.person_outline_rounded,
+        profile?.age ?? '27 Yrs',
+        'Age',
+      ),
+      _buildInfoItem(
+        Icons.height_rounded,
+        profile?.height ?? '5\'6"',
+        'Height',
+      ),
+      _buildInfoItem(
+        Icons.location_on_outlined,
+        profile?.city ?? 'Mumbai',
+        'Resident',
+      ),
+      _buildInfoItem(
+        Icons.work_outline_rounded,
+        profile?.profession ?? 'Actress',
+        'Profession',
+      ),
+      _buildInfoItem(
+        Icons.church_outlined,
+        profile?.religion ?? 'Sikh',
+        'Religion',
+      ),
+      _buildInfoItem(
+        Icons.star_border_rounded,
+        profile?.manglikLabel ?? 'Non-Manglik',
+        'Manglik',
+      ),
+    ];
+
+    return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      crossAxisCount: 3,
-      childAspectRatio: 2.5,
-      children: [
-        _buildInfoItem(Icons.person, profile?.age ?? '27 Yrs', 'Age'),
-        _buildInfoItem(Icons.height, profile?.height ?? '5\'6"', 'Height'),
-        _buildInfoItem(
-          Icons.location_on,
-          profile?.city ?? 'Mumbai',
-          'Resident',
-        ),
-        _buildInfoItem(
-          Icons.work,
-          profile?.profession ?? 'Actress',
-          'Profession',
-        ),
-        _buildInfoItem(Icons.church, profile?.religion ?? 'Sikh', 'Religion'),
-        _buildInfoItem(
-          Icons.star,
-          profile?.manglikLabel ?? 'Non-Manglik',
-          'Manglik',
-        ),
-      ],
+      itemCount: items.length,
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        crossAxisSpacing: 10.w,
+        mainAxisSpacing: 10.h,
+        childAspectRatio: 1.55,
+      ),
+      itemBuilder: (context, index) => items[index],
     );
   }
 
@@ -1798,7 +2179,7 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
     if (image.startsWith('http')) {
       return Image.network(
         image,
-        height: 300.h,
+        height: 142.h,
         width: double.infinity,
         fit: BoxFit.cover,
         errorBuilder: (context, error, stackTrace) => _fallbackHeaderImage(),
@@ -1806,7 +2187,7 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
     }
     return Image.asset(
       image,
-      height: 300.h,
+      height: 142.h,
       width: double.infinity,
       fit: BoxFit.cover,
       errorBuilder: (context, error, stackTrace) => _fallbackHeaderImage(),
@@ -1816,62 +2197,107 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
   Widget _fallbackHeaderImage() {
     return Image.asset(
       'assets/wedding_hero 1.png',
-      height: 300.h,
+      height: 142.h,
       width: double.infinity,
       fit: BoxFit.cover,
     );
   }
 
-  Widget _buildInfoItem(IconData icon, String value, String label) {
+  Widget _buildInfoItem(
+    IconData icon,
+    String value,
+    String label, {
+    bool fullWidth = false,
+  }) {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Icon(icon, size: 16.sp, color: AppColors.rmPrimary),
             SizedBox(width: 4.w),
-            Flexible(
+            Expanded(
               child: Text(
                 value,
+                maxLines: fullWidth ? 1 : 2,
                 overflow: TextOverflow.ellipsis,
                 style: GoogleFonts.manrope(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16.sp,
+                  fontWeight: FontWeight.w800,
+                  fontSize: fullWidth ? 14.sp : 15.sp,
+                  color: const Color(0xFF2F2B2B),
+                  height: 1.15,
                 ),
               ),
             ),
           ],
         ),
+        SizedBox(height: 3.h),
         Text(
           label,
           style: GoogleFonts.manrope(
-            fontSize: 12.sp,
+            fontSize: 11.sp,
             color: AppColors.rmMutedText,
+            fontWeight: FontWeight.w500,
           ),
         ),
       ],
     );
   }
 
-  Widget _buildShortInfoItem(IconData icon, String text) {
+  Widget _buildProfileDetailLine(IconData icon, String text) {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 14.sp, color: AppColors.rmMutedText),
-        SizedBox(width: 4.w),
-        Text(text, style: GoogleFonts.manrope(fontSize: 13.sp)),
+        Icon(icon, size: 15.sp, color: AppColors.rmMutedText),
+        SizedBox(width: 6.w),
+        Expanded(
+          child: Text(
+            text,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.manrope(
+              fontSize: 12.8.sp,
+              color: const Color(0xFF2F2B2B),
+              fontWeight: FontWeight.w500,
+              height: 1.3,
+            ),
+          ),
+        ),
       ],
     );
   }
 
-  Widget _buildTag(String text) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
-      decoration: BoxDecoration(
-        color: AppColors.lightGreyBg,
-        borderRadius: BorderRadius.circular(8.r),
+  Widget _buildLayoutToggle({
+    required IconData icon,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(10.r),
+      onTap: onTap,
+      child: Container(
+        width: 34.w,
+        height: 32.h,
+        decoration: BoxDecoration(
+          color: selected ? const Color(0xFFFFF1E7) : AppColors.white,
+          borderRadius: BorderRadius.circular(10.r),
+        ),
+        child: Icon(
+          icon,
+          size: 18.sp,
+          color: selected ? AppColors.rmPrimary : AppColors.rmMutedText,
+        ),
       ),
-      child: Text(text, style: GoogleFonts.manrope(fontSize: 14.sp)),
     );
+  }
+
+  String _formatShortlistedOn(DateTime? value) {
+    if (value == null) {
+      return 'recently';
+    }
+
+    return DateFormat('d MMM yyyy, hh:mm a').format(value).toLowerCase();
   }
 }
 
@@ -1887,8 +2313,12 @@ class _ShortlistedProfile {
     required this.city,
     required this.work,
     required this.company,
+    required this.religion,
     required this.manglik,
     required this.image,
+    required this.matchScore,
+    required this.shortlistedAt,
+    required this.shortlistedBy,
   });
 
   final String shortlistCandidateId;
@@ -1901,8 +2331,12 @@ class _ShortlistedProfile {
   final String city;
   final String work;
   final String company;
+  final String religion;
   final String manglik;
   final String image;
+  final int matchScore;
+  final DateTime? shortlistedAt;
+  final String shortlistedBy;
 
   factory _ShortlistedProfile.fromJson(Map<String, dynamic> json) {
     final profile = _readProfileJson(json);
@@ -1956,6 +2390,10 @@ class _ShortlistedProfile {
         profile['education'],
         json['company'],
       ], fallback: '-'),
+      religion: _firstText([
+        profile['religion'],
+        json['religion'],
+      ], fallback: 'OTHER'),
       manglik: _manglikLabel(
         _firstValue([profile['manglik'], json['manglik']]),
       ),
@@ -1963,6 +2401,22 @@ class _ShortlistedProfile {
         _firstValue([profile['image'], json['image']]),
         _firstValue([profile['photoUrls'], json['photoUrls']]),
       ),
+      matchScore: _readMatchScore(
+        _firstValue([json['matchScore'], json['score'], profile['matchScore']]),
+      ),
+      shortlistedAt: _readDate(
+        _firstValue([
+          json['createdAt'],
+          json['shortlistedAt'],
+          json['updatedAt'],
+        ]),
+      ),
+      shortlistedBy: _firstText([
+        _readNestedText(json['createdBy'], 'name'),
+        _readNestedText(json['assignedTo'], 'name'),
+        json['assignedToName'],
+        json['createdByName'],
+      ], fallback: 'RM team'),
     );
   }
 
@@ -2031,6 +2485,13 @@ class _ShortlistedProfile {
     return 'assets/wedding_hero 1.png';
   }
 
+  static String _readNestedText(dynamic value, String key) {
+    if (value is Map<String, dynamic>) {
+      return _readText(value[key]);
+    }
+    return '';
+  }
+
   static String _shortId(String id) {
     if (id.isEmpty) {
       return '-';
@@ -2077,6 +2538,25 @@ class _ShortlistedProfile {
     }
 
     return text.toUpperCase() == 'TRUE' ? 'Manglik' : _formatEnumLabel(text);
+  }
+
+  static int _readMatchScore(dynamic value) {
+    if (value is num) {
+      return value.round().clamp(0, 100);
+    }
+
+    final numeric = int.tryParse(
+      _readText(value).replaceAll(RegExp(r'[^0-9]'), ''),
+    );
+    return (numeric ?? 96).clamp(0, 100);
+  }
+
+  static DateTime? _readDate(dynamic value) {
+    final text = _readText(value);
+    if (text.isEmpty) {
+      return null;
+    }
+    return DateTime.tryParse(text)?.toLocal();
   }
 
   static String _formatEnumLabel(String value) {

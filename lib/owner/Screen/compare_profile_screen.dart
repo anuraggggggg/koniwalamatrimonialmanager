@@ -98,8 +98,10 @@ class _CompareProfileScreenState extends State<CompareProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final showStatusCard = _isLoading || _error != null;
+
     return Scaffold(
-      backgroundColor: AppColors.rmSoftPink,
+      backgroundColor: const Color(0xFFFFFBF8),
       body: MediaQuery(
         data: MediaQuery.of(
           context,
@@ -113,8 +115,10 @@ class _CompareProfileScreenState extends State<CompareProfileScreen> {
                   padding: EdgeInsets.fromLTRB(12.w, 18.h, 12.w, 24.h),
                   child: Column(
                     children: [
-                      _buildApiStatusCard(),
-                      SizedBox(height: 18.h),
+                      if (showStatusCard) ...[
+                        _buildApiStatusCard(),
+                        SizedBox(height: 18.h),
+                      ],
                       _buildWhyTheyFitCard(),
                       SizedBox(height: 18.h),
                       _buildMatchCard(),
@@ -122,8 +126,6 @@ class _CompareProfileScreenState extends State<CompareProfileScreen> {
                       _buildLifeHabitsCard(),
                       SizedBox(height: 18.h),
                       _buildPersonalBackgroundCard(),
-                      SizedBox(height: 18.h),
-                      _buildWhyItMatchesCard(),
                       SizedBox(height: 18.h),
                       _buildWhyItMatchesCard(),
                       SizedBox(height: 18.h),
@@ -178,55 +180,11 @@ class _CompareProfileScreenState extends State<CompareProfileScreen> {
       );
     }
 
-    final comparison = _comparison;
-    if (comparison == null) {
+    if (_comparison == null) {
       return const SizedBox.shrink();
     }
 
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.all(16.r),
-      decoration: _cardDecoration(radius: 12.r),
-      child: Text(
-        _comparisonSummary(comparison),
-        style: GoogleFonts.manrope(
-          color: AppColors.rmBodyText,
-          fontSize: 14.sp,
-          fontWeight: FontWeight.w700,
-          height: 1.35,
-        ),
-      ),
-    );
-  }
-
-  String _comparisonSummary(Map<String, dynamic> json) {
-    final score = _firstText([
-      json['score'],
-      json['matchScore'],
-      json['compatibilityScore'],
-      json['percentage'],
-      _readNested(json, ['data', 'score']),
-      _readNested(json, ['data', 'matchScore']),
-    ]);
-    final summary = _firstText([
-      json['summary'],
-      json['reason'],
-      json['message'],
-      _readNested(json, ['data', 'summary']),
-      _readNested(json, ['data', 'reason']),
-    ]);
-
-    final parts = <String>[];
-    if (score.isNotEmpty) {
-      parts.add('Match score: $score');
-    }
-    if (summary.isNotEmpty) {
-      parts.add(summary);
-    }
-
-    return parts.isEmpty
-        ? 'Comparison loaded successfully.'
-        : parts.join('\n');
+    return const SizedBox.shrink();
   }
 
   dynamic _readNested(Map<String, dynamic> json, List<String> path) {
@@ -297,7 +255,8 @@ class _CompareProfileScreenState extends State<CompareProfileScreen> {
         diet: 'Vegetarian',
         smokingDrinking: 'Non Smoker /\nNon\nConsumer',
         manglik: 'No',
-        education: 'Completed graduation\nwhile pursuing a\nprofessional acting\ncareer',
+        education:
+            'Completed graduation\nwhile pursuing a\nprofessional acting\ncareer',
         occupation: 'Actress',
         familyHistory: 'Family of\nBusinessman',
       ),
@@ -363,6 +322,12 @@ class _CompareProfileScreenState extends State<CompareProfileScreen> {
     return score.endsWith('%') ? score : '$score%';
   }
 
+  int get _matchScoreValue {
+    final numeric = _matchScoreText.replaceAll(RegExp(r'[^0-9]'), '');
+    final value = int.tryParse(numeric) ?? 96;
+    return value.clamp(0, 100);
+  }
+
   _ComparisonProfileData _readComparisonProfile(
     List<List<String>> paths, {
     required _ComparisonProfileData fallback,
@@ -384,36 +349,36 @@ class _CompareProfileScreenState extends State<CompareProfileScreen> {
 
   Widget _buildHeader(BuildContext context) {
     return Container(
-      height: 52.h,
-      padding: EdgeInsets.symmetric(horizontal: 12.w),
+      height: 64.h,
+      padding: EdgeInsets.symmetric(horizontal: 16.w),
       decoration: const BoxDecoration(
         color: AppColors.white,
-        border: Border(bottom: BorderSide(color: AppColors.rmHeaderDivider)),
+        border: Border(bottom: BorderSide(color: Color(0xFFF0E2D8))),
       ),
       child: Row(
         children: [
           Container(
-            width: 28.r,
-            height: 28.r,
+            width: 32.r,
+            height: 32.r,
             decoration: const BoxDecoration(
               color: AppColors.rmPrimary,
               shape: BoxShape.circle,
             ),
             child: Icon(
-              Icons.compare_arrows,
+              Icons.auto_awesome,
               color: AppColors.white,
-              size: 17.sp,
+              size: 15.sp,
             ),
           ),
-          SizedBox(width: 10.w),
+          SizedBox(width: 12.w),
           Expanded(
             child: Text(
               'Match Comparison Overview',
               overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.manrope(
+              style: GoogleFonts.playfairDisplay(
                 color: AppColors.rmPrimary,
-                fontSize: 20.sp,
-                fontWeight: FontWeight.w800,
+                fontSize: 17.sp,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),
@@ -433,8 +398,8 @@ class _CompareProfileScreenState extends State<CompareProfileScreen> {
     final matchScore = _matchScoreText;
 
     return Container(
-      padding: EdgeInsets.fromLTRB(18.w, 14.h, 18.w, 14.h),
-      decoration: _cardDecoration(radius: 12.r),
+      padding: EdgeInsets.fromLTRB(16.w, 18.h, 16.w, 18.h),
+      decoration: _cardDecoration(radius: 18.r),
       child: Stack(
         alignment: Alignment.center,
         children: [
@@ -453,8 +418,8 @@ class _CompareProfileScreenState extends State<CompareProfileScreen> {
               ),
               Container(
                 width: 1,
-                height: 238.h,
-                color: AppColors.rmPaleRoseBorder,
+                height: 298.h,
+                color: const Color(0xFFE9E3DE),
               ),
               Expanded(
                 child: _ProfileComparisonColumn(
@@ -469,47 +434,10 @@ class _CompareProfileScreenState extends State<CompareProfileScreen> {
             ],
           ),
           Positioned(
-            top: 108.h,
-            child: Container(
-              width: 50.r,
-              height: 50.r,
-              decoration: BoxDecoration(
-                color: AppColors.white,
-                shape: BoxShape.circle,
-                border: Border.all(color: AppColors.rmTeal, width: 2.w),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.black.withValues(alpha: 0.08),
-                    blurRadius: 8.r,
-                    offset: Offset(0, 3.h),
-                  ),
-                ],
-              ),
-              child: Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      matchScore,
-                      style: GoogleFonts.manrope(
-                        color: AppColors.rmTeal,
-                        fontSize: 15.sp,
-                        fontWeight: FontWeight.w900,
-                        height: 0.95,
-                      ),
-                    ),
-                    Text(
-                      'MATCH',
-                      style: GoogleFonts.manrope(
-                        color: AppColors.rmTeal,
-                        fontSize: 6.sp,
-                        fontWeight: FontWeight.w900,
-                        height: 1,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+            top: 14.h,
+            child: _MatchScoreBadge(
+              scoreText: matchScore,
+              scoreValue: _matchScoreValue,
             ),
           ),
         ],
@@ -521,7 +449,7 @@ class _CompareProfileScreenState extends State<CompareProfileScreen> {
     return Container(
       width: double.infinity,
       padding: EdgeInsets.fromLTRB(14.w, 14.h, 14.w, 14.h),
-      decoration: _cardDecoration(radius: 12.r),
+      decoration: _cardDecoration(radius: 18.r),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -556,18 +484,11 @@ class _CompareProfileScreenState extends State<CompareProfileScreen> {
     return Container(
       width: double.infinity,
       padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 18.h),
-      decoration: _cardDecoration(radius: 12.r),
+      decoration: _cardDecoration(radius: 18.r),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'LIFE & HABITS',
-            style: GoogleFonts.manrope(
-              color: AppColors.rmPrimary,
-              fontSize: 18.sp,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
+          _sectionTitle('LIFE & HABITS', color: AppColors.rmHeading),
           SizedBox(height: 20.h),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -575,10 +496,7 @@ class _CompareProfileScreenState extends State<CompareProfileScreen> {
               Expanded(
                 child: Column(
                   children: [
-                    _HabitRow(
-                      label: 'DIETARY\nPREFERENCE',
-                      value: left.diet,
-                    ),
+                    _HabitRow(label: 'DIETARY\nPREFERENCE', value: left.diet),
                     const _HabitGap(),
                     _HabitRow(
                       label: 'SMOKING\n/\nDRINKING',
@@ -593,15 +511,12 @@ class _CompareProfileScreenState extends State<CompareProfileScreen> {
                 width: 1,
                 height: 122.h,
                 margin: EdgeInsets.symmetric(horizontal: 12.w),
-                color: AppColors.rmPaleRoseBorder,
+                color: const Color(0xFFE9E3DE),
               ),
               Expanded(
                 child: Column(
                   children: [
-                    _HabitRow(
-                      label: 'DIETARY\nPREFERENCE',
-                      value: right.diet,
-                    ),
+                    _HabitRow(label: 'DIETARY\nPREFERENCE', value: right.diet),
                     const _HabitGap(),
                     _HabitRow(
                       label: 'SMOKING\n/\nDRINKING',
@@ -626,7 +541,7 @@ class _CompareProfileScreenState extends State<CompareProfileScreen> {
     return Container(
       width: double.infinity,
       padding: EdgeInsets.fromLTRB(14.w, 16.h, 14.w, 18.h),
-      decoration: _cardDecoration(radius: 12.r),
+      decoration: _cardDecoration(radius: 18.r),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -639,7 +554,10 @@ class _CompareProfileScreenState extends State<CompareProfileScreen> {
                 child: _ComparisonDetailColumn(
                   name: left.name,
                   rows: [
-                    _ComparisonDetail(label: 'COMMUNITY', value: left.community),
+                    _ComparisonDetail(
+                      label: 'COMMUNITY',
+                      value: left.community,
+                    ),
                     _ComparisonDetail(label: 'RELIGION', value: left.religion),
                     const _ComparisonDetail(
                       label: 'LANGUAGES',
@@ -657,13 +575,16 @@ class _CompareProfileScreenState extends State<CompareProfileScreen> {
                 width: 1,
                 height: 190.h,
                 margin: EdgeInsets.symmetric(horizontal: 12.w),
-                color: AppColors.rmPaleRoseBorder,
+                color: const Color(0xFFE9E3DE),
               ),
               Expanded(
                 child: _ComparisonDetailColumn(
                   name: right.name,
                   rows: [
-                    _ComparisonDetail(label: 'COMMUNITY', value: right.community),
+                    _ComparisonDetail(
+                      label: 'COMMUNITY',
+                      value: right.community,
+                    ),
                     _ComparisonDetail(label: 'RELIGION', value: right.religion),
                     const _ComparisonDetail(
                       label: 'LANGUAGES',
@@ -688,7 +609,7 @@ class _CompareProfileScreenState extends State<CompareProfileScreen> {
     return Container(
       width: double.infinity,
       padding: EdgeInsets.fromLTRB(14.w, 16.h, 14.w, 16.h),
-      decoration: _cardDecoration(radius: 12.r),
+      decoration: _cardDecoration(radius: 18.r),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -717,7 +638,7 @@ class _CompareProfileScreenState extends State<CompareProfileScreen> {
     return Container(
       width: double.infinity,
       padding: EdgeInsets.fromLTRB(14.w, 16.h, 14.w, 18.h),
-      decoration: _cardDecoration(radius: 12.r),
+      decoration: _cardDecoration(radius: 18.r),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -745,7 +666,7 @@ class _CompareProfileScreenState extends State<CompareProfileScreen> {
                 width: 1,
                 height: 210.h,
                 margin: EdgeInsets.symmetric(horizontal: 12.w),
-                color: AppColors.rmPaleRoseBorder,
+                color: const Color(0xFFE9E3DE),
               ),
               Expanded(
                 child: _ComparisonDetailColumn(
@@ -781,50 +702,14 @@ class _CompareProfileScreenState extends State<CompareProfileScreen> {
     );
   }
 
-  Widget _sectionTitle(String text) {
+  Widget _sectionTitle(String text, {Color color = AppColors.rmPrimary}) {
     return Text(
       text,
-      style: GoogleFonts.manrope(
-        color: AppColors.rmPrimary,
-        fontSize: 18.sp,
-        fontWeight: FontWeight.w800,
+      style: GoogleFonts.playfairDisplay(
+        color: color,
+        fontSize: 16.sp,
+        fontWeight: FontWeight.w600,
       ),
-    );
-  }
-
-  RegistryProfileItem _registryItemFromComparison(
-    String name,
-    String id,
-    String? imageUrl,
-  ) {
-    return RegistryProfileItem(
-      id: id.startsWith('#') ? id.substring(1) : id,
-      originalId: id.startsWith('#') ? id.substring(1) : id,
-      name: name,
-      age: '-',
-      height: '-',
-      city: '-',
-      work: '-',
-      profession: '-',
-      community: '-',
-      type: 'Profile',
-      isPremium: false,
-      image: imageUrl ?? 'assets/wedding_hero 1.png',
-      photoUrls: [imageUrl ?? 'assets/wedding_hero 1.png'],
-      dateOfBirth: '-',
-      birthTime: '-',
-      birthPlace: '-',
-      gotra: '-',
-      residential: '-',
-      aboutMe: '-',
-      religion: '-',
-      diet: '-',
-      manglikLabel: '-',
-      country: '-',
-      fatherName: '-',
-      motherName: '-',
-      paternalDetails: '-',
-      maternalDetails: '-',
     );
   }
 
@@ -832,12 +717,12 @@ class _CompareProfileScreenState extends State<CompareProfileScreen> {
     return BoxDecoration(
       color: AppColors.white,
       borderRadius: BorderRadius.circular(radius),
-      border: Border.all(color: AppColors.rmPaleRoseBorder),
+      border: Border.all(color: const Color(0xFFF2DDD3)),
       boxShadow: [
         BoxShadow(
-          color: AppColors.black.withValues(alpha: 0.03),
-          blurRadius: 10.r,
-          offset: Offset(0, 4.h),
+          color: const Color(0x14CD6124),
+          blurRadius: 18.r,
+          offset: Offset(0, 7.h),
         ),
       ],
     );
@@ -894,10 +779,10 @@ class _ComparisonProfileData {
     final age = _firstText([json['age'], _ageFromDate(json['dateOfBirth'])]);
 
     return _ComparisonProfileData(
-      name: _firstText(
-        [json['name'], json['fullName']],
-        fallback: fallback.name,
-      ),
+      name: _firstText([
+        json['name'],
+        json['fullName'],
+      ], fallback: fallback.name),
       age: _firstText([age], fallback: fallback.age),
       id: rawId.isEmpty ? fallback.id : '#${_shortId(rawId)}',
       location: _firstText([
@@ -907,11 +792,13 @@ class _ComparisonProfileData {
         json['state'],
         json['country'],
       ], fallback: fallback.location),
-      bio: _quoted(_firstText([
-        json['aboutMe'],
-        json['bio'],
-        json['summary'],
-      ], fallback: fallback.bio.replaceAll('"', ''))),
+      bio: _quoted(
+        _firstText([
+          json['aboutMe'],
+          json['bio'],
+          json['summary'],
+        ], fallback: fallback.bio.replaceAll('"', '')),
+      ),
       community: _firstText([json['community']], fallback: fallback.community),
       religion: _firstText([json['religion']], fallback: fallback.religion),
       diet: _firstText([json['diet']], fallback: fallback.diet),
@@ -1019,13 +906,13 @@ class _ProfileComparisonColumn extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 8.w),
+      padding: EdgeInsets.symmetric(horizontal: 10.w),
       child: Column(
         children: [
           _ComparisonAvatar(alignment: avatarAlignment, imageUrl: imageUrl),
-          SizedBox(height: 12.h),
+          SizedBox(height: 18.h),
           SizedBox(
-            height: 40.h,
+            height: 56.h,
             child: Center(
               child: Text(
                 name,
@@ -1034,61 +921,58 @@ class _ProfileComparisonColumn extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: GoogleFonts.manrope(
                   color: AppColors.rmPrimary,
-                  fontSize: 15.sp,
-                  fontWeight: FontWeight.w800,
-                  height: 1.15,
-                ),
-              ),
-            ),
-          ),
-          SizedBox(height: 5.h),
-          _IdChip(id),
-          SizedBox(height: 6.h),
-          SizedBox(
-            height: 18.h,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.location_on_outlined,
-                  size: 11.sp,
-                  color: AppColors.rmMutedText,
-                ),
-                SizedBox(width: 2.w),
-                Flexible(
-                  child: Text(
-                    location,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.manrope(
-                      color: AppColors.rmComparisonMeta,
-                      fontSize: 12.sp,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          SizedBox(height: 10.h),
-          SizedBox(
-            height: 64.h,
-            child: Align(
-              alignment: Alignment.topCenter,
-              child: Text(
-                bio,
-                textAlign: TextAlign.center,
-                maxLines: 4,
-                overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.manrope(
-                  color: AppColors.rmComparisonBody,
-                  fontSize: 10.5.sp,
-                  fontWeight: FontWeight.w600,
+                  fontSize: 14.sp,
+                  fontWeight: FontWeight.w700,
                   height: 1.25,
                 ),
               ),
             ),
           ),
-          SizedBox(height: 12.h),
+          SizedBox(height: 4.h),
+          _IdChip(id),
+          SizedBox(height: 10.h),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.location_on_outlined,
+                size: 14.sp,
+                color: AppColors.rmMutedText,
+              ),
+              SizedBox(width: 4.w),
+              Flexible(
+                child: Text(
+                  location,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.manrope(
+                    color: AppColors.rmComparisonMeta,
+                    fontSize: 12.sp,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 10.h),
+          SizedBox(
+            height: 92.h,
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: Text(
+                bio,
+                textAlign: TextAlign.center,
+                maxLines: 5,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.manrope(
+                  color: AppColors.rmComparisonBody,
+                  fontSize: 10.8.sp,
+                  fontWeight: FontWeight.w500,
+                  height: 1.45,
+                ),
+              ),
+            ),
+          ),
+          SizedBox(height: 14.h),
           OutlinedButton.icon(
             onPressed: () {
               Navigator.pushNamed(
@@ -1102,21 +986,18 @@ class _ProfileComparisonColumn extends StatelessWidget {
               'View Full Profile',
               overflow: TextOverflow.ellipsis,
               style: GoogleFonts.manrope(
-                fontSize: 11.5.sp,
-                fontWeight: FontWeight.w800,
+                fontSize: 11.6.sp,
+                fontWeight: FontWeight.w700,
               ),
             ),
             style: OutlinedButton.styleFrom(
               foregroundColor: AppColors.rmPrimary,
-              side: BorderSide(
-                color: AppColors.rmComparisonButtonBorder,
-                width: 1.w,
-              ),
-              padding: EdgeInsets.symmetric(horizontal: 8.w),
-              minimumSize: Size(0, 30.h),
+              side: BorderSide(color: AppColors.rmPrimary, width: 1.w),
+              padding: EdgeInsets.symmetric(horizontal: 12.w),
+              minimumSize: Size(0, 34.h),
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16.r),
+                borderRadius: BorderRadius.circular(18.r),
               ),
             ),
           ),
@@ -1173,12 +1054,12 @@ class _ComparisonAvatar extends StatelessWidget {
     final url = imageUrl?.trim() ?? '';
 
     return ClipRRect(
-      borderRadius: BorderRadius.circular(10.r),
+      borderRadius: BorderRadius.circular(14.r),
       child: url.startsWith('http')
           ? Image.network(
               url,
-              width: 78.r,
-              height: 78.r,
+              width: 92.r,
+              height: 92.r,
               fit: BoxFit.cover,
               errorBuilder: (_, _, _) => _fallbackAvatar(),
             )
@@ -1188,13 +1069,93 @@ class _ComparisonAvatar extends StatelessWidget {
 
   Widget _fallbackAvatar() {
     return Container(
-      width: 78.r,
-      height: 78.r,
+      width: 92.r,
+      height: 92.r,
       decoration: BoxDecoration(
         image: DecorationImage(
           image: const AssetImage(CompareProfileScreen._screenshotAsset),
           fit: BoxFit.none,
           alignment: alignment,
+        ),
+      ),
+    );
+  }
+}
+
+class _MatchScoreBadge extends StatelessWidget {
+  const _MatchScoreBadge({required this.scoreText, required this.scoreValue});
+
+  final String scoreText;
+  final int scoreValue;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 74.r,
+      height: 74.r,
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.black.withValues(alpha: 0.07),
+            blurRadius: 14.r,
+            offset: Offset(0, 6.h),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: EdgeInsets.all(6.r),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            SizedBox(
+              width: double.infinity,
+              height: double.infinity,
+              child: CircularProgressIndicator(
+                value: scoreValue / 100,
+                strokeWidth: 4.2,
+                strokeCap: StrokeCap.round,
+                backgroundColor: const Color(0xFFE5E5E5),
+                valueColor: const AlwaysStoppedAnimation<Color>(
+                  AppColors.rmTeal,
+                ),
+              ),
+            ),
+            Container(
+              width: 50.r,
+              height: 50.r,
+              decoration: const BoxDecoration(
+                color: AppColors.white,
+                shape: BoxShape.circle,
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    scoreText,
+                    style: GoogleFonts.manrope(
+                      color: AppColors.rmComparisonStrong,
+                      fontSize: 17.sp,
+                      fontWeight: FontWeight.w900,
+                      height: 0.95,
+                    ),
+                  ),
+                  SizedBox(height: 2.h),
+                  Text(
+                    'MATCH',
+                    style: GoogleFonts.manrope(
+                      color: AppColors.rmTeal,
+                      fontSize: 7.sp,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.5,
+                      height: 1,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -1209,10 +1170,10 @@ class _IdChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 3.h),
+      padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
       decoration: BoxDecoration(
         color: AppColors.white,
-        borderRadius: BorderRadius.circular(12.r),
+        borderRadius: BorderRadius.circular(14.r),
         border: Border.all(color: AppColors.rmComparisonIdBorder),
       ),
       child: Text(
@@ -1221,8 +1182,8 @@ class _IdChip extends StatelessWidget {
         overflow: TextOverflow.ellipsis,
         style: GoogleFonts.manrope(
           color: AppColors.rmComparisonMuted,
-          fontSize: 10.5.sp,
-          fontWeight: FontWeight.w700,
+          fontSize: 10.sp,
+          fontWeight: FontWeight.w600,
         ),
       ),
     );
@@ -1238,11 +1199,11 @@ class _FitChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 38.h,
-      padding: EdgeInsets.symmetric(horizontal: 8.w),
+      height: 36.h,
+      padding: EdgeInsets.symmetric(horizontal: 12.w),
       decoration: BoxDecoration(
         color: AppColors.rmComparisonTealBg,
-        borderRadius: BorderRadius.circular(8.r),
+        borderRadius: BorderRadius.circular(12.r),
         border: Border.all(color: AppColors.rmComparisonTealBorder),
       ),
       child: Row(
@@ -1256,8 +1217,8 @@ class _FitChip extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: GoogleFonts.manrope(
                 color: AppColors.rmTeal,
-                fontSize: 12.sp,
-                fontWeight: FontWeight.w800,
+                fontSize: 11.4.sp,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ),
@@ -1271,7 +1232,7 @@ class _HabitGap extends StatelessWidget {
   const _HabitGap();
 
   @override
-  Widget build(BuildContext context) => SizedBox(height: 18.h);
+  Widget build(BuildContext context) => SizedBox(height: 14.h);
 }
 
 class _HabitRow extends StatelessWidget {
@@ -1282,33 +1243,39 @@ class _HabitRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: Text(
-            label,
-            style: GoogleFonts.manrope(
-              color: AppColors.rmComparisonMuted,
-              fontSize: 11.sp,
-              fontWeight: FontWeight.w900,
-              height: 1.2,
+    return Container(
+      padding: EdgeInsets.only(bottom: 10.h),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: Color(0xFFE9E3DE))),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: GoogleFonts.manrope(
+                color: AppColors.rmComparisonMuted,
+                fontSize: 10.5.sp,
+                fontWeight: FontWeight.w800,
+                height: 1.3,
+              ),
             ),
           ),
-        ),
-        SizedBox(width: 8.w),
-        Expanded(
-          child: Text(
-            value,
-            style: GoogleFonts.manrope(
-              color: AppColors.rmComparisonStrong,
-              fontSize: 12.sp,
-              fontWeight: FontWeight.w700,
-              height: 1.25,
+          SizedBox(width: 10.w),
+          Expanded(
+            child: Text(
+              value,
+              style: GoogleFonts.manrope(
+                color: AppColors.rmComparisonStrong,
+                fontSize: 12.sp,
+                fontWeight: FontWeight.w500,
+                height: 1.3,
+              ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -1377,9 +1344,9 @@ class _PersonMiniHeader extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             style: GoogleFonts.manrope(
               color: AppColors.rmPrimary,
-              fontSize: 12.sp,
-              fontWeight: FontWeight.w900,
-              height: 1.1,
+              fontSize: 12.6.sp,
+              fontWeight: FontWeight.w700,
+              height: 1.2,
             ),
           ),
         ),
@@ -1411,8 +1378,8 @@ class _ComparisonDetailRow extends StatelessWidget {
               style: GoogleFonts.manrope(
                 color: AppColors.rmComparisonLabel,
                 fontSize: 10.sp,
-                fontWeight: FontWeight.w900,
-                height: 1.2,
+                fontWeight: FontWeight.w800,
+                height: 1.3,
               ),
             ),
           ),
@@ -1435,7 +1402,7 @@ class _ComparisonDetailRow extends StatelessWidget {
                         style: GoogleFonts.manrope(
                           color: AppColors.rmComparisonChipText,
                           fontSize: 10.sp,
-                          fontWeight: FontWeight.w900,
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
                     )
@@ -1444,9 +1411,9 @@ class _ComparisonDetailRow extends StatelessWidget {
                       textAlign: TextAlign.right,
                       style: GoogleFonts.manrope(
                         color: AppColors.rmComparisonStrong,
-                        fontSize: 11.sp,
-                        fontWeight: FontWeight.w700,
-                        height: 1.2,
+                        fontSize: 11.5.sp,
+                        fontWeight: FontWeight.w500,
+                        height: 1.35,
                       ),
                     ),
             ),
@@ -1471,17 +1438,18 @@ class _MatchReasonRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Icon(icon, color: color, size: 18.sp),
         SizedBox(width: 12.w),
         Expanded(
           child: Text(
             text,
-            overflow: TextOverflow.ellipsis,
             style: GoogleFonts.manrope(
               color: AppColors.rmComparisonStrong,
               fontSize: 14.sp,
-              fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.w500,
+              height: 1.3,
             ),
           ),
         ),

@@ -335,26 +335,26 @@ Email: ${employee.email}
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Container(
-                      width: 6.r,
-                      height: 6.r,
-                      decoration: BoxDecoration(
-                        color: statusColor,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
+                    // Container(
+                    //   width: 6.r,
+                    //   height: 6.r,
+                    //   decoration: BoxDecoration(
+                    //     color: statusColor,
+                    //     shape: BoxShape.circle,
+                    //   ),
+                    // ),
                     SizedBox(width: 6.w),
-                    Text(
-                      employee?.statusLabel ?? 'PRESENT',
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.manrope(
-                        color: statusColor,
-                        fontSize: 10.sp,
-                        fontWeight: FontWeight.w700,
-                        height: 1.4,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
+                    // Text(
+                    //   employee?.statusLabel ?? 'PRESENT',
+                    //   textAlign: TextAlign.center,
+                    //   style: GoogleFonts.manrope(
+                    //     color: statusColor,
+                    //     fontSize: 10.sp,
+                    //     fontWeight: FontWeight.w700,
+                    //     height: 1.4,
+                    //     letterSpacing: 0.5,
+                    //   ),
+                    // ),
                   ],
                 ),
               ),
@@ -365,7 +365,9 @@ Email: ${employee.email}
           Stack(
             children: [
               Container(
-                padding: EdgeInsets.all(4.r), // Gap between gradient border and image
+                padding: EdgeInsets.all(
+                  4.r,
+                ), // Gap between gradient border and image
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   gradient: const LinearGradient(
@@ -386,9 +388,11 @@ Email: ${employee.email}
                   ),
                   child: CircleAvatar(
                     radius: 45.r,
-                    backgroundImage: employee != null && employee.image.isNotEmpty
+                    backgroundImage:
+                        employee != null && employee.image.isNotEmpty
                         ? NetworkImage(employee.image)
-                        : const AssetImage('assets/app.logo.png') as ImageProvider,
+                        : const AssetImage('assets/app.logo.png')
+                              as ImageProvider,
                   ),
                 ),
               ),
@@ -506,7 +510,7 @@ Email: ${employee.email}
                   'Profiles',
                   '${employee?.dataEntryProfiles ?? 0}',
                   hasChart: false,
-                  iconAsset: "assets/margin.png"
+                  iconAsset: "assets/margin.png",
                 ),
               ),
             ],
@@ -530,7 +534,7 @@ Email: ${employee.email}
                   'Closed Leads',
                   '${employee?.closedLeads ?? 0}',
                   iconAsset: 'assets/medal_icon.png',
-                  valueColor: AppColors.deepBurgundy
+                  valueColor: AppColors.deepBurgundy,
                 ),
               ),
             ],
@@ -548,7 +552,7 @@ Email: ${employee.email}
     IconData? icon,
     String? iconAsset,
     IconData? badge,
-          Color? valueColor,
+    Color? valueColor,
   }) {
     Widget? trailing;
 
@@ -581,29 +585,27 @@ Email: ${employee.email}
           _Bar(height: 20.h, isPrimary: true),
         ],
       );
-     } else if (iconAsset != null) {
-  double width = 24.w;
-  double height = 24.h;
-  EdgeInsets padding = EdgeInsets.zero;
+    } else if (iconAsset != null) {
+      double width = 24.w;
+      double height = 24.h;
+      EdgeInsets padding = EdgeInsets.zero;
 
-  if (iconAsset == 'assets/margin.png') {
-  width = 48.w;
-  height = 20.h;
-  padding = EdgeInsets.only(bottom: 4.h);
-  }
+      if (iconAsset == 'assets/margin.png') {
+        width = 48.w;
+        height = 20.h;
+        padding = EdgeInsets.only(bottom: 4.h);
+      }
 
-  trailing = Padding(
-  padding: padding,
-  child: Image.asset(
-  iconAsset,
-  width: width,
-  height: height,
-  fit: BoxFit.contain,
-  ),
-  );
-  }
-
-    else if (icon != null) {
+      trailing = Padding(
+        padding: padding,
+        child: Image.asset(
+          iconAsset,
+          width: width,
+          height: height,
+          fit: BoxFit.contain,
+        ),
+      );
+    } else if (icon != null) {
       trailing = Icon(icon, color: AppColors.primary, size: 20.sp);
     } else if (badge != null) {
       trailing = Icon(badge, color: AppColors.accent, size: 20.sp);
@@ -643,7 +645,6 @@ Email: ${employee.email}
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.manrope(
-
                     color: valueColor,
                     fontSize: 24.sp,
                     fontWeight: FontWeight.w800,
@@ -934,8 +935,6 @@ Email: ${employee.email}
     );
   }
 
-
-
   Widget _buildActionSection(BuildContext context) {
     return _buildActionButtons(context);
   }
@@ -951,11 +950,8 @@ Email: ${employee.email}
                 Navigator.of(context).pushNamed(AppRoutes.employeeManagement);
               },
               style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.deepBurgundy,
-                side: BorderSide(
-                  color: AppColors.deepBurgundy,
-                  width: 1.5,
-                ),
+                foregroundColor: AppColors.primary,
+                side: BorderSide(color: AppColors.primary, width: 1.5),
                 backgroundColor: Colors.white,
                 padding: EdgeInsets.zero,
                 shape: RoundedRectangleBorder(
@@ -967,6 +963,7 @@ Email: ${employee.email}
                 style: GoogleFonts.manrope(
                   fontSize: 14.sp,
                   fontWeight: FontWeight.w700,
+                  color: AppColors.primary,
                 ),
               ),
             ),
@@ -983,13 +980,12 @@ Email: ${employee.email}
                 final authProvider = context.read<AuthProvider>();
                 authProvider.logout();
 
-                Navigator.of(context).pushNamedAndRemoveUntil(
-                  AppRoutes.login,
-                      (route) => false,
-                );
+                Navigator.of(
+                  context,
+                ).pushNamedAndRemoveUntil(AppRoutes.login, (route) => false);
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.deepBurgundy,
+                backgroundColor: AppColors.primary,
                 foregroundColor: Colors.white,
                 elevation: 0,
                 padding: EdgeInsets.zero,

@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart' as google_fonts;
 import 'package:http/http.dart' as http;
 import 'package:koniwalamatrimonial/constants/api_constants.dart';
 import 'package:koniwalamatrimonial/constants/app_colors.dart';
+import 'package:koniwalamatrimonial/owner/models/match_comparison_args.dart';
 import 'package:koniwalamatrimonial/owner/models/registry_profile_item.dart';
 import 'package:koniwalamatrimonial/owner/providers/registry_profiles_provider.dart';
 import 'package:koniwalamatrimonial/providers/auth_provider.dart';
@@ -93,9 +94,13 @@ class _AiMatchingScreenState extends State<AiMatchingScreen> {
     final profiles = profilesProvider.profiles;
     final suggestions = _buildSuggestions(profiles);
     final metrics = _buildMetrics(profiles, suggestions);
+    final featuredSuggestion = suggestions.isEmpty ? null : suggestions.first;
+    final insightSuggestions = suggestions.length <= 1
+        ? suggestions
+        : suggestions.skip(1).take(2).toList();
 
     return Scaffold(
-      backgroundColor: AppColors.rmSoftPink,
+      backgroundColor: AppColors.white,
       body: MediaQuery(
         data: MediaQuery.of(
           context,
@@ -107,41 +112,61 @@ class _AiMatchingScreenState extends State<AiMatchingScreen> {
               child: CustomScrollView(
                 slivers: [
                   SliverToBoxAdapter(
+                    child: _AiMatchingTopBar(
+                      onBackTap:
+                          widget.onMenuPressed ??
+                          () => Navigator.of(context).maybePop(),
+                      manualSelected: _manualMatchSelected,
+                      onModeSelected: (isManual) =>
+                          setState(() => _manualMatchSelected = isManual),
+                      onNotificationsTap: () => Navigator.of(
+                        context,
+                      ).pushNamed(AppRoutes.notifications),
+                    ),
+                  ),
+                  SliverToBoxAdapter(
                     child: Padding(
-                      padding: EdgeInsets.fromLTRB(12.w, 10.h, 12.w, 22.h),
+                      padding: EdgeInsets.fromLTRB(16.w, 18.h, 16.w, 22.h),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _AiMatchingTopBar(
-                            onMenuPressed: widget.onMenuPressed,
-                          ),
-                          SizedBox(height: 24.h),
-                          Text(
-                            'AI Matchmaking',
-                            style: GoogleFonts.manrope(
-                              color: AppColors.rmPrimary,
-                              fontSize: 24.sp,
-                              fontWeight: FontWeight.w800,
-                              height: 1.1,
-                            ),
-                          ),
-                          SizedBox(height: 6.h),
                           Text(
                             'Generate, review, and manage matches for your clients in one place.',
                             style: GoogleFonts.manrope(
-                              color: AppColors.rmComparisonMuted,
+                              color: AppColors.rmComparisonStrong,
                               fontSize: 14.sp,
-                              fontWeight: FontWeight.w600,
-                              height: 1.35,
+                              fontWeight: FontWeight.w500,
+                              height: 1.5,
                             ),
                           ),
-                          SizedBox(height: 18.h),
-                          _MatchModeSwitch(
-                            manualSelected: _manualMatchSelected,
-                            onChanged: (value) =>
-                                setState(() => _manualMatchSelected = value),
+                          SizedBox(height: 16.h),
+                          SizedBox(
+                            width: double.infinity,
+                            height: 44.h,
+                            child: ElevatedButton.icon(
+                              onPressed: _generateAiMatches,
+                              icon: Icon(Icons.auto_awesome, size: 14.sp),
+                              label: Text(
+                                _manualMatchSelected
+                                    ? 'RETURN TO AI MATCHES'
+                                    : 'GENERATE AI MATCHES',
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.rmPrimary,
+                                foregroundColor: AppColors.white,
+                                elevation: 0,
+                                textStyle: GoogleFonts.manrope(
+                                  fontSize: 13.sp,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 0.4,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8.r),
+                                ),
+                              ),
+                            ),
                           ),
-                          SizedBox(height: 20.h),
+                          SizedBox(height: 16.h),
                           if (profilesProvider.isLoading && profiles.isEmpty)
                             const _AiLoadingCard()
                           else if (profilesProvider.error != null &&
@@ -151,26 +176,26 @@ class _AiMatchingScreenState extends State<AiMatchingScreen> {
                             _manualMatchSelected
                                 ? _ManualMatchPanel(profiles: profiles)
                                 : _MetricsGrid(metrics: metrics),
-                          SizedBox(height: 24.h),
+                          SizedBox(height: 26.h),
                           Text(
                             'Auto Match Queue Preview',
                             style: GoogleFonts.manrope(
-                              color: AppColors.rmPrimary,
-                              fontSize: 20.sp,
-                              fontWeight: FontWeight.w800,
-                              height: 1.15,
+                              color: AppColors.rmHeading,
+                              fontSize: 22.sp,
+                              fontWeight: FontWeight.w700,
+                              height: 1.1,
                             ),
                           ),
                           SizedBox(height: 4.h),
                           Text(
-                            'Live suggestions generated from /profiles',
+                            'Intelligent synergy suggestions',
                             style: GoogleFonts.manrope(
-                              color: AppColors.rmComparisonMuted,
+                              color: AppColors.rmComparisonStrong,
                               fontSize: 13.sp,
-                              fontWeight: FontWeight.w600,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
-                          SizedBox(height: 12.h),
+                          SizedBox(height: 16.h),
                           if (profilesProvider.isLoading && profiles.isNotEmpty)
                             Padding(
                               padding: EdgeInsets.only(bottom: 12.h),
@@ -182,48 +207,38 @@ class _AiMatchingScreenState extends State<AiMatchingScreen> {
                                 ),
                               ),
                             ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  SliverPadding(
-                    padding: EdgeInsets.fromLTRB(12.w, 0, 12.w, 18.h),
-                    sliver: suggestions.isEmpty
-                        ? SliverToBoxAdapter(
-                            child: _AiEmptyState(
+                          if (featuredSuggestion != null)
+                            _MatchSuggestionCard(
+                              suggestion: featuredSuggestion,
+                              isApproving: _approvingSuggestionIds.contains(
+                                featuredSuggestion.id,
+                              ),
+                              isApproved: _approvedSuggestionIds.contains(
+                                featuredSuggestion.id,
+                              ),
+                              onApprove: () =>
+                                  _approveSuggestion(featuredSuggestion),
+                              onCompare: () => _compareSuggestion(
+                                context,
+                                featuredSuggestion,
+                              ),
+                            )
+                          else
+                            _AiEmptyState(
                               message:
                                   profilesProvider.error ??
                                   'Profiles are loaded, but no bride-groom pairs are available yet.',
                             ),
-                          )
-                        : SliverList.separated(
-                            itemCount: suggestions.length,
-                            separatorBuilder: (context, index) =>
-                                SizedBox(height: 16.h),
-                            itemBuilder: (context, index) {
-                              return _MatchSuggestionCard(
-                                suggestion: suggestions[index],
-                                isApproving: _approvingSuggestionIds.contains(
-                                  suggestions[index].id,
-                                ),
-                                isApproved: _approvedSuggestionIds.contains(
-                                  suggestions[index].id,
-                                ),
-                                onApprove: () =>
-                                    _approveSuggestion(suggestions[index]),
-                              );
-                            },
+                          SizedBox(height: 22.h),
+                          _QuickInsightsCard(
+                            suggestions: insightSuggestions,
+                            profileCount: profiles.length,
                           ),
-                  ),
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: EdgeInsets.fromLTRB(12.w, 0, 12.w, 28.h),
-                      child: _QuickInsightsCard(
-                        suggestions: suggestions,
-                        profileCount: profiles.length,
+                        ],
                       ),
                     ),
                   ),
+                  SliverToBoxAdapter(child: SizedBox(height: 28.h)),
                 ],
               ),
             ),
@@ -237,56 +252,85 @@ class _AiMatchingScreenState extends State<AiMatchingScreen> {
     List<RegistryProfileItem> profiles,
     List<_MatchSuggestion> suggestions,
   ) {
-    final brides = profiles.where((profile) => profile.type == 'Bride').length;
-    final grooms = profiles.where((profile) => profile.type == 'Groom').length;
+    final topScore = suggestions.isEmpty ? 0 : suggestions.first.scoreValue;
     final reviewCount = suggestions
         .where((item) => item.pendingInfo != null)
         .length;
+    final approvedCount = _approvedSuggestionIds.length;
+    final approvedRate = suggestions.isEmpty
+        ? 0
+        : ((approvedCount / suggestions.length) * 100).round();
 
     return [
       _MatchMetric(
-        title: 'Total Matches',
-        value: '${suggestions.length}',
-        caption: '$brides brides paired with $grooms grooms',
+        title: 'CURRENT SUGGESTION',
+        value: '$topScore%',
+        caption: suggestions.isEmpty ? 'no live matches' : 'top live match',
         icon: Icons.trending_up,
-        color: const Color(0xFF00BFA6),
+        color: const Color(0xFF11A36A),
       ),
       _MatchMetric(
-        title: 'Manual Matches',
-        value: '0',
-        caption: '${profiles.length} profiles available',
-        icon: Icons.group_add_outlined,
-        color: AppColors.rmComparisonMuted,
-      ),
-      _MatchMetric(
-        title: 'Needs Review',
+        title: 'NEED REVIEW',
         value: '$reviewCount',
-        caption: 'Check pending family details',
-        icon: Icons.info_outline,
-        color: AppColors.accent,
-      ),
-      _MatchMetric(
-        title: 'Saved Matches',
-        value: '0',
-        caption: 'No saved shortlist yet',
-        icon: Icons.bookmark_outline,
-        color: AppColors.accent,
-      ),
-      _MatchMetric(
-        title: 'Approved',
-        value: '0',
-        caption: 'Ready for outreach',
+        caption: 'created by your team',
         icon: Icons.check_circle_outline,
-        color: const Color(0xFF00BFA6),
+        color: const Color(0xFF17B26A),
       ),
       _MatchMetric(
-        title: 'Rejected',
+        title: 'APPROVED',
+        value: '$approvedRate%',
+        caption: '$approvedCount/${suggestions.length} completed',
+        icon: Icons.check_circle_outline,
+        color: const Color(0xFF17B26A),
+      ),
+      _MatchMetric(
+        title: 'REJECTED',
         value: '0',
-        caption: 'Review reasons',
+        caption: 'review reasons',
         icon: Icons.cancel_outlined,
-        color: AppColors.danger,
+        color: const Color(0xFFF04438),
+      ),
+      _MatchMetric(
+        title: 'SAVED MATCHES',
+        value: '${max(0, suggestions.length - approvedCount - reviewCount)}',
+        caption: 'left for later',
+        icon: Icons.bookmark_border,
+        color: AppColors.rmPrimary,
+        isWide: true,
       ),
     ];
+  }
+
+  Future<void> _generateAiMatches() async {
+    if (_manualMatchSelected) {
+      setState(() => _manualMatchSelected = false);
+    }
+
+    final accessToken = context.read<AuthProvider>().userModel?.accessToken;
+    await context.read<RegistryProfilesProvider>().fetchProfiles(
+      accessToken,
+      forceRefresh: true,
+    );
+  }
+
+  void _compareSuggestion(BuildContext context, _MatchSuggestion suggestion) {
+    final leftId = suggestion.leftProfile.originalId.trim();
+    final rightId = suggestion.rightProfile.originalId.trim();
+
+    if (leftId.isEmpty || rightId.isEmpty) {
+      Navigator.of(
+        context,
+      ).pushNamed(AppRoutes.profileDetail, arguments: suggestion.leftProfile);
+      return;
+    }
+
+    Navigator.of(context).pushNamed(
+      AppRoutes.compareProfile,
+      arguments: MatchComparisonArgs(
+        profileId: leftId,
+        candidateProfileId: rightId,
+      ),
+    );
   }
 
   List<_MatchSuggestion> _buildSuggestions(List<RegistryProfileItem> profiles) {
@@ -519,43 +563,87 @@ class _AiMatchingScreenState extends State<AiMatchingScreen> {
 }
 
 class _AiMatchingTopBar extends StatelessWidget {
-  const _AiMatchingTopBar({this.onMenuPressed});
+  const _AiMatchingTopBar({
+    required this.onBackTap,
+    required this.manualSelected,
+    required this.onModeSelected,
+    required this.onNotificationsTap,
+  });
 
-  final VoidCallback? onMenuPressed;
+  final VoidCallback onBackTap;
+  final bool manualSelected;
+  final ValueChanged<bool> onModeSelected;
+  final VoidCallback onNotificationsTap;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 48.h,
+    return Container(
+      padding: EdgeInsets.fromLTRB(10.w, 8.h, 10.w, 10.h),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: Color(0xFFF1E3D9))),
+      ),
       child: Row(
         children: [
-          _RoundIconButton(
-            icon: onMenuPressed != null ? Icons.menu : Icons.arrow_back,
-            onTap: onMenuPressed ?? () => Navigator.of(context).maybePop(),
-          ),
+          _RoundIconButton(icon: Icons.arrow_back, onTap: onBackTap),
           Expanded(
             child: Text(
-              'VIP Registry',
+              'AI Matchmaking',
               textAlign: TextAlign.center,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.manrope(
-                color: AppColors.rmPrimary,
-                fontSize: 14.sp,
-                fontWeight: FontWeight.w800,
+              style: google_fonts.GoogleFonts.playfairDisplay(
+                color: const Color(0xFF2C2626),
+                fontSize: 18.sp,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ),
-          _RoundIconButton(
-            icon: Icons.notifications_none,
-            onTap: () =>
-                Navigator.of(context).pushNamed(AppRoutes.notifications),
+          PopupMenuButton<_AiTopMenuAction>(
+            tooltip: 'More',
+            onSelected: (action) {
+              switch (action) {
+                case _AiTopMenuAction.ai:
+                  onModeSelected(false);
+                  break;
+                case _AiTopMenuAction.manual:
+                  onModeSelected(true);
+                  break;
+                case _AiTopMenuAction.notifications:
+                  onNotificationsTap();
+                  break;
+              }
+            },
+            icon: Icon(
+              Icons.more_vert,
+              color: const Color(0xFF2C2626),
+              size: 22.sp,
+            ),
+            itemBuilder: (context) => [
+              PopupMenuItem(
+                value: manualSelected
+                    ? _AiTopMenuAction.ai
+                    : _AiTopMenuAction.manual,
+                child: Text(
+                  manualSelected ? 'AI Matchmaking' : 'Manual Match',
+                  style: GoogleFonts.manrope(fontWeight: FontWeight.w700),
+                ),
+              ),
+              PopupMenuItem(
+                value: _AiTopMenuAction.notifications,
+                child: Text(
+                  'Notifications',
+                  style: GoogleFonts.manrope(fontWeight: FontWeight.w700),
+                ),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 }
+
+enum _AiTopMenuAction { ai, manual, notifications }
 
 class _RoundIconButton extends StatelessWidget {
   const _RoundIconButton({required this.icon, required this.onTap});
@@ -565,96 +653,13 @@ class _RoundIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: AppColors.white,
-      shape: const CircleBorder(),
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: onTap,
-        child: SizedBox(
-          width: 44.r,
-          height: 44.r,
-          child: Icon(icon, color: AppColors.rmPrimary, size: 22.sp),
-        ),
-      ),
-    );
-  }
-}
-
-class _MatchModeSwitch extends StatelessWidget {
-  const _MatchModeSwitch({
-    required this.manualSelected,
-    required this.onChanged,
-  });
-
-  final bool manualSelected;
-  final ValueChanged<bool> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 62.h,
-      padding: EdgeInsets.all(4.r),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(25.r),
-        border: Border.all(color: AppColors.rmPaleRoseBorder),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: _ModeOption(
-              label: 'AI Matchmaking',
-              selected: !manualSelected,
-              onTap: () => onChanged(false),
-            ),
-          ),
-          Expanded(
-            child: _ModeOption(
-              label: 'Manual Match',
-              selected: manualSelected,
-              onTap: () => onChanged(true),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ModeOption extends StatelessWidget {
-  const _ModeOption({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: selected ? AppColors.selectedNavItemBackgroundColor : Colors.white,
-      borderRadius: BorderRadius.circular(22.r),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(22.r),
-        onTap: onTap,
-        child: Center(
-          child: Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.manrope(
-              color: selected
-                  ? AppColors.rmPrimary
-                  : AppColors.rmComparisonMuted,
-              fontSize: 13.sp,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ),
+    return InkWell(
+      borderRadius: BorderRadius.circular(20.r),
+      onTap: onTap,
+      child: SizedBox(
+        width: 40.w,
+        height: 40.w,
+        child: Icon(icon, color: const Color(0xFF2C2626), size: 22.sp),
       ),
     );
   }
@@ -667,20 +672,40 @@ class _MetricsGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final regularMetrics = metrics.where((metric) => !metric.isWide).toList();
+    _MatchMetric? wideMetric;
+    for (final metric in metrics) {
+      if (metric.isWide) {
+        wideMetric = metric;
+        break;
+      }
+    }
+
     return LayoutBuilder(
       builder: (context, constraints) {
-        final spacing = 10.w;
+        final spacing = 8.w;
         final itemWidth = (constraints.maxWidth - spacing) / 2;
 
-        return Wrap(
-          spacing: spacing,
-          runSpacing: 10.h,
+        return Column(
           children: [
-            for (final metric in metrics)
+            Wrap(
+              spacing: spacing,
+              runSpacing: 8.h,
+              children: [
+                for (final metric in regularMetrics)
+                  SizedBox(
+                    width: itemWidth,
+                    child: _MetricCard(metric: metric),
+                  ),
+              ],
+            ),
+            if (wideMetric != null) ...[
+              SizedBox(height: 8.h),
               SizedBox(
-                width: itemWidth,
-                child: _MetricCard(metric: metric),
+                width: double.infinity,
+                child: _MetricCard(metric: wideMetric),
               ),
+            ],
           ],
         );
       },
@@ -696,50 +721,52 @@ class _MetricCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.all(12.r),
+      constraints: BoxConstraints(minHeight: metric.isWide ? 86.h : 116.h),
+      padding: EdgeInsets.fromLTRB(14.w, 14.h, 14.w, 12.h),
       decoration: _cardDecoration(),
       child: Column(
-        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             metric.title,
-            maxLines: 1,
+            maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: GoogleFonts.manrope(
-              color: AppColors.rmComparisonMuted,
-              fontSize: 12.sp,
+              color: const Color(0xFF3B3535),
+              fontSize: 11.sp,
               fontWeight: FontWeight.w800,
+              letterSpacing: 0.4,
             ),
           ),
-          SizedBox(height: 12.h),
+          SizedBox(height: 8.h),
           Text(
             metric.value,
             style: GoogleFonts.manrope(
               color: AppColors.rmPrimary,
-              fontSize: 26.sp,
+              fontSize: 24.sp,
               fontWeight: FontWeight.w900,
               height: 1,
             ),
           ),
           SizedBox(height: 6.h),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Icon(metric.icon, color: metric.color, size: 12.sp),
-              SizedBox(width: 4.w),
               Expanded(
                 child: Text(
                   metric.caption,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.manrope(
-                    color: metric.color,
+                    color: const Color(0xFF3B3535),
                     fontSize: 10.sp,
-                    fontWeight: FontWeight.w700,
-                    height: 1.15,
+                    fontWeight: FontWeight.w600,
+                    height: 1.3,
                   ),
                 ),
               ),
+              SizedBox(width: 8.w),
+              Icon(metric.icon, color: metric.color, size: 18.sp),
             ],
           ),
         ],
@@ -823,68 +850,87 @@ class _MatchSuggestionCard extends StatelessWidget {
     required this.isApproving,
     required this.isApproved,
     required this.onApprove,
+    required this.onCompare,
   });
 
   final _MatchSuggestion suggestion;
   final bool isApproving;
   final bool isApproved;
   final VoidCallback onApprove;
+  final VoidCallback onCompare;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.all(14.r),
+      padding: EdgeInsets.fromLTRB(12.w, 12.h, 12.w, 14.h),
       decoration: _cardDecoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Container(
+            width: double.infinity,
+            padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 9.h),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFFBF8),
+              borderRadius: BorderRadius.circular(8.r),
+              border: Border.all(color: const Color(0xFFF0E0D6)),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.auto_awesome,
+                  color: AppColors.rmPrimary,
+                  size: 14.sp,
+                ),
+                SizedBox(width: 6.w),
+                Text(
+                  'AI GENERATED BY MATCHMAKING AI',
+                  style: GoogleFonts.manrope(
+                    color: const Color(0xFF2E2929),
+                    fontSize: 10.sp,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(height: 14.h),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _ProfilePairAvatars(suggestion: suggestion),
-              SizedBox(width: 12.w),
               Expanded(
-                child: Padding(
-                  padding: EdgeInsets.only(top: 4.h),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        suggestion.names,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.manrope(
-                          color: AppColors.rmPrimary,
-                          fontSize: 15.sp,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                      SizedBox(height: 2.h),
-                      Text(
-                        suggestion.time,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.manrope(
-                          color: AppColors.rmComparisonMuted,
-                          fontSize: 11.sp,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
-                  ),
+                flex: 5,
+                child: _FeaturedProfileDetails(
+                  profile: suggestion.rightProfile,
+                  alignEnd: false,
                 ),
               ),
               SizedBox(width: 8.w),
-              _ScoreBadge(score: suggestion.score),
+              SizedBox(
+                width: 66.w,
+                child: _ScoreBadge(score: suggestion.score),
+              ),
+              SizedBox(width: 8.w),
+              Expanded(
+                flex: 5,
+                child: _FeaturedProfileDetails(
+                  profile: suggestion.leftProfile,
+                  alignEnd: true,
+                ),
+              ),
             ],
           ),
-          SizedBox(height: 14.h),
+          SizedBox(height: 16.h),
+          Center(child: _ConfidencePill(scoreValue: suggestion.scoreValue)),
+          SizedBox(height: 16.h),
           Text(
             'Reason for Match',
             style: GoogleFonts.manrope(
-              color: AppColors.rmPrimary,
+              color: const Color(0xFF2E2929),
               fontSize: 13.sp,
-              fontWeight: FontWeight.w900,
+              fontWeight: FontWeight.w700,
             ),
           ),
           SizedBox(height: 6.h),
@@ -893,8 +939,25 @@ class _MatchSuggestionCard extends StatelessWidget {
             style: GoogleFonts.manrope(
               color: AppColors.rmComparisonBody,
               fontSize: 13.sp,
-              fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.w500,
               height: 1.45,
+            ),
+          ),
+          SizedBox(height: 14.h),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: const [
+                _ReasonChip(
+                  icon: Icons.auto_awesome_outlined,
+                  label: 'AI Reasoning',
+                ),
+                _ReasonChip(
+                  icon: Icons.workspace_premium_outlined,
+                  label: 'Auto Ranked',
+                ),
+                _ReasonChip(icon: Icons.favorite_border, label: 'Kundali AI'),
+              ],
             ),
           ),
           if (suggestion.pendingInfo != null) ...[
@@ -902,21 +965,19 @@ class _MatchSuggestionCard extends StatelessWidget {
             Text(
               'Pending Info',
               style: GoogleFonts.manrope(
-                color: AppColors.rmPrimary,
+                color: const Color(0xFF2E2929),
                 fontSize: 13.sp,
-                fontWeight: FontWeight.w900,
+                fontWeight: FontWeight.w700,
               ),
             ),
             SizedBox(height: 6.h),
             Row(
               children: [
-                Icon(Icons.schedule, color: AppColors.danger, size: 13.sp),
+                Icon(Icons.error_outline, color: AppColors.danger, size: 14.sp),
                 SizedBox(width: 5.w),
                 Expanded(
                   child: Text(
-                    suggestion.pendingInfo!,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                    _pendingInfoLabel(suggestion.pendingInfo!),
                     style: GoogleFonts.manrope(
                       color: AppColors.danger,
                       fontSize: 12.sp,
@@ -930,15 +991,12 @@ class _MatchSuggestionCard extends StatelessWidget {
           SizedBox(height: 14.h),
           SizedBox(
             width: double.infinity,
-            height: 52.h,
+            height: 44.h,
             child: ElevatedButton.icon(
-              onPressed: () => Navigator.of(context).pushNamed(
-                AppRoutes.profileDetail,
-                arguments: suggestion.leftProfile,
-              ),
+              onPressed: onCompare,
               icon: Icon(Icons.compare_arrows, size: 16.sp),
               label: Text(
-                'View Lead Profile',
+                'Compare Profiles',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -948,25 +1006,30 @@ class _MatchSuggestionCard extends StatelessWidget {
                 elevation: 0,
                 textStyle: GoogleFonts.manrope(
                   fontSize: 13.sp,
-                  fontWeight: FontWeight.w900,
+                  fontWeight: FontWeight.w800,
                 ),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8.r),
+                  borderRadius: BorderRadius.circular(12.r),
                 ),
               ),
             ),
           ),
-          SizedBox(height: 10.h),
+          SizedBox(height: 12.h),
           Row(
             children: [
               Expanded(
-                child: _QueueActionButton(label: 'Save', onTap: () {}),
+                child: _QueueActionButton(
+                  label: 'Save',
+                  icon: Icons.bookmark_border,
+                  onTap: () {},
+                ),
               ),
               SizedBox(width: 9.w),
               Expanded(
                 child: _QueueActionButton(
                   label: 'Reject',
                   bordered: true,
+                  accentColor: const Color(0xFFF04438),
                   onTap: () {},
                 ),
               ),
@@ -979,62 +1042,13 @@ class _MatchSuggestionCard extends StatelessWidget {
                       ? 'Approved'
                       : 'Approve',
                   filled: true,
+                  accentColor: AppColors.whatsappGreen,
                   onTap: isApproving || isApproved ? null : onApprove,
                 ),
               ),
             ],
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _ProfilePairAvatars extends StatelessWidget {
-  const _ProfilePairAvatars({required this.suggestion});
-
-  final _MatchSuggestion suggestion;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 54.w,
-      height: 34.h,
-      child: Stack(
-        children: [
-          _AvatarImage(image: suggestion.leftProfile.image, left: 0),
-          _AvatarImage(image: suggestion.rightProfile.image, left: 24.w),
-        ],
-      ),
-    );
-  }
-}
-
-class _AvatarImage extends StatelessWidget {
-  const _AvatarImage({required this.image, required this.left});
-
-  final String image;
-  final double left;
-
-  @override
-  Widget build(BuildContext context) {
-    return Positioned(
-      left: left,
-      top: 0,
-      child: Container(
-        width: 32.r,
-        height: 32.r,
-        decoration: BoxDecoration(
-          color: AppColors.selectedNavItemBackgroundColor,
-          shape: BoxShape.circle,
-          border: Border.all(color: AppColors.white, width: 2),
-          image: DecorationImage(
-            image: image.startsWith('http')
-                ? NetworkImage(image)
-                : AssetImage(image) as ImageProvider,
-            fit: BoxFit.cover,
-          ),
-        ),
       ),
     );
   }
@@ -1048,26 +1062,93 @@ class _ScoreBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.end,
       children: [
         Text(
           score,
           style: GoogleFonts.manrope(
             color: AppColors.rmPrimary,
-            fontSize: 24.sp,
-            fontWeight: FontWeight.w900,
-            height: 0.95,
+            fontSize: 20.sp,
+            fontWeight: FontWeight.w800,
+            height: 1,
           ),
         ),
-        SizedBox(height: 4.h),
+        SizedBox(height: 2.h),
         Text(
           'MATCH\nSCORE',
-          textAlign: TextAlign.right,
+          textAlign: TextAlign.center,
           style: GoogleFonts.manrope(
-            color: AppColors.rmComparisonMuted,
-            fontSize: 9.sp,
-            fontWeight: FontWeight.w900,
-            height: 1.05,
+            color: const Color(0xFF2E2929),
+            fontSize: 8.sp,
+            fontWeight: FontWeight.w700,
+            height: 1.15,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _FeaturedProfileDetails extends StatelessWidget {
+  const _FeaturedProfileDetails({
+    required this.profile,
+    required this.alignEnd,
+  });
+
+  final RegistryProfileItem profile;
+  final bool alignEnd;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: alignEnd
+          ? CrossAxisAlignment.end
+          : CrossAxisAlignment.start,
+      children: [
+        CircleAvatar(
+          radius: 18.r,
+          backgroundColor: const Color(0xFFF3E9ED),
+          backgroundImage: _profileImageProvider(profile.image),
+          child: _profileImageProvider(profile.image) == null
+              ? Text(
+                  _initialsFor(profile.name),
+                  style: GoogleFonts.manrope(
+                    color: AppColors.rmPrimary,
+                    fontSize: 12.sp,
+                    fontWeight: FontWeight.w800,
+                  ),
+                )
+              : null,
+        ),
+        SizedBox(height: 10.h),
+        SizedBox(
+          width: double.infinity,
+          child: Text(
+            profile.name,
+            textAlign: alignEnd ? TextAlign.right : TextAlign.left,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.manrope(
+              color: const Color(0xFF111111),
+              fontSize: 14.sp,
+              fontWeight: FontWeight.w700,
+              height: 1.2,
+            ),
+          ),
+        ),
+        SizedBox(height: 6.h),
+        SizedBox(
+          width: double.infinity,
+          child: Text(
+            _profileMeta(profile),
+            textAlign: alignEnd ? TextAlign.right : TextAlign.left,
+            maxLines: 4,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.manrope(
+              color: const Color(0xFF111111),
+              fontSize: 10.5.sp,
+              fontWeight: FontWeight.w500,
+              height: 1.35,
+            ),
           ),
         ),
       ],
@@ -1079,38 +1160,136 @@ class _QueueActionButton extends StatelessWidget {
   const _QueueActionButton({
     required this.label,
     required this.onTap,
+    this.icon,
     this.bordered = false,
     this.filled = false,
+    this.accentColor,
   });
 
   final String label;
   final VoidCallback? onTap;
+  final IconData? icon;
   final bool bordered;
   final bool filled;
+  final Color? accentColor;
 
   @override
   Widget build(BuildContext context) {
-    final foreground = filled ? AppColors.white : AppColors.rmComparisonStrong;
+    final tone =
+        accentColor ??
+        (filled ? AppColors.whatsappGreen : AppColors.rmComparisonStrong);
+    final foreground = filled ? AppColors.white : tone;
 
     return SizedBox(
-      height: 48.h,
+      height: 42.h,
       child: TextButton(
         onPressed: onTap,
         style: TextButton.styleFrom(
-          backgroundColor: filled ? AppColors.whatsappGreen : AppColors.white,
+          backgroundColor: filled ? tone : AppColors.white,
           foregroundColor: foreground,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8.r),
+            borderRadius: BorderRadius.circular(14.r),
             side: bordered
-                ? const BorderSide(color: AppColors.rmPaleRoseBorder)
+                ? BorderSide(color: tone.withValues(alpha: 0.7))
                 : BorderSide.none,
           ),
           textStyle: GoogleFonts.manrope(
             fontSize: 13.sp,
-            fontWeight: FontWeight.w800,
+            fontWeight: FontWeight.w700,
           ),
         ),
-        child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (icon != null) ...[
+              Icon(icon, size: 15.sp),
+              SizedBox(width: 6.w),
+            ],
+            Flexible(
+              child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ConfidencePill extends StatelessWidget {
+  const _ConfidencePill({required this.scoreValue});
+
+  final int scoreValue;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = scoreValue >= 85
+        ? 'Confidence: HIGH'
+        : scoreValue >= 70
+        ? 'Confidence: MEDIUM'
+        : 'Confidence: LOW';
+
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 6.h),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FFFA),
+        borderRadius: BorderRadius.circular(999.r),
+        border: Border.all(color: const Color(0xFFB7E2C4)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.settings_suggest_outlined,
+            color: const Color(0xFF17B26A),
+            size: 13.sp,
+          ),
+          SizedBox(width: 6.w),
+          Text(
+            label,
+            style: GoogleFonts.manrope(
+              color: const Color(0xFF17B26A),
+              fontSize: 11.sp,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ReasonChip extends StatelessWidget {
+  const _ReasonChip({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(right: 8.w),
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 9.h),
+        decoration: BoxDecoration(
+          color: AppColors.white,
+          borderRadius: BorderRadius.circular(999.r),
+          border: Border.all(color: const Color(0xFFF0D8C8)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14.sp, color: const Color(0xFF2E2929)),
+            SizedBox(width: 6.w),
+            Text(
+              label,
+              style: GoogleFonts.manrope(
+                color: const Color(0xFF2E2929),
+                fontSize: 11.sp,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1127,23 +1306,23 @@ class _QuickInsightsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final topSuggestion = suggestions.isNotEmpty ? suggestions.first : null;
     final pendingCount = suggestions
         .where((item) => item.pendingInfo != null)
         .length;
+    final reviewSuggestions = suggestions.take(2).toList();
 
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.fromLTRB(18.w, 18.h, 18.w, 18.h),
+      padding: EdgeInsets.fromLTRB(14.w, 16.h, 14.w, 16.h),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF5F8),
-        borderRadius: BorderRadius.circular(18.r),
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(14.r),
         border: Border.all(color: AppColors.rmPaleRoseBorder),
         boxShadow: const [
           BoxShadow(
-            color: AppColors.rmCardShadow,
-            blurRadius: 12,
-            offset: Offset(0, 5),
+            color: Color(0x12B25C18),
+            blurRadius: 18,
+            offset: Offset(0, 8),
           ),
         ],
       ),
@@ -1158,13 +1337,17 @@ class _QuickInsightsCard extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.manrope(
-                    color: AppColors.rmPrimary,
+                    color: const Color(0xFF232323),
                     fontSize: 18.sp,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
-              Icon(Icons.trending_up, color: AppColors.rmPrimary, size: 18.sp),
+              Icon(
+                Icons.trending_up,
+                color: const Color(0xFF232323),
+                size: 18.sp,
+              ),
             ],
           ),
           SizedBox(height: 14.h),
@@ -1178,9 +1361,9 @@ class _QuickInsightsCard extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.manrope(
-                    color: AppColors.rmPrimary,
+                    color: const Color(0xFF232323),
                     fontSize: 13.sp,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
@@ -1195,57 +1378,41 @@ class _QuickInsightsCard extends StatelessWidget {
                   style: GoogleFonts.manrope(
                     color: AppColors.white,
                     fontSize: 10.sp,
-                    fontWeight: FontWeight.w900,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
               ),
             ],
           ),
           SizedBox(height: 10.h),
-          Container(
-            width: double.infinity,
-            padding: EdgeInsets.fromLTRB(12.w, 11.h, 12.w, 11.h),
-            decoration: BoxDecoration(
-              color: AppColors.white,
-              borderRadius: BorderRadius.circular(8.r),
-              border: Border.all(color: AppColors.rmPaleRoseBorder),
-              boxShadow: const [
-                BoxShadow(
-                  color: AppColors.rmCardShadow,
-                  blurRadius: 10,
-                  offset: Offset(0, 4),
+          if (reviewSuggestions.isEmpty)
+            Padding(
+              padding: EdgeInsets.only(left: 18.w),
+              child: Text(
+                'Load profiles to generate AI pairing insights.',
+                style: GoogleFonts.manrope(
+                  color: AppColors.rmComparisonMuted,
+                  fontSize: 12.sp,
+                  fontWeight: FontWeight.w600,
                 ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              ),
+            )
+          else
+            Column(
               children: [
-                Text(
-                  topSuggestion?.names ?? 'No live suggestions yet',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.manrope(
-                    color: AppColors.rmPrimary,
-                    fontSize: 13.sp,
-                    fontWeight: FontWeight.w900,
+                for (
+                  var index = 0;
+                  index < reviewSuggestions.length;
+                  index++
+                ) ...[
+                  _QuickInsightSuggestionTile(
+                    suggestion: reviewSuggestions[index],
                   ),
-                ),
-                SizedBox(height: 4.h),
-                Text(
-                  topSuggestion == null
-                      ? 'Load profiles to generate AI pairing insights.'
-                      : topSuggestion.reason,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.manrope(
-                    color: AppColors.rmComparisonMuted,
-                    fontSize: 12.sp,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+                  if (index < reviewSuggestions.length - 1)
+                    SizedBox(height: 10.h),
+                ],
               ],
             ),
-          ),
           SizedBox(height: 16.h),
           Row(
             children: [
@@ -1257,9 +1424,9 @@ class _QuickInsightsCard extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.manrope(
-                    color: AppColors.rmPrimary,
+                    color: const Color(0xFF232323),
                     fontSize: 13.sp,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
@@ -1285,6 +1452,58 @@ class _QuickInsightsCard extends StatelessWidget {
   }
 }
 
+class _QuickInsightSuggestionTile extends StatelessWidget {
+  const _QuickInsightSuggestionTile({required this.suggestion});
+
+  final _MatchSuggestion suggestion;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.fromLTRB(12.w, 12.h, 12.w, 12.h),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(12.r),
+        border: Border.all(color: AppColors.rmPaleRoseBorder),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0C000000),
+            blurRadius: 8,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            suggestion.names,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.manrope(
+              color: const Color(0xFF232323),
+              fontSize: 14.sp,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          SizedBox(height: 6.h),
+          Text(
+            suggestion.reason,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.manrope(
+              color: AppColors.rmComparisonMuted,
+              fontSize: 12.sp,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _InsightDot extends StatelessWidget {
   const _InsightDot();
 
@@ -1301,17 +1520,67 @@ class _InsightDot extends StatelessWidget {
   }
 }
 
+ImageProvider? _profileImageProvider(String image) {
+  final value = image.trim();
+  if (value.isEmpty) {
+    return null;
+  }
+
+  if (value.startsWith('http')) {
+    return NetworkImage(value);
+  }
+
+  if (value.startsWith('assets/')) {
+    return AssetImage(value);
+  }
+
+  return null;
+}
+
+String _initialsFor(String name) {
+  final parts = name
+      .trim()
+      .split(RegExp(r'\s+'))
+      .where((part) => part.isNotEmpty)
+      .take(2)
+      .toList();
+  if (parts.isEmpty) {
+    return '?';
+  }
+
+  return parts.map((part) => part[0].toUpperCase()).join();
+}
+
+String _profileMeta(RegistryProfileItem profile) {
+  final city = profile.city.trim().isEmpty || profile.city.trim() == '-'
+      ? profile.birthPlace
+      : profile.city;
+  final work = profile.work.trim().isEmpty || profile.work.trim() == '-'
+      ? profile.profession
+      : profile.work;
+  return '${profile.age} yrs ${String.fromCharCode(8226)} ${work.trim().isEmpty ? profile.type : work}\n$city';
+}
+
+String _pendingInfoLabel(String value) {
+  final text = value.trim();
+  if (text.isEmpty) {
+    return 'Additional review required';
+  }
+
+  if (text.toLowerCase().contains('gotra')) {
+    return 'Astro status pending verification';
+  }
+
+  return text;
+}
+
 BoxDecoration _cardDecoration() {
   return BoxDecoration(
     color: AppColors.white,
-    borderRadius: BorderRadius.circular(8.r),
-    border: Border.all(color: AppColors.rmPaleRoseBorder),
+    borderRadius: BorderRadius.circular(14.r),
+    border: Border.all(color: const Color(0xFFF0DED5)),
     boxShadow: const [
-      BoxShadow(
-        color: AppColors.rmCardShadow,
-        blurRadius: 12,
-        offset: Offset(0, 5),
-      ),
+      BoxShadow(color: Color(0x12B25C18), blurRadius: 18, offset: Offset(0, 8)),
     ],
   );
 }
@@ -1323,6 +1592,7 @@ class _MatchMetric {
     required this.caption,
     required this.icon,
     required this.color,
+    this.isWide = false,
   });
 
   final String title;
@@ -1330,6 +1600,7 @@ class _MatchMetric {
   final String caption;
   final IconData icon;
   final Color color;
+  final bool isWide;
 }
 
 class _MatchSuggestion {

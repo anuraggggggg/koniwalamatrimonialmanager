@@ -4,7 +4,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:koniwalamatrimonial/constants/app_colors.dart';
 import 'package:koniwalamatrimonial/models/manager_dashboard.dart';
 import 'package:koniwalamatrimonial/owner/models/hr_employee_item.dart';
+import 'package:koniwalamatrimonial/owner/models/lead_registry_item.dart';
 import 'package:koniwalamatrimonial/owner/models/lead_follow_up_item.dart';
+import 'package:koniwalamatrimonial/owner/providers/leads_provider.dart';
 import 'package:koniwalamatrimonial/providers/auth_provider.dart';
 import 'package:koniwalamatrimonial/providers/manager_dashboard_provider.dart';
 import 'package:koniwalamatrimonial/owner/providers/hr_employees_provider.dart';
@@ -13,6 +15,8 @@ import 'package:koniwalamatrimonial/widgets/koniwala_primary_app_bar.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../routes/app_routes.dart';
+import '../models/registry_profile_item.dart';
+import '../providers/registry_profiles_provider.dart';
 import 'registry_screen.dart';
 import 'leads_registry_screen.dart';
 import 'client_registry_screen.dart';
@@ -84,10 +88,10 @@ class _OwernerDashboardScreenState extends State<OwernerDashboardScreen> {
 
           final showParentAppBar =
               selectedIndex != 1 &&
-                  selectedIndex != 2 &&
-                  selectedIndex != 3 &&
-                  selectedIndex != 4 &&
-                  selectedIndex != 5;
+              selectedIndex != 2 &&
+              selectedIndex != 3 &&
+              selectedIndex != 4 &&
+              selectedIndex != 5;
 
           return Scaffold(
             key: _scaffoldKey,
@@ -101,10 +105,7 @@ class _OwernerDashboardScreenState extends State<OwernerDashboardScreen> {
                         Navigator.of(context).pushNamed(AppRoutes.adminDrawer),
                   )
                 : null,
-            body: IndexedStack(
-              index: selectedIndex,
-              children: _buildScreens(),
-            ),
+            body: IndexedStack(index: selectedIndex, children: _buildScreens()),
             bottomNavigationBar: _buildBottomNav(context, selectedIndex),
           );
         },
@@ -112,10 +113,7 @@ class _OwernerDashboardScreenState extends State<OwernerDashboardScreen> {
     );
   }
 
-  Widget _buildBottomNav(
-    BuildContext context,
-    int selectedIndex,
-  ) {
+  Widget _buildBottomNav(BuildContext context, int selectedIndex) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -130,9 +128,9 @@ class _OwernerDashboardScreenState extends State<OwernerDashboardScreen> {
       child: BottomNavigationBar(
         currentIndex: _bottomNavIndexForTab(selectedIndex),
         onTap: (index) {
-          context
-              .read<DashboardProvider>()
-              .selectTab(_tabIndexForBottomNav(index));
+          context.read<DashboardProvider>().selectTab(
+            _tabIndexForBottomNav(index),
+          );
         },
         type: BottomNavigationBarType.fixed,
         backgroundColor: Colors.white,
@@ -649,11 +647,9 @@ class _HomeViewState extends State<HomeView> {
 
   BoxDecoration _ownerCardDecoration({double radius = 12}) {
     return BoxDecoration(
-
       borderRadius: BorderRadius.circular(radius),
       border: Border.all(color: const Color(0xFFE4E4E4)),
-      color: Colors.white
-
+      color: Colors.white,
     );
   }
 
@@ -695,7 +691,9 @@ class _HomeViewState extends State<HomeView> {
       return;
     }
 
-    final normalizedPhone = cleanPhone.length == 10 ? '91$cleanPhone' : cleanPhone;
+    final normalizedPhone = cleanPhone.length == 10
+        ? '91$cleanPhone'
+        : cleanPhone;
     final uri = Uri(scheme: 'tel', path: normalizedPhone);
 
     try {
@@ -730,8 +728,6 @@ class _HomeViewState extends State<HomeView> {
     );
   }
 
-  
-
   void _showHrRoleReport({
     required List<HrEmployeeItem> hrEmployees,
     required List<LeadFollowUpItem> followUps,
@@ -739,7 +735,9 @@ class _HomeViewState extends State<HomeView> {
     final presentCount = hrEmployees
         .where((employee) => employee.isPresentToday)
         .length;
-    final activeCount = hrEmployees.where((employee) => employee.isActive).length;
+    final activeCount = hrEmployees
+        .where((employee) => employee.isActive)
+        .length;
     final payrollEnabledCount = hrEmployees
         .where((employee) => employee.payrollEnabled)
         .length;
@@ -864,41 +862,6 @@ class _HomeViewState extends State<HomeView> {
     final List<HrEmployeeItem> hrEmployees = employeesProvider.employees
         .where((employee) => _isHrRole(employee.role))
         .toList();
-    final hrPresentCount = hrEmployees
-        .where((employee) => employee.isPresentToday)
-        .length;
-    final callLeads = followUpsProvider.leads
-        .where((lead) => lead.openFollowUps.isNotEmpty)
-        .toList();
-    final openCallTasks = _openCallTaskCount(followUpsProvider.leads);
-    final hrMetricValue =
-        employeesProvider.error != null && hrEmployees.isEmpty
-        ? '--'
-        : '${hrEmployees.length}';
-    final hrMetricLabel = employeesProvider.isLoading
-        ? 'Syncing'
-        : employeesProvider.error != null && hrEmployees.isEmpty
-        ? 'Unavailable'
-        : '$hrPresentCount present';
-    final callMetricValue =
-        followUpsProvider.error != null && followUpsProvider.leads.isEmpty
-        ? '--'
-        : '$openCallTasks';
-    final callMetricLabel = followUpsProvider.isLoading
-        ? 'Syncing'
-        : followUpsProvider.error != null && followUpsProvider.leads.isEmpty
-        ? 'Unavailable'
-        : '${callLeads.length} leads';
-    final hrMetricLabelColor = employeesProvider.isLoading
-        ? Colors.blueGrey[600]
-        : employeesProvider.error != null && hrEmployees.isEmpty
-        ? Colors.red[700]
-        : Colors.green[700];
-    final callMetricLabelColor = followUpsProvider.isLoading
-        ? Colors.blueGrey[600]
-        : followUpsProvider.error != null && followUpsProvider.leads.isEmpty
-        ? Colors.red[700]
-        : Colors.green[700];
     final presentCount =
         dashboard?.liveTeamStatus
             .where(
@@ -980,9 +943,10 @@ class _HomeViewState extends State<HomeView> {
       });
     }
 
-    final filteredActivities = dashboard?.recentActivity
-        .where((activity) => activity.category == selectedCategory)
-        .toList() ??
+    final filteredActivities =
+        dashboard?.recentActivity
+            .where((activity) => activity.category == selectedCategory)
+            .toList() ??
         [];
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(vertical: 32),
@@ -1170,7 +1134,6 @@ class _HomeViewState extends State<HomeView> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-
                     Expanded(
                       child: _buildStatCard(
                         'FOLLOW-UPS',
@@ -1194,36 +1157,54 @@ class _HomeViewState extends State<HomeView> {
               ],
             ),
           ),
-          SizedBox(height: 25.h),
+
+          SizedBox(height: 20.h),
+
+          _buildProfileShortlistSection(),
+
+          SizedBox(height: 20.h),
 
           // Critical Alerts
           _buildConnectivitySection(child: _buildCriticalAlerts(dashboard)),
 
+          _buildConnectivitySection(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 16),
 
+                  Text(
+                    'LIVE TEAM STATUS',
+                    style: GoogleFonts.manrope(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
 
-    _buildConnectivitySection(
-    child: Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 14),
-    child: Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [const SizedBox(height: 16),
+                  SizedBox(height: 16.h),
 
-    Text('LIVE TEAM STATUS',style: GoogleFonts.manrope(fontSize: 20,
-    fontWeight: FontWeight.w600, letterSpacing: 0.5,),),
-
-    SizedBox(height: 16.h),
-
-    if (dashboard?.liveTeamStatus.isEmpty ?? true)
-    _buildSectionEmptyState(
-    'No team activity available yet.',
-    ) else
-    SizedBox(height: 220.h, // Give the horizontal ListView a fixed height
-    child: ListView.builder(
-    scrollDirection: Axis.horizontal,
-    itemCount: dashboard!.liveTeamStatus.take(8).length,
-    itemBuilder: (context, index) {
-    final item = dashboard.liveTeamStatus[index];
-    return _buildTeamCard(item);},),),],),),),
+                  if (dashboard?.liveTeamStatus.isEmpty ?? true)
+                    _buildSectionEmptyState('No team activity available yet.')
+                  else
+                    SizedBox(
+                      height:
+                          220.h, // Give the horizontal ListView a fixed height
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: dashboard!.liveTeamStatus.take(8).length,
+                        itemBuilder: (context, index) {
+                          final item = dashboard.liveTeamStatus[index];
+                          return _buildTeamCard(item);
+                        },
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
           SizedBox(height: 25.h),
 
           // Follow-up Control
@@ -1300,7 +1281,7 @@ class _HomeViewState extends State<HomeView> {
                       borderRadius: BorderRadius.circular(16.r),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(.04),
+                          color: Colors.black.withValues(alpha: 0.04),
                           blurRadius: 12,
                           offset: const Offset(0, 4),
                         ),
@@ -1308,40 +1289,44 @@ class _HomeViewState extends State<HomeView> {
                     ),
                     child: filteredActivities.isEmpty
                         ? _buildSectionEmptyState(
-                      'No recent activity in the selected period.',
-                    )
+                            'No recent activity in the selected period.',
+                          )
                         : Column(
-                      children: [
-                        for (int index = 0;
-                        index < filteredActivities.take(5).length;
-                        index++) ...[
-                          if (index != 0)
-                            Divider(
-                              height: 24.h,
-                              color: const Color(0xFFEAEAEA),
-                            ),
+                            children: [
+                              for (
+                                int index = 0;
+                                index < filteredActivities.take(5).length;
+                                index++
+                              ) ...[
+                                if (index != 0)
+                                  Divider(
+                                    height: 24.h,
+                                    color: const Color(0xFFEAEAEA),
+                                  ),
 
-                          _buildActivityRow(
-                            Icon(
-                              _activityIconForItem(filteredActivities[index]),
-                              size: 20.sp,
-                              color: _activityColorForItem(
-                                filteredActivities[index],
-                              ),
-                            ),
-                            filteredActivities[index].title,
-                            filteredActivities[index].description,
-                            backgroundColor: _activityColorForItem(
-                              filteredActivities[index],
-                            ).withOpacity(.12),
-                            onTap: () {
-                              final activity = filteredActivities[index];
-                              debugPrint(activity.title);
-                            },
+                                _buildActivityRow(
+                                  Icon(
+                                    _activityIconForItem(
+                                      filteredActivities[index],
+                                    ),
+                                    size: 20.sp,
+                                    color: _activityColorForItem(
+                                      filteredActivities[index],
+                                    ),
+                                  ),
+                                  filteredActivities[index].title,
+                                  filteredActivities[index].description,
+                                  backgroundColor: _activityColorForItem(
+                                    filteredActivities[index],
+                                  ).withValues(alpha: 0.12),
+                                  onTap: () {
+                                    final activity = filteredActivities[index];
+                                    debugPrint(activity.title);
+                                  },
+                                ),
+                              ],
+                            ],
                           ),
-                        ],
-                      ],
-                    ),
                   ),
                 ],
               ),
@@ -1478,10 +1463,7 @@ class _HomeViewState extends State<HomeView> {
                   gradient: const LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
-                    colors: [
-                      Color(0xFF570013),
-                      Color(0xFF800020),
-                    ],
+                    colors: [Color(0xFF570013), Color(0xFF800020)],
                   ),
                   borderRadius: BorderRadius.circular(16),
                 ),
@@ -1521,7 +1503,7 @@ class _HomeViewState extends State<HomeView> {
                     Row(
                       children: [
                         Expanded(
-                          flex : 3,
+                          flex: 3,
                           child: ElevatedButton(
                             onPressed: () {
                               Navigator.pushNamed(
@@ -1533,7 +1515,10 @@ class _HomeViewState extends State<HomeView> {
                               backgroundColor: AppColors.goldYellow,
                               foregroundColor: AppColors.deepBurgundy,
                               elevation: 0,
-                              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 20),
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 8,
+                                horizontal: 20,
+                              ),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(8),
                               ),
@@ -1542,16 +1527,14 @@ class _HomeViewState extends State<HomeView> {
                               primarySuggestion?.actionLabel ?? 'Execute',
                               style: GoogleFonts.manrope(
                                 fontWeight: FontWeight.bold,
-                                fontSize: 11  ,
-
-
+                                fontSize: 11,
                               ),
                             ),
                           ),
                         ),
                         SizedBox(width: 16.w),
                         Expanded(
-                          flex : 1,
+                          flex: 1,
                           child: TextButton(
                             onPressed: () {},
                             style: TextButton.styleFrom(
@@ -1566,8 +1549,10 @@ class _HomeViewState extends State<HomeView> {
                             ),
                             child: Text(
                               'Dismiss',
-                              style: GoogleFonts.manrope(fontSize: 11, fontWeight: FontWeight.bold),
-
+                              style: GoogleFonts.manrope(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                         ),
@@ -1687,7 +1672,7 @@ class _HomeViewState extends State<HomeView> {
                         },
                         style: OutlinedButton.styleFrom(
                           foregroundColor: AppColors.primary,
-                          side: BorderSide(color: AppColors.primary,),
+                          side: BorderSide(color: AppColors.primary),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
@@ -1698,7 +1683,7 @@ class _HomeViewState extends State<HomeView> {
                           style: GoogleFonts.manrope(
                             fontWeight: FontWeight.bold,
                             fontSize: 14,
-                            color: AppColors.primary
+                            color: AppColors.primary,
                           ),
                         ),
                       ),
@@ -1859,7 +1844,7 @@ class _HomeViewState extends State<HomeView> {
                             style: GoogleFonts.manrope(
                               fontSize: 12,
                               fontWeight: FontWeight.w800,
-                              color:  AppColors.whatsappGreen
+                              color: AppColors.whatsappGreen,
                             ),
                           ),
                         ),
@@ -1893,8 +1878,9 @@ class _HomeViewState extends State<HomeView> {
                     ),
                     SizedBox(width: 12.w),
                     InkWell(
-                      onTap: () =>
-                          Navigator.of(context).pushNamed(AppRoutes.adminSettings),
+                      onTap: () => Navigator.of(
+                        context,
+                      ).pushNamed(AppRoutes.adminSettings),
                       // borderRadius: BorderRadius.circular(16.r),
                       child: SizedBox(
                         height: 20.h,
@@ -1912,6 +1898,263 @@ class _HomeViewState extends State<HomeView> {
           ),
           SizedBox(height: 122.h),
         ],
+      ),
+    );
+  }
+
+  Widget _buildProfileShortlistSection() {
+    final registryProvider = context.watch<RegistryProfilesProvider>();
+    final profiles = registryProvider.profiles.take(2).toList();
+
+    if (registryProvider.isLoading) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 20),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (profiles.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            /// Header
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'PROFILES NEEDING SHORTLIST',
+                        style: GoogleFonts.manrope(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${profiles.length} profiles waiting for shortlist action.',
+                        style: GoogleFonts.manrope(
+                          fontSize: 13,
+                          color: Colors.grey.shade700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFFFF3EC),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.playlist_add_check_rounded,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 16),
+
+            ...List.generate(
+              profiles.length,
+              (index) => Padding(
+                padding: EdgeInsets.only(
+                  bottom: index == profiles.length - 1 ? 0 : 12,
+                ),
+                child: _buildProfileShortlistCard(profiles[index]),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProfileShortlistCard(RegistryProfileItem profile) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF8F5),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: Image.network(
+                  profile.photoUrls.isNotEmpty
+                      ? profile.photoUrls.first
+                      : 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=200&q=80',
+                  width: 60,
+                  height: 60,
+                  fit: BoxFit.cover,
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return Container(
+                      width: 60,
+                      height: 60,
+                      color: Colors.grey.shade200,
+                      alignment: Alignment.center,
+                      child: const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    );
+                  },
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      width: 60,
+                      height: 60,
+                      color: Colors.grey.shade200,
+                      child: const Icon(Icons.person, color: Colors.grey),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(width: 12),
+
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      profile.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.manrope(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+
+                    Text.rich(
+                      TextSpan(
+                        text: 'Client: ',
+                        style: GoogleFonts.manrope(fontSize: 15),
+                        children: [
+                          TextSpan(
+                            text: profile.name,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    Text.rich(
+                      TextSpan(
+                        text: 'Owner: ',
+                        style: GoogleFonts.manrope(fontSize: 15),
+                        children: const [
+                          TextSpan(
+                            text: 'Relationship Manager',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 12),
+
+          Row(
+            children: [
+              _buildChip(
+                'due now',
+                const Color(0xFFFFE7A9),
+                const Color(0xFF9C5A00),
+              ),
+              const SizedBox(width: 8),
+              _buildChip(
+                'open shortlist',
+                const Color(0xFFBFE2FF),
+                const Color(0xFF1E5D91),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 14),
+
+          SizedBox(
+            width: double.infinity,
+            height: 42,
+            child: ElevatedButton(
+              onPressed: () {
+                Navigator.pushNamed(
+                  context,
+                  AppRoutes.shortlist,
+                  arguments: profile,
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'OPEN SHORTLIST',
+                    style: GoogleFonts.manrope(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  const Icon(
+                    Icons.arrow_forward,
+                    color: Colors.white,
+                    size: 18,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildChip(String text, Color bg, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        text,
+        style: GoogleFonts.manrope(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          color: color,
+        ),
       ),
     );
   }
@@ -2067,127 +2310,530 @@ class _HomeViewState extends State<HomeView> {
     });
   }
 
-  void _showAgencyReport(ManagerDashboard dashboard) {
+  Future<void> _showAgencyReport(ManagerDashboard dashboard) async {
     final performance = dashboard.agencyPerformance;
     final kpi = dashboard.kpi;
-    final onlineCount = dashboard.liveTeamStatus
-        .where((item) => item.status.toLowerCase() == 'online')
-        .length;
-    final presentCount = dashboard.liveTeamStatus
-        .where(
-          (item) => item.todayAttendanceStatus.toLowerCase() == 'present',
-        )
-        .length;
+    final accessToken = context.read<AuthProvider>().userModel?.accessToken;
+    final leadsProvider = context.read<LeadsProvider>();
+
+    if (leadsProvider.leads.isEmpty && !leadsProvider.isLoading) {
+      await leadsProvider.fetchLeads(accessToken);
+    }
+
+    if (!mounted) {
+      return;
+    }
+
+    final convertedLeads = leadsProvider.leads
+        .where((lead) => _leadStageKey(lead.stage) == 'CONVERTED')
+        .toList();
     final totalTasksCompleted = dashboard.liveTeamStatus.fold<int>(
       0,
       (total, item) => total + item.tasksCompleted,
-    );
-    final totalProfilesHandled = dashboard.liveTeamStatus.fold<int>(
-      0,
-      (total, item) => total + item.profilesHandled,
     );
     final totalLeadsHandled = dashboard.liveTeamStatus.fold<int>(
       0,
       (total, item) => total + item.leadsHandled,
     );
+    final convertedCount = convertedLeads.isEmpty
+        ? performance.closedClients
+        : convertedLeads.length;
+    final taskTarget = totalLeadsHandled > totalTasksCompleted
+        ? totalLeadsHandled
+        : (totalTasksCompleted > 0 ? totalTasksCompleted : kpi.totalLeads);
+    final initialVisibleCount = convertedLeads.length > 5
+        ? 5
+        : convertedLeads.length;
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) {
-        return SafeArea(
-          child: Container(
-            margin: EdgeInsets.all(12.w),
-            padding: EdgeInsets.fromLTRB(18.w, 18.h, 18.w, 22.h),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(18.r),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'Agency Report',
-                        style: GoogleFonts.manrope(
-                          color: AppColors.rmPrimary,
-                          fontSize: 22.sp,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      icon: Icon(Icons.close, size: 22.sp),
-                    ),
-                  ],
-                ),
-                if (dashboard.period.displayText.isNotEmpty) ...[
-                  SizedBox(height: 2.h),
-                  Text(
-                    dashboard.period.displayText,
-                    style: GoogleFonts.manrope(
-                      color: const Color(0xFF6E5C61),
-                      fontSize: 13.sp,
-                      fontWeight: FontWeight.w700,
+        var visibleCount = initialVisibleCount;
+
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final visibleLeads = convertedLeads.take(visibleCount).toList();
+            final canLoadMore = visibleCount < convertedLeads.length;
+
+            return SafeArea(
+              child: FractionallySizedBox(
+                heightFactor: 0.96,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFFBF8),
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(24.r),
                     ),
                   ),
-                ],
-                SizedBox(height: 18.h),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildReportMetric(
-                        'Conversion',
-                        '${performance.overallConversionRate}%',
+                  child: Column(
+                    children: [
+                      Container(
+                        padding: EdgeInsets.fromLTRB(14.w, 12.h, 14.w, 12.h),
+                        decoration: const BoxDecoration(
+                          color: AppColors.white,
+                          border: Border(
+                            bottom: BorderSide(color: Color(0xFFF0E2D8)),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            InkWell(
+                              borderRadius: BorderRadius.circular(20.r),
+                              onTap: () => Navigator.of(context).pop(),
+                              child: SizedBox(
+                                width: 36.w,
+                                height: 36.w,
+                                child: Icon(
+                                  Icons.arrow_back,
+                                  color: const Color(0xFF2B2B2B),
+                                  size: 22.sp,
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              child: Text(
+                                'Agency Performance',
+                                textAlign: TextAlign.center,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.playfairDisplay(
+                                  color: const Color(0xFF2C2626),
+                                  fontSize: 18.sp,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                            SizedBox(
+                              width: 36.w,
+                              height: 36.w,
+                              child: Icon(
+                                Icons.more_vert,
+                                color: const Color(0xFF2B2B2B),
+                                size: 22.sp,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    SizedBox(width: 10.w),
-                    Expanded(
-                      child: _buildReportMetric(
-                        'Closed',
-                        '${performance.closedClients}',
+                      Expanded(
+                        child: SingleChildScrollView(
+                          padding: EdgeInsets.fromLTRB(16.w, 18.h, 16.w, 24.h),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Agency Performance Report',
+                                style: GoogleFonts.manrope(
+                                  color: const Color(0xFF222222),
+                                  fontSize: 18.sp,
+                                  fontWeight: FontWeight.w800,
+                                  height: 1.15,
+                                ),
+                              ),
+                              SizedBox(height: 6.h),
+                              Text(
+                                dashboard.period.displayText.isNotEmpty
+                                    ? dashboard.period.displayText
+                                    : 'All-time overview of conversions, closed clients, and task completion',
+                                style: GoogleFonts.manrope(
+                                  color: const Color(0xFF343434),
+                                  fontSize: 13.sp,
+                                  fontWeight: FontWeight.w500,
+                                  height: 1.45,
+                                ),
+                              ),
+                              SizedBox(height: 18.h),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: _buildAgencyPerformanceMetricCard(
+                                      title: 'OVERALL CONVERSION\nRATE',
+                                      value:
+                                          '${performance.overallConversionRate}%',
+                                      caption:
+                                          'converted: $convertedCount /\nqualified: $convertedCount',
+                                      icon: Icons.trending_up,
+                                      iconColor: const Color(0xFF11A36A),
+                                    ),
+                                  ),
+                                  SizedBox(width: 8.w),
+                                  Expanded(
+                                    child: _buildAgencyPerformanceMetricCard(
+                                      title: 'CONVERTED CLIENTS',
+                                      value: '$convertedCount',
+                                      caption: 'all-time\nconverted clients',
+                                      icon: Icons.check_circle_outline,
+                                      iconColor: const Color(0xFF17B26A),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              SizedBox(height: 8.h),
+                              _buildAgencyPerformanceMetricCard(
+                                title: 'TASK COMPLETION',
+                                value: '${performance.taskCompletionRate}%',
+                                caption:
+                                    '$totalTasksCompleted/$taskTarget\ncompleted',
+                                icon: Icons.check_circle_outline,
+                                iconColor: const Color(0xFF17B26A),
+                                isWide: true,
+                              ),
+                              SizedBox(height: 18.h),
+                              Container(
+                                width: double.infinity,
+                                padding: EdgeInsets.fromLTRB(
+                                  10.w,
+                                  12.h,
+                                  10.w,
+                                  12.h,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppColors.white,
+                                  borderRadius: BorderRadius.circular(16.r),
+                                  border: Border.all(
+                                    color: const Color(0xFFE8DED6),
+                                  ),
+                                  boxShadow: const [
+                                    BoxShadow(
+                                      color: Color(0x12B25C18),
+                                      blurRadius: 18,
+                                      offset: Offset(0, 8),
+                                    ),
+                                  ],
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Padding(
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal: 2.w,
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Converted Clients',
+                                            style: GoogleFonts.manrope(
+                                              color: const Color(0xFF222222),
+                                              fontSize: 18.sp,
+                                              fontWeight: FontWeight.w800,
+                                            ),
+                                          ),
+                                          SizedBox(height: 4.h),
+                                          Text(
+                                            'Clients converted from leads across the CRM',
+                                            style: GoogleFonts.manrope(
+                                              color: const Color(0xFF343434),
+                                              fontSize: 13.sp,
+                                              fontWeight: FontWeight.w500,
+                                              height: 1.4,
+                                            ),
+                                          ),
+                                          SizedBox(height: 12.h),
+                                          Container(
+                                            padding: EdgeInsets.symmetric(
+                                              horizontal: 8.w,
+                                              vertical: 7.h,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFFFFEDE2),
+                                              borderRadius:
+                                                  BorderRadius.circular(10.r),
+                                            ),
+                                            child: Text(
+                                              '$convertedCount records found',
+                                              style: GoogleFonts.manrope(
+                                                color: const Color(0xFF2A2A2A),
+                                                fontSize: 10.sp,
+                                                fontWeight: FontWeight.w800,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    SizedBox(height: 14.h),
+                                    if (visibleLeads.isEmpty)
+                                      Padding(
+                                        padding: EdgeInsets.fromLTRB(
+                                          8.w,
+                                          12.h,
+                                          8.w,
+                                          4.h,
+                                        ),
+                                        child: Text(
+                                          leadsProvider.isLoading
+                                              ? 'Loading converted clients...'
+                                              : 'No converted clients available yet.',
+                                          style: GoogleFonts.manrope(
+                                            color: const Color(0xFF6B6B6B),
+                                            fontSize: 13.sp,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      )
+                                    else
+                                      Column(
+                                        children: [
+                                          for (
+                                            var index = 0;
+                                            index < visibleLeads.length;
+                                            index++
+                                          ) ...[
+                                            _buildConvertedLeadCard(
+                                              visibleLeads[index],
+                                            ),
+                                            if (index < visibleLeads.length - 1)
+                                              SizedBox(height: 12.h),
+                                          ],
+                                        ],
+                                      ),
+                                  ],
+                                ),
+                              ),
+                              if (canLoadMore) ...[
+                                SizedBox(height: 22.h),
+                                Center(
+                                  child: OutlinedButton(
+                                    onPressed: () {
+                                      setModalState(() {
+                                        final nextCount = visibleCount + 5;
+                                        visibleCount =
+                                            nextCount > convertedLeads.length
+                                            ? convertedLeads.length
+                                            : nextCount;
+                                      });
+                                    },
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: AppColors.primary,
+                                      side: const BorderSide(
+                                        color: AppColors.primary,
+                                      ),
+                                      minimumSize: Size(190.w, 48.h),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(
+                                          14.r,
+                                        ),
+                                      ),
+                                    ),
+                                    child: Text(
+                                      'Load More Records',
+                                      style: GoogleFonts.manrope(
+                                        fontSize: 14.sp,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-                SizedBox(height: 10.h),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildReportMetric(
-                        'Tasks',
-                        '${performance.taskCompletionRate}%',
-                      ),
-                    ),
-                    SizedBox(width: 10.w),
-                    Expanded(
-                      child: _buildReportMetric(
-                        'Revenue',
-                        _formatRevenue(kpi.revenue),
-                      ),
-                    ),
-                  ],
-                ),
-                SizedBox(height: 18.h),
-                _buildReportRow('Total leads', '${kpi.totalLeads}'),
-                _buildReportRow('Active profiles', '${kpi.activeProfiles}'),
-                _buildReportRow('Matches today', '${kpi.matchesToday}'),
-                _buildReportRow('Follow-ups due', '${kpi.followUpsDue}'),
-                _buildReportRow('Team online', '$onlineCount'),
-                _buildReportRow('Present today', '$presentCount'),
-                _buildReportRow('Leads handled', '$totalLeadsHandled'),
-                _buildReportRow('Profiles handled', '$totalProfilesHandled'),
-                _buildReportRow('Tasks completed', '$totalTasksCompleted'),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         );
       },
+    );
+  }
+
+  String _leadStageKey(String stage) {
+    return stage.trim().toUpperCase().replaceAll(' ', '_');
+  }
+
+  Widget _buildAgencyPerformanceMetricCard({
+    required String title,
+    required String value,
+    required String caption,
+    required IconData icon,
+    required Color iconColor,
+    bool isWide = false,
+  }) {
+    return Container(
+      width: double.infinity,
+      constraints: BoxConstraints(minHeight: isWide ? 114.h : 132.h),
+      padding: EdgeInsets.fromLTRB(14.w, 14.h, 14.w, 12.h),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(12.r),
+        border: Border.all(color: const Color(0xFFEEDFD5)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x12B25C18),
+            blurRadius: 16,
+            offset: Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.manrope(
+              color: const Color(0xFF393434),
+              fontSize: 11.sp,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.4,
+              height: 1.2,
+            ),
+          ),
+          SizedBox(height: 10.h),
+          Text(
+            value,
+            style: GoogleFonts.manrope(
+              color: AppColors.primary,
+              fontSize: 25.sp,
+              fontWeight: FontWeight.w900,
+              height: 1,
+            ),
+          ),
+          SizedBox(height: 6.h),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: Text(
+                  caption,
+                  style: GoogleFonts.manrope(
+                    color: const Color(0xFF393434),
+                    fontSize: 10.5.sp,
+                    fontWeight: FontWeight.w700,
+                    height: 1.35,
+                  ),
+                ),
+              ),
+              SizedBox(width: 8.w),
+              Icon(icon, color: iconColor, size: 18.sp),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildConvertedLeadCard(LeadRegistryItem lead) {
+    final email = lead.email.trim().isEmpty ? 'No email' : lead.email;
+    final packageLabel = lead.leadFor.trim().isEmpty || lead.leadFor == '-'
+        ? 'STANDARD'
+        : lead.leadFor.toUpperCase();
+
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 16.h),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(16.r),
+        border: Border.all(color: const Color(0xFFE9DCD3)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0C000000),
+            blurRadius: 10,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Text(
+                  lead.name,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.manrope(
+                    color: const Color(0xFF212121),
+                    fontSize: 16.sp,
+                    fontWeight: FontWeight.w800,
+                    height: 1.2,
+                  ),
+                ),
+              ),
+              SizedBox(width: 12.w),
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 5.h),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF1E2),
+                  borderRadius: BorderRadius.circular(4.r),
+                ),
+                child: Text(
+                  '[$packageLabel]',
+                  style: GoogleFonts.manrope(
+                    color: AppColors.primary,
+                    fontSize: 11.sp,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.2,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 10.h),
+          Row(
+            children: [
+              Expanded(
+                child: _buildLeadMetaItem(Icons.call_outlined, lead.phone),
+              ),
+              SizedBox(width: 12.w),
+              Expanded(child: _buildLeadMetaItem(Icons.mail_outline, email)),
+            ],
+          ),
+          SizedBox(height: 10.h),
+          Divider(color: const Color(0xFFE8D4C8), height: 1.h),
+          SizedBox(height: 10.h),
+          Row(
+            children: [
+              Expanded(
+                child: _buildLeadMetaItem(
+                  Icons.person_outline,
+                  'RM: ${lead.assignedTo == '-' ? 'Unassigned' : lead.assignedTo}',
+                ),
+              ),
+              SizedBox(width: 12.w),
+              SizedBox(
+                width: 116.w,
+                child: _buildLeadMetaItem(
+                  Icons.calendar_today_outlined,
+                  lead.createdOn,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLeadMetaItem(IconData icon, String text) {
+    return Row(
+      children: [
+        Icon(icon, size: 16.sp, color: const Color(0xFF3E3E3E)),
+        SizedBox(width: 4.w),
+        Expanded(
+          child: Text(
+            text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.manrope(
+              color: const Color(0xFF2F2F2F),
+              fontSize: 12.sp,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -2351,7 +2997,10 @@ class _HomeViewState extends State<HomeView> {
                 ),
                 _buildDarkReportRow('Ready to send', '${urgent.readyToSend}'),
                 _buildDarkReportRow('Total leads', '${kpi.totalLeads}'),
-                _buildDarkReportRow('Conversion rate', '${kpi.conversionRate}%'),
+                _buildDarkReportRow(
+                  'Conversion rate',
+                  '${kpi.conversionRate}%',
+                ),
               ],
             ),
           ),
@@ -2495,19 +3144,6 @@ class _HomeViewState extends State<HomeView> {
     return 'Good evening';
   }
 
-  String _formatRevenue(int value) {
-    if (value >= 10000000) {
-      return 'Rs ${(value / 10000000).toStringAsFixed(1)}Cr';
-    }
-    if (value >= 100000) {
-      return 'Rs ${(value / 100000).toStringAsFixed(1)}L';
-    }
-    if (value >= 1000) {
-      return 'Rs ${(value / 1000).toStringAsFixed(1)}K';
-    }
-    return 'Rs $value';
-  }
-
   String _formatCompactNumber(int value) {
     if (value >= 1000) {
       final compact = value / 1000;
@@ -2640,12 +3276,12 @@ class _HomeViewState extends State<HomeView> {
   }
 
   Widget _buildActivityRow(
-      Widget iconWidget,
-      String title,
-      String subtitle, {
-        Color? backgroundColor,
-        VoidCallback? onTap,
-      }) {
+    Widget iconWidget,
+    String title,
+    String subtitle, {
+    Color? backgroundColor,
+    VoidCallback? onTap,
+  }) {
     return InkWell(
       borderRadius: BorderRadius.circular(12.r),
       onTap: onTap,
@@ -2687,10 +3323,7 @@ class _HomeViewState extends State<HomeView> {
                 ],
               ),
             ),
-            Icon(
-              Icons.chevron_right,
-              color: AppColors.darkGray
-            ),
+            Icon(Icons.chevron_right, color: AppColors.darkGray),
           ],
         ),
       ),
@@ -2716,7 +3349,6 @@ class _HomeViewState extends State<HomeView> {
               color: AppColors.darkGray,
               fontSize: 10,
               fontWeight: FontWeight.w700,
-
             ),
           ),
           SizedBox(height: 4.h),
@@ -2743,8 +3375,7 @@ class _HomeViewState extends State<HomeView> {
         onTap: onTap,
         borderRadius: BorderRadius.circular(22),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
           decoration: isSelected
               ? BoxDecoration(
                   color: _primaryColor,
@@ -2784,8 +3415,6 @@ class _HomeViewState extends State<HomeView> {
         borderRadius: BorderRadius.circular(18),
         splashColor: _primaryColor.withValues(alpha: 0.05),
         child: Container(
-
-
           width: double.infinity,
           constraints: BoxConstraints(minHeight: 96.h),
           padding: const EdgeInsets.all(8),
@@ -2826,7 +3455,7 @@ class _HomeViewState extends State<HomeView> {
                         value,
                         style: GoogleFonts.manrope(
                           color: AppColors.primary,
-                          fontSize: 24,
+                          fontSize: 20,
                           fontWeight: FontWeight.w900,
                           height: 1.1,
                         ),
@@ -2985,7 +3614,7 @@ class _HomeViewState extends State<HomeView> {
                   '$overdueFollowUps follow-ups overdue',
                   'Relationship managers need to re-engage these leads.',
                   'Call',
-    Icons.call_outlined,
+                  Icons.call_outlined,
                   onPressed: () => _callPhoneNumber(overdueCallLead?.phone),
                 ),
                 SizedBox(height: 16.h),
@@ -3025,8 +3654,7 @@ class _HomeViewState extends State<HomeView> {
     String buttonText,
     IconData icon, {
     VoidCallback? onPressed,
-  }
-  ) {
+  }) {
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
@@ -3034,31 +3662,38 @@ class _HomeViewState extends State<HomeView> {
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
+          /// TEXT
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.manrope(
                     fontWeight: FontWeight.bold,
                     fontSize: 14,
                   ),
                 ),
+                const SizedBox(height: 4),
                 Text(
                   subtitle,
-                  style: GoogleFonts.manrope(
-                    color: Colors.grey[500],
-                    fontSize: 10,
-                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.manrope(color: Colors.black, fontSize: 10),
                 ),
               ],
             ),
           ),
-          SizedBox(
-            width: 100.w,
-          ),
+
+          /// GAP BETWEEN TEXT & BUTTON
+          SizedBox(width: 50.w),
+
+          /// BUTTON
           OutlinedButton.icon(
             onPressed: onPressed,
             icon: Icon(icon, size: 17, color: AppColors.primary),
@@ -3097,18 +3732,15 @@ class _HomeViewState extends State<HomeView> {
           children: [
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.only(top: 12, left: 2 , right: 2),
+              padding: const EdgeInsets.only(top: 12, left: 2, right: 2),
               decoration: const BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.vertical(
-                  top: Radius.circular(16),
-                ),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
               ),
               child: Center(
                 child: Stack(
                   clipBehavior: Clip.none,
                   children: [
-
                     SizedBox(
                       height: 90.h,
                       width: 150.w,
@@ -3116,39 +3748,39 @@ class _HomeViewState extends State<HomeView> {
                         borderRadius: BorderRadius.circular(8),
                         child: (item.image != null && item.image!.isNotEmpty)
                             ? Image.network(
-                          item.image!,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Container(
-                              color: Colors.white,
-                              alignment: Alignment.center,
-                              child: Text(
-                                item.name.isNotEmpty
-                                    ? item.name[0].toUpperCase()
-                                    : "?",
-                                style: GoogleFonts.manrope(
-                                  fontSize: 38.sp,
-                                  fontWeight: FontWeight.w800,
-                                  color: Colors.grey.shade700,
+                                item.image!,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return Container(
+                                    color: Colors.white,
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      item.name.isNotEmpty
+                                          ? item.name[0].toUpperCase()
+                                          : "?",
+                                      style: GoogleFonts.manrope(
+                                        fontSize: 38.sp,
+                                        fontWeight: FontWeight.w800,
+                                        color: Colors.grey.shade700,
+                                      ),
+                                    ),
+                                  );
+                                },
+                              )
+                            : Container(
+                                color: const Color(0xFFF3F4F5),
+                                alignment: Alignment.center,
+                                child: Text(
+                                  item.name.isNotEmpty
+                                      ? item.name[0].toUpperCase()
+                                      : "?",
+                                  style: GoogleFonts.manrope(
+                                    fontSize: 38.sp,
+                                    fontWeight: FontWeight.w800,
+                                    color: Colors.grey.shade700,
+                                  ),
                                 ),
                               ),
-                            );
-                          },
-                        )
-                            : Container(
-                          color: const Color(0xFFF3F4F5),
-                          alignment: Alignment.center,
-                          child: Text(
-                            item.name.isNotEmpty
-                                ? item.name[0].toUpperCase()
-                                : "?",
-                            style: GoogleFonts.manrope(
-                              fontSize: 38.sp,
-                              fontWeight: FontWeight.w800,
-                              color: Colors.grey.shade700,
-                            ),
-                          ),
-                        ),
                       ),
                     ),
 
@@ -3163,16 +3795,12 @@ class _HomeViewState extends State<HomeView> {
                         height: 18.w,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: item.todayAttendanceStatus
-                              .toLowerCase()
-                              .trim() ==
-                              "present"
+                          color:
+                              item.todayAttendanceStatus.toLowerCase().trim() ==
+                                  "present"
                               ? AppColors.darkGreen
                               : const Color(0xFFEF4444),
-                          border: Border.all(
-                            color: Colors.white,
-                            width: 3,
-                          ),
+                          border: Border.all(color: Colors.white, width: 3),
                         ),
                       ),
                     ),
@@ -3225,15 +3853,10 @@ class _HomeViewState extends State<HomeView> {
                   ),
 
                   // SizedBox(height: 4.h),
-
                   Row(
                     children: [
                       Expanded(
-
-                        child: _buildMiniStat(
-                          '${item.leadsHandled}',
-                          'Leads',
-                        ),
+                        child: _buildMiniStat('${item.leadsHandled}', 'Leads'),
                       ),
                       SizedBox(width: 6.w),
                       Expanded(
@@ -3279,19 +3902,26 @@ class _HomeViewState extends State<HomeView> {
             borderRadius: BorderRadius.circular(3.11),
           ),
           width: 70.w,
-          // height: 36.h,
 
+          // height: 36.h,
           child: Padding(
             padding: const EdgeInsets.only(top: 5, bottom: 5),
             child: Column(
               children: [
                 Text(
                   value,
-                  style: GoogleFonts.manrope(fontSize: 10, fontWeight: FontWeight.bold),
+                  style: GoogleFonts.manrope(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 Text(
                   label,
-                  style: GoogleFonts.manrope(color: Colors.black, fontSize: 12, fontWeight: FontWeight.bold),
+                  style: GoogleFonts.manrope(
+                    color: Colors.black,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ],
             ),
@@ -3464,33 +4094,8 @@ class _HomeViewState extends State<HomeView> {
       child: Container(
         width: 40,
         height: 40,
-        decoration: BoxDecoration(
-          color: background,
-          shape: BoxShape.circle,
-        ),
+        decoration: BoxDecoration(color: background, shape: BoxShape.circle),
         child: Icon(icon, size: 20, color: iconColor),
-      ),
-    );
-  }
-
-  Widget _buildFollowUpMetricChip(
-    String label,
-    Color background,
-    Color foreground,
-  ) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        label,
-        style: GoogleFonts.manrope(
-          color: foreground,
-          fontSize: 12,
-          fontWeight: FontWeight.w800,
-        ),
       ),
     );
   }
@@ -3625,9 +4230,7 @@ class _HomeViewState extends State<HomeView> {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
         decoration: BoxDecoration(
-          color: isSelected
-              ? AppColors.primary
-              : AppColors.white,
+          color: isSelected ? AppColors.primary : AppColors.white,
           borderRadius: BorderRadius.circular(24),
         ),
         child: Text(
@@ -3643,5 +4246,6 @@ class _HomeViewState extends State<HomeView> {
   }
 }
 
-
-
+class ProfileShortlistCard {
+  const ProfileShortlistCard();
+}

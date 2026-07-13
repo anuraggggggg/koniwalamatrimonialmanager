@@ -5,13 +5,10 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:koniwalamatrimonial/constants/app_colors.dart';
 import 'package:koniwalamatrimonial/owner/models/registry_profile_item.dart';
-import 'package:koniwalamatrimonial/providers/auth_provider.dart';
-import 'package:koniwalamatrimonial/providers/match_history_provider.dart';
 import 'package:koniwalamatrimonial/routes/app_routes.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:provider/provider.dart';
 
 class ProfileDetailScreen extends StatelessWidget {
   const ProfileDetailScreen({super.key, this.profile});
@@ -23,725 +20,108 @@ class ProfileDetailScreen extends StatelessWidget {
     final displayProfile = _ProfileDetailViewData.fromProfile(profile);
     final bottomInset = MediaQuery.paddingOf(context).bottom;
 
-    return DefaultTabController(
-      length: 2,
-      child: MediaQuery(
-        data: MediaQuery.of(
-          context,
-        ).copyWith(textScaler: const TextScaler.linear(1.05)),
-        child: Scaffold(
-          backgroundColor: AppColors.rmSoftPink,
-          appBar: _ProfileDetailHeader(profile: displayProfile),
-          body: Column(
-            children: [
-              Container(
-                color: AppColors.white,
-                child: TabBar(
-                  labelColor: AppColors.rmPrimary,
-                  unselectedLabelColor: AppColors.inactiveNavItemColor,
-                  indicatorColor: AppColors.rmPrimary,
-                  labelStyle: GoogleFonts.manrope(fontWeight: FontWeight.w700),
-                  tabs: const [
-                    Tab(text: 'Profile Info'),
-                    Tab(text: 'Match History'),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: TabBarView(
-                  children: [
-                    SingleChildScrollView(
-                      padding: EdgeInsets.fromLTRB(
-                        12.w,
-                        10.h,
-                        12.w,
-                        bottomInset + 24.h,
-                      ),
-                      child: Column(
-                        children: [
-                          _ProfileHeroImage(profile: displayProfile),
-                          SizedBox(height: 18.h),
-                          Text(
-                            displayProfile.name,
-                            textAlign: TextAlign.center,
-                            style: GoogleFonts.manrope(
-                              color: AppColors.rmPrimary,
-                              fontSize: 26.sp,
-                              fontWeight: FontWeight.w800,
-                              height: 1.1,
-                            ),
-                          ),
-                          SizedBox(height: 10.h),
-                          Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 18.w),
-                            child: Text(
-                              displayProfile.summary,
-                              textAlign: TextAlign.center,
-                              style: GoogleFonts.manrope(
-                                color: AppColors.rmBodyText,
-                                fontSize: 15.sp,
-                                fontWeight: FontWeight.w500,
-                                height: 1.45,
-                              ),
-                            ),
-                          ),
-                          SizedBox(height: 14.h),
-                          _ProfileFactsCard(profile: displayProfile),
-                          SizedBox(height: 20.h),
-                          _PersonalNarrativeSection(profile: displayProfile),
-                          SizedBox(height: 18.h),
-                          _EducationProfessionSection(profile: displayProfile),
-                          SizedBox(height: 20.h),
-                          _KeyDetailsSection(profile: displayProfile),
-                          SizedBox(height: 22.h),
-                          _FamilyBackgroundSection(profile: displayProfile),
-                          SizedBox(height: 22.h),
-                          _PhotoGallerySection(profile: displayProfile),
-                          SizedBox(height: 22.h),
-                          _ProfileActionsSection(
-                            profile: displayProfile,
-                            sourceProfile: profile,
-                          ),
-                        ],
-                      ),
-                    ),
-                    _MatchHistorySection(profile: profile),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _MatchHistorySection extends StatefulWidget {
-  const _MatchHistorySection({this.profile});
-
-  final RegistryProfileItem? profile;
-
-  @override
-  State<_MatchHistorySection> createState() => _MatchHistorySectionState();
-}
-
-class _MatchHistorySectionState extends State<_MatchHistorySection> {
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      final accessToken = authProvider.userModel?.accessToken?.trim();
-
-      if (widget.profile != null &&
-          accessToken != null &&
-          accessToken.isNotEmpty) {
-        context.read<MatchHistoryProvider>().fetchMatchHistory(
-          profileId: widget.profile!.originalId,
-          accessToken: accessToken,
-          page: 1,
-          limit: 20,
-        );
-      }
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final provider = context.watch<MatchHistoryProvider>();
-    final timeline = provider.timeline;
-    final bottomInset = MediaQuery.paddingOf(context).bottom;
-
-    if (provider.isLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
     return MediaQuery(
       data: MediaQuery.of(
         context,
-      ).copyWith(textScaler: const TextScaler.linear(1.35)),
-      child: SingleChildScrollView(
-        padding: EdgeInsets.fromLTRB(13.w, 14.h, 13.w, bottomInset + 24.h),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Activity Summary',
-              style: GoogleFonts.manrope(
-                color: AppColors.rmPrimary,
-                fontSize: 17.sp,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            SizedBox(height: 14.h),
-            _MatchActivitySummary(
-              timeline: timeline,
-              summary: provider.summary,
-              total: provider.total,
-            ),
-            SizedBox(height: 20.h),
-            Text(
-              'Detailed Timeline',
-              style: GoogleFonts.manrope(
-                color: AppColors.rmPrimary,
-                fontSize: 17.sp,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            SizedBox(height: 12.h),
-            if (provider.error != null)
-              _MatchHistoryMessage(message: provider.error!, isError: true)
-            else if (timeline.isEmpty)
-              const _MatchHistoryMessage(message: 'No match history found.')
-            else
-              _MatchHistoryTimeline(
-                timeline: timeline,
-                profileName: widget.profile?.name ?? 'Profile',
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _MatchActivitySummary extends StatelessWidget {
-  const _MatchActivitySummary({
-    required this.timeline,
-    required this.summary,
-    required this.total,
-  });
-
-  final List<dynamic> timeline;
-  final Map<String, dynamic> summary;
-  final int total;
-
-  int _count(String pattern) {
-    return timeline.where((entry) {
-      if (entry is! Map) return false;
-      final action = '${entry['action'] ?? entry['status'] ?? ''}'
-          .toLowerCase();
-      return action.contains(pattern);
-    }).length;
-  }
-
-  int _summaryValue(List<String> keys, int fallback) {
-    for (final key in keys) {
-      final value = summary[key];
-      if (value is int) return value;
-      final parsed = int.tryParse('$value');
-      if (parsed != null) return parsed;
-    }
-    return fallback;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final totalSent = _summaryValue(const [
-      'totalSent',
-      'total_sent',
-      'total',
-    ], total);
-    final rejected = _summaryValue(const [
-      'totalRejected',
-      'rejected',
-      'rejectedCount',
-      'rejected_count',
-    ], _count('reject'));
-    final cards = [
-      _MatchSummaryData('TOTAL SENT', totalSent, const Color(0xFF9B7A24)),
-      _MatchSummaryData(
-        'MANUAL\nSHORTLIST',
-        _summaryValue(const [
-          'manualShortlisted',
-          'manualShortlist',
-          'manual_shortlist',
-        ], _count('manual')),
-        const Color(0xFF5B94FF),
-      ),
-      _MatchSummaryData(
-        'AI SHORTLIST',
-        _summaryValue(const [
-          'aiShortlisted',
-          'aiShortlist',
-          'ai_shortlist',
-        ], _count('ai')),
-        const Color(0xFF9565FF),
-      ),
-      _MatchSummaryData('REJECTED', rejected, const Color(0xFFD94343)),
-      _MatchSummaryData(
-        'APPROVED',
-        _summaryValue(const [
-          'totalApproved',
-          'approved',
-          'approvedCount',
-        ], _count('approv')),
-        const Color(0xFF39C995),
-      ),
-      _MatchSummaryData(
-        'ACCEPTED',
-        _summaryValue(const [
-          'totalAccepted',
-          'accepted',
-          'acceptedCount',
-        ], _count('accept')),
-        const Color(0xFFA9DDB5),
-      ),
-    ];
-    final rejectionRate =
-        num.tryParse('${summary['rejectionRate']}') ??
-        (totalSent == 0 ? 0.0 : (rejected / totalSent) * 100);
-
-    return Column(
-      children: [
-        GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: cards.length,
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            crossAxisSpacing: 6.w,
-            mainAxisSpacing: 8.h,
-            childAspectRatio: 1.42,
-          ),
-          itemBuilder: (context, index) => _SummaryCard(data: cards[index]),
-        ),
-        // SizedBox.shrink(),
-        _SummaryCard(
-          data: _MatchSummaryData(
-            'REJECTION RATE',
-            rejectionRate,
-            const Color(0xFFFF8150),
-            isRate: true,
-          ),
-          wide: true,
-        ),
-      ],
-    );
-  }
-}
-
-class _MatchHistoryTimeline extends StatelessWidget {
-  const _MatchHistoryTimeline({
-    required this.timeline,
-    required this.profileName,
-  });
-
-  final List<dynamic> timeline;
-  final String profileName;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView.separated(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: timeline.length,
-      separatorBuilder: (context, index) => SizedBox(height: 12.h),
-      itemBuilder: (context, index) {
-        final item = timeline[index];
-        final map = item is Map ? item : const {};
-        final relatedProfile = map['relatedProfile'] is Map
-            ? map['relatedProfile'] as Map
-            : const {};
-        final customer = relatedProfile['customer'] is Map
-            ? relatedProfile['customer'] as Map
-            : const {};
-        final lead = customer['lead'] is Map
-            ? customer['lead'] as Map
-            : const {};
-        final actionByUser = map['actionByUser'] is Map
-            ? map['actionByUser'] as Map
-            : const {};
-        final date = _formatMatchHistoryDate(
-          '${map['createdAt'] ?? map['created_at'] ?? map['date'] ?? '-'}',
-        );
-        final title =
-            '${map['eventType'] ?? map['action'] ?? map['status'] ?? 'Match update'}';
-        final source = '${map['source'] ?? map['created_by'] ?? '-'}';
-        final note =
-            '${map['notes'] ?? map['note'] ?? map['reason'] ?? map['remarks'] ?? '-'}';
-        final relatedProfileName =
-            '${relatedProfile['name'] ?? map['profile_name'] ?? profileName}';
-        final phone = '${lead['phone'] ?? ''}';
-        final profileImage = '${relatedProfile['image'] ?? ''}';
-
-        return Container(
-          padding: EdgeInsets.fromLTRB(12.w, 11.h, 12.w, 12.h),
-          decoration: BoxDecoration(
-            color: AppColors.white,
-            borderRadius: BorderRadius.circular(12.r),
-            border: Border.all(color: AppColors.rmBorder),
-            boxShadow: const [
-              BoxShadow(
-                color: AppColors.rmCardShadow,
-                blurRadius: 8,
-                offset: Offset(0, 3),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(
-                    Icons.access_time_outlined,
-                    size: 12.sp,
-                    color: AppColors.rmBodyText,
-                  ),
-                  SizedBox(width: 5.w),
-                  Expanded(
-                    child: Text(
-                      date,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.manrope(
-                        color: AppColors.rmBodyText,
-                        fontSize: 10.sp,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  Container(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: 10.w,
-                      vertical: 5.h,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF2F6FB),
-                      borderRadius: BorderRadius.circular(14.r),
-                    ),
-                    child: Text(
-                      title.toUpperCase(),
-                      style: GoogleFonts.manrope(
-                        color: const Color(0xFF61758B),
-                        fontSize: 8.sp,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              SizedBox(height: 12.h),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: _TimelineField(
-                      icon: Icons.auto_awesome_outlined,
-                      label: 'SOURCE',
-                      value: source,
-                    ),
-                  ),
-                  SizedBox(width: 10.w),
-                  Expanded(
-                    child: _TimelineField(
-                      icon: Icons.person_outline,
-                      label: 'USER',
-                      value:
-                          '${actionByUser['name'] ?? map['user'] ?? map['user_name'] ?? '-'}',
-                    ),
-                  ),
-                ],
-              ),
-              SizedBox(height: 12.h),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: _TimelineField(
-                      icon: Icons.account_circle_outlined,
-                      label: 'PROFILE',
-                      value: phone.isEmpty
-                          ? relatedProfileName
-                          : '$relatedProfileName\n$phone',
-                      imageUrl: profileImage,
-                      highlighted: true,
-                    ),
-                  ),
-                  SizedBox(width: 10.w),
-                  Expanded(
-                    child: _TimelineField(
-                      icon: Icons.description_outlined,
-                      label: 'NOTE',
-                      value: note,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-}
-
-String _formatMatchHistoryDate(String value) {
-  final date = DateTime.tryParse(value)?.toLocal();
-  if (date == null) return value;
-
-  final hour = date.hour == 0
-      ? 12
-      : (date.hour > 12 ? date.hour - 12 : date.hour);
-  final minute = date.minute.toString().padLeft(2, '0');
-  final second = date.second.toString().padLeft(2, '0');
-  final period = date.hour >= 12 ? 'PM' : 'AM';
-  return '${date.month}/${date.day}/${date.year}, $hour:$minute:$second $period';
-}
-
-class _TimelineField extends StatelessWidget {
-  const _TimelineField({
-    required this.icon,
-    required this.label,
-    required this.value,
-    this.highlighted = false,
-    this.imageUrl,
-  });
-
-  final IconData icon;
-  final String label;
-  final String value;
-  final bool highlighted;
-  final String? imageUrl;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(icon, size: 11.sp, color: AppColors.rmPrimary),
-            SizedBox(width: 4.w),
-            Text(
-              label,
-              style: GoogleFonts.manrope(
-                color: AppColors.rmPrimary,
-                fontSize: 8.sp,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-          ],
-        ),
-        SizedBox(height: 5.h),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (imageUrl != null && imageUrl!.trim().isNotEmpty) ...[
-              ClipOval(
-                child: Image.network(
-                  imageUrl!,
-                  width: 44.r,
-                  height: 44.r,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => Container(
-                    width: 44.r,
-                    height: 44.r,
-                    color: AppColors.rmPersonBadgeBg,
-                    child: Icon(
-                      Icons.person_outline,
-                      size: 24.sp,
-                      color: AppColors.rmPrimary,
-                    ),
-                  ),
-                ),
-              ),
-              SizedBox(width: 9.w),
-            ],
-            Expanded(
-              child: Text(
-                value,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.manrope(
-                  color: highlighted
-                      ? const Color(0xFFC48716)
-                      : AppColors.rmHeading,
-                  fontSize: 10.sp,
-                  fontWeight: highlighted ? FontWeight.w800 : FontWeight.w500,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-class _MatchHistoryMessage extends StatelessWidget {
-  const _MatchHistoryMessage({required this.message, this.isError = false});
-
-  final String message;
-  final bool isError;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 22.h),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(12.r),
-        border: Border.all(color: AppColors.rmBorder),
-      ),
-      child: Text(
-        message,
-        textAlign: TextAlign.center,
-        style: GoogleFonts.manrope(
-          color: isError ? AppColors.danger : AppColors.rmMutedText,
-          fontSize: 12.sp,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    );
-  }
-}
-
-class _MatchSummaryData {
-  const _MatchSummaryData(
-    this.label,
-    this.value,
-    this.accent, {
-    this.isRate = false,
-  });
-
-  final String label;
-  final num value;
-  final Color accent;
-  final bool isRate;
-}
-
-class _SummaryCard extends StatelessWidget {
-  const _SummaryCard({required this.data, this.wide = false});
-
-  final _MatchSummaryData data;
-  final bool wide;
-
-  @override
-  Widget build(BuildContext context) {
-    final displayValue = data.isRate
-        ? '${data.value.toStringAsFixed(1)}%'
-        : data.value.toInt().toString();
-
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.fromLTRB(8.w, 8.h, 8.w, 7.h),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(8.r),
-        boxShadow: const [
-          BoxShadow(
-            color: AppColors.rmStatShadow,
-            blurRadius: 6,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Positioned(
-            left: 0,
-            right: 0,
-            top: -8.h,
-            child: Container(
-              height: 1.6.h,
-              decoration: BoxDecoration(
-                color: data.accent,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(8.r)),
-              ),
-            ),
-          ),
-          Center(
+      ).copyWith(textScaler: const TextScaler.linear(1.05)),
+      child: Scaffold(
+        backgroundColor: AppColors.white,
+        body: SafeArea(
+          bottom: false,
+          child: SingleChildScrollView(
+            padding: EdgeInsets.only(bottom: bottomInset + 28.h),
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _ProfileHeaderSection(profile: displayProfile),
+                SizedBox(height: 12.h),
+                _ProfileHeroImage(profile: displayProfile),
+                SizedBox(height: 16.h),
+                _ProfileIntroSection(profile: displayProfile),
+                SizedBox(height: 20.h),
+                _ProfileFactsCard(profile: displayProfile),
+                SizedBox(height: 14.h),
+                _ProfileActionsSection(
+                  profile: displayProfile,
+                  sourceProfile: profile,
+                ),
+                SizedBox(height: 22.h),
+                _PersonalNarrativeSection(profile: displayProfile),
+                SizedBox(height: 22.h),
+                _EducationProfessionSection(profile: displayProfile),
+                SizedBox(height: 20.h),
+                _KeyDetailsSection(profile: displayProfile),
+                SizedBox(height: 22.h),
+                _FamilyBackgroundSection(profile: displayProfile),
+                SizedBox(height: 22.h),
+                _PhotoGallerySection(profile: displayProfile),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ProfileHeaderSection extends StatelessWidget {
+  const _ProfileHeaderSection({required this.profile});
+
+  final _ProfileDetailViewData profile;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.fromLTRB(14.w, 10.h, 14.w, 10.h),
+      decoration: const BoxDecoration(
+        color: AppColors.white,
+        border: Border(bottom: BorderSide(color: Color(0xFFF3E5E9))),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  data.label,
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                  'View Profile',
                   style: GoogleFonts.manrope(
-                    color: AppColors.rmStatCaption,
-                    fontSize: 10.sp,
+                    color: AppColors.maroonPrimary,
+                    fontSize: 17.sp,
                     fontWeight: FontWeight.w800,
-                    height: 1.2,
+                    height: 1.1,
                   ),
                 ),
-                SizedBox(height: wide ? 5.h : 3.h),
+                SizedBox(height: 2.h),
                 Text(
-                  displayValue,
+                  'REF: #${profile.reference}',
                   style: GoogleFonts.manrope(
-                    color: AppColors.rmHeading,
-                    fontSize: wide ? 22.sp : 20.sp,
+                    color: AppColors.maroonPrimary,
+                    fontSize: 10.sp,
                     fontWeight: FontWeight.w700,
+                    height: 1.1,
                   ),
                 ),
               ],
             ),
           ),
+          SizedBox(
+            width: 32.w,
+            height: 32.w,
+            child: IconButton(
+              padding: EdgeInsets.zero,
+              splashRadius: 18.r,
+              onPressed: () => Navigator.maybePop(context),
+              icon: Icon(
+                Icons.close_rounded,
+                color: AppColors.rmSubtleRoseText,
+                size: 18.sp,
+              ),
+            ),
+          ),
         ],
       ),
-    );
-  }
-}
-
-class _ProfileDetailHeader extends StatelessWidget
-    implements PreferredSizeWidget {
-  const _ProfileDetailHeader({required this.profile});
-
-  final _ProfileDetailViewData profile;
-
-  @override
-  Size get preferredSize => const Size.fromHeight(96);
-
-  @override
-  Widget build(BuildContext context) {
-    return AppBar(
-      backgroundColor: AppColors.white,
-      elevation: 0,
-      toolbarHeight: 96,
-      titleSpacing: 16.w,
-      title: Padding(
-        padding: EdgeInsets.symmetric(vertical: 8.h),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'View ${profile.name} Profile',
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.manrope(
-                color: AppColors.rmPrimary,
-                fontSize: 16.sp,
-                fontWeight: FontWeight.w800,
-                height: 1.15,
-              ),
-            ),
-            SizedBox(height: 4.h),
-            Text(
-              'REF : #${profile.reference}',
-              style: GoogleFonts.manrope(
-                color: AppColors.rmBodyText,
-                fontSize: 10.sp,
-                fontWeight: FontWeight.w500,
-                letterSpacing: 0,
-              ),
-            ),
-          ],
-        ),
-      ),
-      centerTitle: false,
-      actions: [
-        IconButton(
-          onPressed: () => Navigator.maybePop(context),
-          icon: Icon(Icons.close, color: AppColors.rmHeading, size: 21.sp),
-        ),
-      ],
     );
   }
 }
@@ -753,87 +133,101 @@ class _ProfileHeroImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final images = profile.galleryImages.isEmpty
-        ? <String>[profile.image]
-        : profile.galleryImages;
+    final heroImage = profile.galleryImages.isNotEmpty
+        ? profile.galleryImages.first
+        : profile.image;
 
-    return Stack(
-      alignment: Alignment.bottomCenter,
-      children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(4.r),
-          child: SizedBox(
-            height: 350.h,
-            child: PageView.builder(
-              itemCount: images.length,
-              itemBuilder: (context, index) {
-                return _ProfileImageView(
-                  image: images[index],
-                  fit: BoxFit.cover,
-                  alignment: Alignment.topCenter,
-                );
-              },
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 14.w),
+      child: Stack(
+        alignment: Alignment.bottomCenter,
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4.r),
+            child: _ProfileImageView(
+              image: heroImage,
+              height: 264.h,
+              fit: BoxFit.cover,
+              alignment: Alignment.topCenter,
             ),
           ),
-        ),
-        if (images.length > 1)
           Positioned(
-            top: 10.h,
-            right: 10.w,
+            bottom: 10.h,
             child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 9.w, vertical: 5.h),
+              padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 7.h),
               decoration: BoxDecoration(
-                color: AppColors.black.withValues(alpha: 0.48),
-                borderRadius: BorderRadius.circular(14.r),
-              ),
-              child: Text(
-                '${images.length} Photos',
-                style: GoogleFonts.manrope(
-                  color: AppColors.white,
-                  fontSize: 12.sp,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ),
-          ),
-        Positioned(
-          bottom: 10.h,
-          child: Container(
-            padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 8.h),
-            decoration: BoxDecoration(
-              color: const Color(0xFFFFCA3A),
-              borderRadius: BorderRadius.circular(18.r),
-              boxShadow: const [
-                BoxShadow(
-                  color: AppColors.rmCardShadow,
-                  blurRadius: 12,
-                  offset: Offset(0, 5),
-                ),
-              ],
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'ACTIVE MEMBER',
-                  style: GoogleFonts.manrope(
-                    color: AppColors.rmHeading,
-                    fontSize: 12.sp,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 0,
+                color: const Color(0xFFF5C94B),
+                borderRadius: BorderRadius.circular(18.r),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x1A000000),
+                    blurRadius: 10,
+                    offset: Offset(0, 4),
                   ),
-                ),
-                SizedBox(width: 7.w),
-                Icon(
-                  Icons.verified_outlined,
-                  color: AppColors.rmPrimary,
-                  size: 14.sp,
-                ),
-              ],
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'ACTIVE MEMBER',
+                    style: GoogleFonts.manrope(
+                      color: const Color(0xFF4F4312),
+                      fontSize: 10.sp,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0,
+                    ),
+                  ),
+                  SizedBox(width: 5.w),
+                  Icon(
+                    Icons.check_circle_rounded,
+                    color: const Color(0xFF7B6618),
+                    size: 13.sp,
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ProfileIntroSection extends StatelessWidget {
+  const _ProfileIntroSection({required this.profile});
+
+  final _ProfileDetailViewData profile;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 26.w),
+      child: Column(
+        children: [
+          Text(
+            profile.name,
+            textAlign: TextAlign.center,
+            style: GoogleFonts.cormorantGaramond(
+              color: AppColors.maroonPrimary,
+              fontSize: 28.sp,
+              fontWeight: FontWeight.w800,
+              height: 1.05,
+            ),
+          ),
+          SizedBox(height: 8.h),
+          Text(
+            profile.summary,
+            textAlign: TextAlign.center,
+            style: GoogleFonts.manrope(
+              color: const Color(0xFF56525A),
+              fontSize: 14.sp,
+              fontWeight: FontWeight.w500,
+              height: 1.4,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -845,31 +239,117 @@ class _ProfileFactsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.fromLTRB(14.w, 22.h, 14.w, 4.h),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(8.r),
-        border: Border.all(color: AppColors.rmPaleRoseBorder),
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 12.w),
+      child: Container(
+        width: double.infinity,
+        padding: EdgeInsets.fromLTRB(18.w, 20.h, 18.w, 18.h),
+        decoration: BoxDecoration(
+          color: AppColors.white,
+          borderRadius: BorderRadius.circular(12.r),
+          border: Border.all(color: const Color(0xFFF0DDE4)),
+        ),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Positioned.fill(
+              child: Align(
+                alignment: Alignment.center,
+                child: Container(width: 1, color: const Color(0xFFF4EDF0)),
+              ),
+            ),
+            Column(
+              children: [
+                _ProfileFactRow(
+                  left: _ProfileFact(
+                    label: 'DATE OF BIRTH',
+                    value: profile.dateOfBirth,
+                  ),
+                  right: _ProfileFact(
+                    label: 'BIRTH TIME',
+                    value: profile.birthTime,
+                  ),
+                ),
+                SizedBox(height: 26.h),
+                _ProfileFactRow(
+                  left: _ProfileFact(
+                    label: 'BIRTH PLACE',
+                    value: profile.birthPlace,
+                  ),
+                  right: _ProfileFact(label: 'HEIGHT', value: profile.height),
+                ),
+                SizedBox(height: 28.h),
+                _ProfileFactRow(
+                  left: _ProfileFact(label: 'GOTRA', value: profile.gotra),
+                  right: _ProfileFact(
+                    label: 'RESIDENTIAL',
+                    value: profile.residential,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
-      child: GridView.count(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        crossAxisCount: 2,
-        childAspectRatio: 2.95,
-        mainAxisSpacing: 6.h,
-        crossAxisSpacing: 14.w,
-        children: [
+    );
+  }
+}
 
-          _ProfileFact(label: 'DATE OF BIRTH', value: profile.dateOfBirth),
-          _ProfileFact(label: 'BIRTH TIME', value: profile.birthTime),
-          _ProfileFact(label: 'BIRTH PLACE', value: profile.birthPlace),
-          _ProfileFact(label: 'HEIGHT', value: profile.height),
-          _ProfileFact(label: 'GOTRA', value: profile.gotra),
-          _ProfileFact(label: 'RESIDENTIAL', value: profile.residential),
-        ],
+class _SectionEyebrow extends StatelessWidget {
+  const _SectionEyebrow({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      label,
+      textAlign: TextAlign.center,
+      style: GoogleFonts.manrope(
+        color: const Color(0xFF70666D),
+        fontSize: 10.sp,
+        fontWeight: FontWeight.w800,
+        letterSpacing: 0,
       ),
+    );
+  }
+}
+
+class _SectionHeading extends StatelessWidget {
+  const _SectionHeading({required this.title});
+
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      title,
+      textAlign: TextAlign.center,
+      style: GoogleFonts.cormorantGaramond(
+        color: AppColors.maroonPrimary,
+        fontSize: 24.sp,
+        fontWeight: FontWeight.w700,
+        fontStyle: FontStyle.italic,
+        height: 1.08,
+      ),
+    );
+  }
+}
+
+class _ProfileFactRow extends StatelessWidget {
+  const _ProfileFactRow({required this.left, required this.right});
+
+  final Widget left;
+  final Widget right;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(child: left),
+        SizedBox(width: 34.w),
+        Expanded(child: right),
+      ],
     );
   }
 }
@@ -884,30 +364,30 @@ class _ProfileFact extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
-      mainAxisSize: MainAxisSize.max,
+      mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Text(
           label,
           textAlign: TextAlign.center,
           style: GoogleFonts.manrope(
-            color: AppColors.rmBodyText,
-            fontSize: 12.sp,
-            fontWeight: FontWeight.w900,
+            color: const Color(0xFF544E54),
+            fontSize: 11.sp,
+            fontWeight: FontWeight.w800,
             letterSpacing: 0,
           ),
         ),
-        SizedBox(height: 6.h),
+        SizedBox(height: 10.h),
         Text(
           value,
           textAlign: TextAlign.center,
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
           style: GoogleFonts.manrope(
-            color: AppColors.rmPrimary,
-            fontSize: 16.sp,
-            fontWeight: FontWeight.w900,
-            height: 1.08,
+            color: AppColors.maroonPrimary,
+            fontSize: 15.sp,
+            fontWeight: FontWeight.w800,
+            height: 1.28,
           ),
         ),
       ],
@@ -924,61 +404,50 @@ class _PersonalNarrativeSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Text(
-          'PERSONAL NARRATIVE',
-          textAlign: TextAlign.center,
-          style: GoogleFonts.manrope(
-            color: AppColors.rmBodyText,
-            fontSize: 11.sp,
-            fontWeight: FontWeight.w900,
-            letterSpacing: 0,
-          ),
-        ),
+        const _SectionEyebrow(label: 'PERSONAL NARRATIVE'),
         SizedBox(height: 8.h),
-        Text(
-          profile.aboutTitle,
-          textAlign: TextAlign.center,
-          style: GoogleFonts.manrope(
-            color: AppColors.rmPrimary,
-            fontSize: 27.sp,
-            fontWeight: FontWeight.w800,
-            height: 1.05,
-          ),
-        ),
+        _SectionHeading(title: profile.aboutTitle),
         SizedBox(height: 14.h),
-        Container(
-          width: double.infinity,
-          padding: EdgeInsets.fromLTRB(18.w, 18.h, 18.w, 20.h),
-          decoration: BoxDecoration(
-            color: AppColors.white,
-            borderRadius: BorderRadius.circular(8.r),
-            border: Border.all(color: AppColors.rmPaleRoseBorder),
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                profile.narrativeInitial,
-                style: GoogleFonts.manrope(
-                  color: const Color(0xFFF2C23C),
-                  fontSize: 44.sp,
-                  fontWeight: FontWeight.w500,
-                  height: 0.95,
-                ),
-              ),
-              SizedBox(width: 8.w),
-              Expanded(
-                child: Text(
-                  profile.narrativeBody,
-                  style: GoogleFonts.manrope(
-                    color: AppColors.rmPrimary,
-                    fontSize: 15.sp,
-                    fontWeight: FontWeight.w600,
-                    height: 1.5,
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 12.w),
+          child: Container(
+            width: double.infinity,
+            padding: EdgeInsets.fromLTRB(16.w, 18.h, 16.w, 18.h),
+            decoration: BoxDecoration(
+              color: AppColors.white,
+              borderRadius: BorderRadius.circular(8.r),
+              border: Border.all(color: AppColors.rmPaleRoseBorder),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: EdgeInsets.only(top: 2.h),
+                  child: Text(
+                    profile.narrativeInitial,
+                    style: GoogleFonts.cormorantGaramond(
+                      color: const Color(0xFFE2B743),
+                      fontSize: 42.sp,
+                      fontWeight: FontWeight.w700,
+                      fontStyle: FontStyle.italic,
+                      height: 0.9,
+                    ),
                   ),
                 ),
-              ),
-            ],
+                SizedBox(width: 10.w),
+                Expanded(
+                  child: Text(
+                    profile.narrativeBody,
+                    style: GoogleFonts.manrope(
+                      color: AppColors.rmSubtleRoseText,
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w600,
+                      height: 1.45,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ],
@@ -995,108 +464,89 @@ class _EducationProfessionSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Align(
-          alignment: Alignment.centerLeft,
-          child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: 20.w),
-            child: Text(
-              'Education & Profession',
-              style: GoogleFonts.manrope(
-                color: AppColors.rmPrimary,
-                fontSize: 26.sp,
-                fontWeight: FontWeight.w800,
-                height: 1.1,
-              ),
-            ),
-          ),
-        ),
+        const _SectionHeading(title: 'Education & Profession'),
         SizedBox(height: 14.h),
-        Container(
-          width: double.infinity,
-          padding: EdgeInsets.fromLTRB(18.w, 20.h, 18.w, 22.h),
-          decoration: BoxDecoration(
-            color: const Color(0xFFFFFBFC),
-            borderRadius: BorderRadius.circular(8.r),
-            border: Border.all(color: AppColors.rmPaleRoseBorder),
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Column(
-                children: [
-                  Container(
-                    width: 8.r,
-                    height: 8.r,
-                    decoration: const BoxDecoration(
-                      color: AppColors.rmHeading,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  Container(
-                    width: 1.w,
-                    height: 160.h,
-                    color: AppColors.rmPaleRoseBorder,
-                  ),
-                ],
-              ),
-              SizedBox(width: 16.w),
-              Expanded(
-                child: Column(
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 12.w),
+          child: Container(
+            width: double.infinity,
+            padding: EdgeInsets.fromLTRB(16.w, 18.h, 16.w, 18.h),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFFBFC),
+              borderRadius: BorderRadius.circular(8.r),
+              border: Border.all(color: AppColors.rmPaleRoseBorder),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Current Role',
-                      style: GoogleFonts.manrope(
-                        color: AppColors.rmHeading,
-                        fontSize: 21.sp,
-                        fontWeight: FontWeight.w800,
-                        height: 1.1,
+                    Container(
+                      width: 8.r,
+                      height: 8.r,
+                      margin: EdgeInsets.only(top: 7.h),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF3A3438),
+                        shape: BoxShape.circle,
                       ),
                     ),
-                    SizedBox(height: 8.h),
-                    Text(
-                      profile.currentRole,
-                      style: GoogleFonts.manrope(
-                        color: AppColors.rmPrimary,
-                        fontSize: 15.sp,
-                        fontWeight: FontWeight.w500,
-                        height: 1.45,
-                      ),
-                    ),
-                    SizedBox(height: 22.h),
-                    Text(
-                      'Education',
-                      style: GoogleFonts.manrope(
-                        color: AppColors.rmHeading,
-                        fontSize: 21.sp,
-                        fontWeight: FontWeight.w800,
-                        height: 1.1,
-                      ),
-                    ),
-                    SizedBox(height: 8.h),
-                    Text(
-                      'Academic Background',
-                      style: GoogleFonts.manrope(
-                        color: AppColors.rmPrimary,
-                        fontSize: 14.sp,
-                        fontWeight: FontWeight.w700,
-                        height: 1.25,
-                      ),
-                    ),
-                    SizedBox(height: 4.h),
-                    Text(
-                      profile.education,
-                      style: GoogleFonts.manrope(
-                        color: AppColors.rmMutedText,
-                        fontSize: 14.sp,
-                        fontWeight: FontWeight.w500,
-                        height: 1.3,
+                    SizedBox(width: 12.w),
+                    Expanded(
+                      child: Text(
+                        'Current Role',
+                        style: GoogleFonts.manrope(
+                          color: const Color(0xFF353137),
+                          fontSize: 16.sp,
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
                     ),
                   ],
                 ),
-              ),
-            ],
+                Padding(
+                  padding: EdgeInsets.only(left: 20.w, top: 8.h),
+                  child: Text(
+                    profile.currentRole,
+                    style: GoogleFonts.manrope(
+                      color: AppColors.rmPrimary,
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w500,
+                      height: 1.45,
+                    ),
+                  ),
+                ),
+                SizedBox(height: 20.h),
+                Text(
+                  'Education',
+                  style: GoogleFonts.manrope(
+                    color: const Color(0xFF353137),
+                    fontSize: 16.sp,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                SizedBox(height: 8.h),
+                Text(
+                  'Academic Background',
+                  style: GoogleFonts.manrope(
+                    color: AppColors.rmPrimary,
+                    fontSize: 13.sp,
+                    fontWeight: FontWeight.w700,
+                    height: 1.25,
+                  ),
+                ),
+                SizedBox(height: 4.h),
+                Text(
+                  profile.education,
+                  style: GoogleFonts.manrope(
+                    color: AppColors.rmMutedText,
+                    fontSize: 13.sp,
+                    fontWeight: FontWeight.w500,
+                    height: 1.3,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ],
@@ -1111,50 +561,54 @@ class _KeyDetailsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.fromLTRB(20.w, 22.h, 20.w, 20.h),
-      decoration: BoxDecoration(
-        color: AppColors.rmPrimary,
-        borderRadius: BorderRadius.circular(8.r),
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Icon(
-                Icons.menu_book_outlined,
-                color: const Color(0xFFF2C23C),
-                size: 24.sp,
-              ),
-              SizedBox(width: 10.w),
-              Text(
-                'Key Details',
-                style: GoogleFonts.manrope(
-                  color: const Color(0xFFF2C23C),
-                  fontSize: 25.sp,
-                  fontWeight: FontWeight.w800,
-                  height: 1.05,
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 12.w),
+      child: Container(
+        width: double.infinity,
+        padding: EdgeInsets.fromLTRB(16.w, 18.h, 16.w, 18.h),
+        decoration: BoxDecoration(
+          color: AppColors.primary,
+          borderRadius: BorderRadius.circular(8.r),
+        ),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.auto_stories_outlined,
+                  color: const Color(0xFFE1B645),
+                  size: 20.sp,
                 ),
-              ),
-            ],
-          ),
-          SizedBox(height: 20.h),
-          Divider(color: AppColors.white.withValues(alpha: 0.18), height: 1),
-          _KeyDetailRow(
-            label: 'RELIGION / CASTE',
-            value: profile.religionCaste,
-          ),
-          _KeyDetailRow(label: 'BIRTH PLACE', value: profile.birthPlace),
-          _KeyDetailRow(label: 'GOTRA', value: profile.gotra),
-          _KeyDetailRow(label: 'DIET', value: profile.diet),
-          _KeyDetailRow(label: 'HOROSCOPE', value: profile.horoscope),
-          _KeyDetailRow(
-            label: 'COUNTRY',
-            value: profile.country,
-            showDivider: false,
-          ),
-        ],
+                SizedBox(width: 8.w),
+                Text(
+                  'Key Details',
+                  style: GoogleFonts.cormorantGaramond(
+                    color: const Color(0xFFE1B645),
+                    fontSize: 24.sp,
+                    fontWeight: FontWeight.w700,
+                    fontStyle: FontStyle.italic,
+                    height: 1.05,
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 16.h),
+            Divider(color: AppColors.white.withValues(alpha: 0.18), height: 1),
+            _KeyDetailRow(
+              label: 'RELIGION / CASTE',
+              value: profile.religionCaste,
+            ),
+            _KeyDetailRow(label: 'BIRTH PLACE', value: profile.birthPlace),
+            _KeyDetailRow(label: 'GOTRA', value: profile.gotra),
+            _KeyDetailRow(label: 'DIET', value: profile.diet),
+            _KeyDetailRow(label: 'HOROSCOPE', value: profile.horoscope),
+            _KeyDetailRow(
+              label: 'COUNTRY',
+              value: profile.country,
+              showDivider: false,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1185,8 +639,8 @@ class _KeyDetailRow extends StatelessWidget {
                   label,
                   style: GoogleFonts.manrope(
                     color: const Color(0xFFF2C23C),
-                    fontSize: 11.sp,
-                    fontWeight: FontWeight.w900,
+                    fontSize: 10.sp,
+                    fontWeight: FontWeight.w800,
                     letterSpacing: 0,
                   ),
                 ),
@@ -1200,7 +654,7 @@ class _KeyDetailRow extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.manrope(
                     color: AppColors.white,
-                    fontSize: 15.sp,
+                    fontSize: 13.sp,
                     fontWeight: FontWeight.w500,
                     height: 1.25,
                   ),
@@ -1225,41 +679,38 @@ class _FamilyBackgroundSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Text(
-          'Family Background',
-          textAlign: TextAlign.center,
-          style: GoogleFonts.manrope(
-            color: AppColors.rmPrimary,
-            fontSize: 25.sp,
-            fontWeight: FontWeight.w800,
-            height: 1.1,
+        const _SectionHeading(title: 'Family Background'),
+        SizedBox(height: 16.h),
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 12.w),
+          child: _FamilySideCard(
+            side: 'FATHER\'S SIDE',
+            name: profile.fatherSide,
+            relatives: [
+              _FamilyRelative(label: 'Grandfather', value: profile.grandfather),
+              _FamilyRelative(label: 'Grandmother', value: profile.grandmother),
+              _FamilyRelative(label: 'Bua', value: profile.bua),
+            ],
           ),
         ),
-        SizedBox(height: 16.h),
-        _FamilySideCard(
-          side: 'FATHER\'S SIDE',
-          name: profile.fatherSide,
-          relatives: [
-            _FamilyRelative(label: 'Grandfather', value: profile.grandfather),
-            _FamilyRelative(label: 'Grandmother', value: profile.grandmother),
-            _FamilyRelative(label: 'Bua', value: profile.bua),
-          ],
-        ),
         SizedBox(height: 10.h),
-        _FamilySideCard(
-          side: 'MOTHER\'S SIDE',
-          name: profile.motherSide,
-          relatives: [
-            _FamilyRelative(
-              label: 'Grandfather (Nanaji)',
-              value: profile.maternalGrandfather,
-            ),
-            _FamilyRelative(
-              label: 'Grandmother',
-              value: profile.maternalGrandmother,
-            ),
-            _FamilyRelative(label: 'Uncle', value: profile.uncle),
-          ],
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 12.w),
+          child: _FamilySideCard(
+            side: 'MOTHER\'S SIDE',
+            name: profile.motherSide,
+            relatives: [
+              _FamilyRelative(
+                label: 'Grandfather (Nanaji)',
+                value: profile.maternalGrandfather,
+              ),
+              _FamilyRelative(
+                label: 'Grandmother',
+                value: profile.maternalGrandmother,
+              ),
+              _FamilyRelative(label: 'Uncle', value: profile.uncle),
+            ],
+          ),
         ),
       ],
     );
@@ -1307,8 +758,8 @@ class _FamilySideCard extends StatelessWidget {
                     side,
                     style: GoogleFonts.manrope(
                       color: AppColors.rmBodyText,
-                      fontSize: 11.sp,
-                      fontWeight: FontWeight.w900,
+                      fontSize: 10.sp,
+                      fontWeight: FontWeight.w800,
                       letterSpacing: 0,
                     ),
                   ),
@@ -1316,8 +767,8 @@ class _FamilySideCard extends StatelessWidget {
                   Text(
                     name,
                     style: GoogleFonts.manrope(
-                      color: AppColors.rmPrimary,
-                      fontSize: 18.sp,
+                      color: AppColors.maroonPrimary,
+                      fontSize: 16.sp,
                       fontWeight: FontWeight.w800,
                       height: 1.15,
                     ),
@@ -1358,7 +809,7 @@ class _FamilyLine extends StatelessWidget {
       text: TextSpan(
         style: GoogleFonts.manrope(
           color: AppColors.rmBodyText,
-          fontSize: 14.sp,
+          fontSize: 12.sp,
           fontWeight: FontWeight.w500,
           height: 1.35,
         ),
@@ -1366,8 +817,8 @@ class _FamilyLine extends StatelessWidget {
           TextSpan(
             text: '$label : ',
             style: GoogleFonts.manrope(
-              color: AppColors.rmPrimary,
-              fontSize: 14.sp,
+              color: AppColors.maroonPrimary,
+              fontSize: 12.sp,
               fontWeight: FontWeight.w800,
               height: 1.35,
             ),
@@ -1391,71 +842,71 @@ class _PhotoGallerySection extends StatelessWidget {
 
     return Column(
       children: [
-        Text(
-          'Photo Gallery',
-          textAlign: TextAlign.center,
-          style: GoogleFonts.manrope(
-            color: AppColors.rmPrimary,
-            fontSize: 25.sp,
-            fontWeight: FontWeight.w800,
-            height: 1.1,
-          ),
-        ),
+        const _SectionHeading(title: 'Photo Gallery'),
         SizedBox(height: 8.h),
         Text(
           'A GLIMPSE INTO $galleryPronoun LIFE AND PASSIONS.',
           textAlign: TextAlign.center,
           style: GoogleFonts.manrope(
-            color: AppColors.rmPrimary,
-            fontSize: 11.sp,
-            fontWeight: FontWeight.w900,
+            color: AppColors.rmSubtleRoseText,
+            fontSize: 10.sp,
+            fontWeight: FontWeight.w800,
             letterSpacing: 0,
           ),
         ),
         SizedBox(height: 18.h),
-        GestureDetector(
-          onTap: () => _showGalleryImage(context, 0, galleryImages),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(4.r),
-            child: _ProfileImageView(
-              image: galleryImages.first,
-              height: 326.h,
-              fit: BoxFit.cover,
-              alignment: Alignment.center,
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 12.w),
+          child: GestureDetector(
+            onTap: () => _showGalleryImage(context, 0, galleryImages),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(4.r),
+              child: _ProfileImageView(
+                image: galleryImages.first,
+                height: 298.h,
+                fit: BoxFit.cover,
+                alignment: Alignment.center,
+              ),
             ),
           ),
         ),
         if (galleryImages.length > 1) ...[
-          SizedBox(height: 12.h),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final itemWidth = (constraints.maxWidth - 12.w) / 2;
-              final remainingImages = galleryImages.skip(1).toList();
+          SizedBox(height: 10.h),
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 12.w),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final itemWidth = (constraints.maxWidth - 10.w) / 2;
+                final remainingImages = galleryImages.skip(1).take(2).toList();
 
-              return Wrap(
-                spacing: 12.w,
-                runSpacing: 12.h,
-                children: [
-                  for (var index = 0; index < remainingImages.length; index++)
-                    GestureDetector(
-                      onTap: () =>
-                          _showGalleryImage(context, index + 1, galleryImages),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(3.r),
-                        child: SizedBox(
-                          width: itemWidth,
-                          height: 126.h,
-                          child: _ProfileImageView(
-                            image: remainingImages[index],
-                            fit: BoxFit.cover,
-                            alignment: Alignment.center,
+                return Wrap(
+                  spacing: 10.w,
+                  runSpacing: 10.h,
+                  children: [
+                    for (var index = 0; index < remainingImages.length; index++)
+                      GestureDetector(
+                        onTap: () => _showGalleryImage(
+                          context,
+                          index + 1,
+                          galleryImages,
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(2.r),
+                          child: SizedBox(
+                            width: itemWidth,
+                            height: 108.h,
+                            child: _ProfileImageView(
+                              image: remainingImages[index],
+                              fit: BoxFit.cover,
+                              alignment: Alignment.center,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                ],
-              );
-            },
+                  ],
+                );
+              },
+            ),
           ),
         ],
       ],
@@ -1556,7 +1007,7 @@ class _ProfileActionsSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 26.w),
+      padding: EdgeInsets.symmetric(horizontal: 12.w),
       child: Row(
         children: [
           Expanded(
@@ -1573,7 +1024,7 @@ class _ProfileActionsSection extends StatelessWidget {
           SizedBox(width: 10.w),
           Expanded(
             child: _ProfileActionButton(
-              icon: Icons.download,
+              icon: Icons.file_download_outlined,
               label: 'Download PDF',
               onPressed: () => _downloadPdf(context),
             ),
@@ -1597,20 +1048,36 @@ class _ProfileActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ElevatedButton.icon(
-      onPressed: onPressed,
-      icon: Icon(icon, size: 14.sp),
-      label: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: AppColors.primary,
-        foregroundColor: AppColors.white,
-        elevation: 0,
-        minimumSize: Size(0, 38.h),
-        padding: EdgeInsets.symmetric(horizontal: 10.w),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r)),
-        textStyle: GoogleFonts.manrope(
-          fontSize: 13.sp,
-          fontWeight: FontWeight.w600,
+    return Container(
+      height: 40.h,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8.r),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x17000000),
+            blurRadius: 10,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ElevatedButton.icon(
+        onPressed: onPressed,
+        icon: Icon(icon, size: 13.sp),
+        label: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.primary,
+          foregroundColor: AppColors.white,
+          elevation: 0,
+          shadowColor: Colors.transparent,
+          minimumSize: Size(0, 40.h),
+          padding: EdgeInsets.symmetric(horizontal: 8.w),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8.r),
+          ),
+          textStyle: GoogleFonts.manrope(
+            fontSize: 12.sp,
+            fontWeight: FontWeight.w500,
+          ),
         ),
       ),
     );

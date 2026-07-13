@@ -34,7 +34,7 @@ class RegistryScreen extends StatelessWidget {
           builder: (context) => const FilterBottomSheet(),
         );
       },
-      backgroundColor: AppColors.rmPrimary,
+      backgroundColor: AppColors.primary,
       shape: const CircleBorder(),
       child: const Icon(Icons.filter_list, color: AppColors.white),
     );
@@ -420,8 +420,6 @@ class RegistryAppBar extends StatelessWidget implements PreferredSizeWidget {
   Size get preferredSize => const Size.fromHeight(kToolbarHeight);
 }
 
-
-
 class RegistryBody extends StatefulWidget {
   const RegistryBody({super.key});
 
@@ -531,7 +529,7 @@ class _RegistryBodyState extends State<RegistryBody> {
             onTap: (index) => setState(() => _selectedTab = index),
             isScrollable: true,
             tabAlignment: TabAlignment.start,
-            labelColor: AppColors.rmPrimary,
+            labelColor: AppColors.primary,
             unselectedLabelColor: AppColors.inactiveNavItemColor,
             indicatorColor: AppColors.accent,
             indicatorSize: TabBarIndicatorSize.label,
@@ -646,15 +644,10 @@ class _RegistryBodyState extends State<RegistryBody> {
                           Icon(
                             Icons.grid_view,
                             size: 16.sp,
-                            color: AppColors.rmPrimary,
+                            color: AppColors.primary,
                           ),
                           SizedBox(width: 4.w),
-                          Icon(
-                            Icons.list,
-                            size: 16.sp,
-                            color: AppColors.black,
-                          ),
-
+                          Icon(Icons.list, size: 16.sp, color: AppColors.black),
                         ],
                       ),
                     ),
@@ -746,7 +739,7 @@ class _RegistryBodyState extends State<RegistryBody> {
                         profile.name,
                         overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.poppins(
-                          color: AppColors.rmPrimary,
+                          color: AppColors.primary,
                           fontSize: 24.sp,
                           fontWeight: FontWeight.w700,
                         ),
@@ -769,7 +762,7 @@ class _RegistryBodyState extends State<RegistryBody> {
                   '${profile.age} yrs - ${profile.height} - ${profile.city}',
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.poppins(
-                    color: AppColors.rmPrimary,
+                    color: AppColors.primary,
                     fontSize: 14.sp,
                     fontWeight: FontWeight.w700,
                   ),
@@ -780,7 +773,7 @@ class _RegistryBodyState extends State<RegistryBody> {
                   overflow: TextOverflow.ellipsis,
                   maxLines: 1,
                   style: GoogleFonts.poppins(
-                    color: AppColors.rmPrimary,
+                    color: AppColors.primary,
                     fontSize: 12.sp,
                     fontWeight: FontWeight.w500,
                   ),
@@ -800,7 +793,7 @@ class _RegistryBodyState extends State<RegistryBody> {
                   '${profile.community} - ${profile.manglikLabel}',
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.poppins(
-                    color: AppColors.rmPrimary,
+                    color: AppColors.primary,
                     fontSize: 13.sp,
                     fontWeight: FontWeight.w600,
                   ),
@@ -818,7 +811,7 @@ class _RegistryBodyState extends State<RegistryBody> {
                           );
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.rmPrimary,
+                          backgroundColor: AppColors.primary,
                           foregroundColor: AppColors.white,
                           padding: EdgeInsets.symmetric(vertical: 10.h),
                           shape: RoundedRectangleBorder(
@@ -857,8 +850,8 @@ class _RegistryBodyState extends State<RegistryBody> {
                           );
                         },
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.rmPrimary,
-                          side: BorderSide(color: AppColors.rmPrimary),
+                          foregroundColor: AppColors.primary,
+                          side: BorderSide(color: AppColors.primary),
                           padding: EdgeInsets.symmetric(vertical: 10.h),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12.r),
@@ -874,7 +867,7 @@ class _RegistryBodyState extends State<RegistryBody> {
                                 'Shortlist',
                                 overflow: TextOverflow.ellipsis,
                                 style: GoogleFonts.poppins(
-                                  color: AppColors.rmPrimary,
+                                  color: AppColors.primary,
                                   fontSize: 14.sp,
                                   fontWeight: FontWeight.w700,
                                 ),
