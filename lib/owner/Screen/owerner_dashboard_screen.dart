@@ -23,6 +23,7 @@ import 'client_registry_screen.dart';
 import '../providers/dashboard_provider.dart';
 import 'profile_digitizer_screen.dart';
 import 'profile_screen.dart';
+import 'employee_detail_screen.dart';
 
 class OwernerDashboardScreen extends StatefulWidget {
   const OwernerDashboardScreen({super.key});
@@ -1197,7 +1198,11 @@ class _HomeViewState extends State<HomeView> {
                         itemCount: dashboard!.liveTeamStatus.take(8).length,
                         itemBuilder: (context, index) {
                           final item = dashboard.liveTeamStatus[index];
-                          return _buildTeamCard(item);
+                          final employee = _findEmployeeForTeamMember(
+                            item,
+                            employeesProvider.employees,
+                          );
+                          return _buildTeamCard(item, employee: employee);
                         },
                       ),
                     ),
@@ -3567,7 +3572,7 @@ class _HomeViewState extends State<HomeView> {
       padding: const EdgeInsets.symmetric(horizontal: 14),
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(20),
         decoration: ShapeDecoration(
           color: const Color(0x66FFDAD6),
           shape: RoundedRectangleBorder(
@@ -3719,40 +3724,104 @@ class _HomeViewState extends State<HomeView> {
     );
   }
 
-  Widget _buildTeamCard(ManagerTeamStatusItem item) {
+  HrEmployeeItem? _findEmployeeForTeamMember(
+    ManagerTeamStatusItem item,
+    List<HrEmployeeItem> employees,
+  ) {
+    if (item.id.isNotEmpty) {
+      for (final employee in employees) {
+        if (employee.id == item.id) {
+          return employee;
+        }
+      }
+    }
+
+    final itemName = item.name.trim().toLowerCase();
+    if (itemName.isNotEmpty) {
+      for (final employee in employees) {
+        if (employee.name.trim().toLowerCase() == itemName) {
+          return employee;
+        }
+      }
+    }
+
+    return null;
+  }
+
+  void _openEmployeeDetail(
+    ManagerTeamStatusItem item, {
+    required HrEmployeeItem? employee,
+  }) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) =>
+            EmployeeDetailScreen(teamMember: item, employee: employee),
+      ),
+    );
+  }
+
+  Widget _buildTeamCard(
+    ManagerTeamStatusItem item, {
+    required HrEmployeeItem? employee,
+  }) {
     final statusColor = _statusColor(item.status);
 
     return Container(
       width: 180,
       margin: const EdgeInsets.only(right: 8),
       decoration: _ownerCardDecoration(),
-      child: Center(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.only(top: 12, left: 2, right: 2),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-              ),
-              child: Center(
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    SizedBox(
-                      height: 90.h,
-                      width: 150.w,
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: (item.image != null && item.image!.isNotEmpty)
-                            ? Image.network(
-                                item.image!,
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return Container(
-                                    color: Colors.white,
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          onTap: () => _openEmployeeDetail(item, employee: employee),
+          borderRadius: BorderRadius.circular(12),
+          child: Center(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.only(top: 12, left: 2, right: 2),
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(16),
+                    ),
+                  ),
+                  child: Center(
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        SizedBox(
+                          height: 90.h,
+                          width: 150.w,
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child:
+                                (item.image != null && item.image!.isNotEmpty)
+                                ? Image.network(
+                                    item.image!,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return Container(
+                                        color: Colors.white,
+                                        alignment: Alignment.center,
+                                        child: Text(
+                                          item.name.isNotEmpty
+                                              ? item.name[0].toUpperCase()
+                                              : "?",
+                                          style: GoogleFonts.manrope(
+                                            fontSize: 38.sp,
+                                            fontWeight: FontWeight.w800,
+                                            color: Colors.grey.shade700,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  )
+                                : Container(
+                                    color: const Color(0xFFF3F4F5),
                                     alignment: Alignment.center,
                                     child: Text(
                                       item.name.isNotEmpty
@@ -3764,71 +3833,104 @@ class _HomeViewState extends State<HomeView> {
                                         color: Colors.grey.shade700,
                                       ),
                                     ),
-                                  );
-                                },
-                              )
-                            : Container(
-                                color: const Color(0xFFF3F4F5),
-                                alignment: Alignment.center,
-                                child: Text(
-                                  item.name.isNotEmpty
-                                      ? item.name[0].toUpperCase()
-                                      : "?",
-                                  style: GoogleFonts.manrope(
-                                    fontSize: 38.sp,
-                                    fontWeight: FontWeight.w800,
-                                    color: Colors.grey.shade700,
                                   ),
-                                ),
-                              ),
-                      ),
-                    ),
-
-                    // ==========================
-                    // Attendance Status Dot
-                    // ==========================
-                    Positioned(
-                      top: 5,
-                      right: 8,
-                      child: Container(
-                        width: 18.w,
-                        height: 18.w,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color:
-                              item.todayAttendanceStatus.toLowerCase().trim() ==
-                                  "present"
-                              ? AppColors.darkGreen
-                              : const Color(0xFFEF4444),
-                          border: Border.all(color: Colors.white, width: 3),
+                          ),
                         ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
 
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Text(
-                      item.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.manrope(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
-                      ),
+                        // ==========================
+                        // Attendance Status Dot
+                        // ==========================
+                        Positioned(
+                          top: 5,
+                          right: 8,
+                          child: Container(
+                            width: 18.w,
+                            height: 18.w,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color:
+                                  item.todayAttendanceStatus
+                                          .toLowerCase()
+                                          .trim() ==
+                                      "present"
+                                  ? AppColors.darkGreen
+                                  : const Color(0xFFEF4444),
+                              border: Border.all(color: Colors.white, width: 3),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
+                ),
 
-                  Center(
-                    child: Text(
-                      _formatRoleLabel(item.role),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Center(
+                        child: Text(
+                          item.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.manrope(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+
+                      Center(
+                        child: Text(
+                          _formatRoleLabel(item.role),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.manrope(
+                            color: const Color(0xFF6E5C61),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+
+                      Center(
+                        child: Text(
+                          item.todayAttendanceStatus,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.manrope(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: statusColor,
+                          ),
+                        ),
+                      ),
+
+                      // SizedBox(height: 4.h),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildMiniStat(
+                              '${item.leadsHandled}',
+                              'Leads',
+                            ),
+                          ),
+                          SizedBox(width: 6.w),
+                          Expanded(
+                            child: _buildMiniStat(
+                              '${item.tasksCompleted}',
+                              'Tasks',
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      // Uncomment if you want to show profiles handled
+                      /*
+                    SizedBox(height: 8.h),
+                    Text(
+                      '${item.profilesHandled} profiles handled',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.manrope(
@@ -3837,55 +3939,13 @@ class _HomeViewState extends State<HomeView> {
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                  ),
-
-                  Center(
-                    child: Text(
-                      item.todayAttendanceStatus,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.manrope(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: statusColor,
-                      ),
-                    ),
-                  ),
-
-                  // SizedBox(height: 4.h),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildMiniStat('${item.leadsHandled}', 'Leads'),
-                      ),
-                      SizedBox(width: 6.w),
-                      Expanded(
-                        child: _buildMiniStat(
-                          '${item.tasksCompleted}',
-                          'Tasks',
-                        ),
-                      ),
+                    */
                     ],
                   ),
-
-                  // Uncomment if you want to show profiles handled
-                  /*
-                SizedBox(height: 8.h),
-                Text(
-                  '${item.profilesHandled} profiles handled',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.manrope(
-                    color: const Color(0xFF6E5C61),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
                 ),
-                */
-                ],
-              ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );

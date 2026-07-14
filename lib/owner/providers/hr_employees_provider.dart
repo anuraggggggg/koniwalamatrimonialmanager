@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:koniwalamatrimonial/constants/api_constants.dart';
+import 'package:koniwalamatrimonial/owner/models/hr_employee_detail.dart';
 import 'package:koniwalamatrimonial/owner/models/hr_employee_item.dart';
 
 class HrEmployeesProvider extends ChangeNotifier {
@@ -12,10 +13,20 @@ class HrEmployeesProvider extends ChangeNotifier {
   String? _requestedAccessToken;
   bool _hasRequestedEmployees = false;
   List<HrEmployeeItem> _employees = const [];
+  bool _isEmployeeAttendanceLoading = false;
+  bool _isPayrollHistoryLoading = false;
+  String? _employeeAttendanceError;
+  String? _payrollHistoryError;
+  final Map<String, HrEmployeeAttendanceResult> _employeeAttendanceByKey = {};
+  final Map<String, List<HrPayrollHistoryItem>> _payrollHistoryByEmployee = {};
 
   bool get isLoading => _isLoading;
   String? get error => _error;
   List<HrEmployeeItem> get employees => _employees;
+  bool get isEmployeeAttendanceLoading => _isEmployeeAttendanceLoading;
+  bool get isPayrollHistoryLoading => _isPayrollHistoryLoading;
+  String? get employeeAttendanceError => _employeeAttendanceError;
+  String? get payrollHistoryError => _payrollHistoryError;
 
   bool hasRequestFor({required String? accessToken}) {
     return _hasRequestedEmployees && _requestedAccessToken == accessToken;
@@ -86,6 +97,165 @@ class HrEmployeesProvider extends ChangeNotifier {
 
   Future<void> retry() {
     return fetchEmployees(_requestedAccessToken, forceRefresh: true);
+  }
+
+  HrEmployeeAttendanceResult? employeeAttendance({
+    required String employeeId,
+    required int month,
+    required int year,
+  }) {
+    return _employeeAttendanceByKey[_attendanceKey(employeeId, month, year)];
+  }
+
+  List<HrPayrollHistoryItem> payrollHistory(String employeeId) {
+    return _payrollHistoryByEmployee[employeeId] ?? const [];
+  }
+
+  Future<void> fetchEmployeeAttendance({
+    required String? accessToken,
+    required String employeeId,
+    required int month,
+    required int year,
+    bool forceRefresh = false,
+  }) async {
+    final key = _attendanceKey(employeeId, month, year);
+    if (!forceRefresh && _employeeAttendanceByKey.containsKey(key)) {
+      return;
+    }
+
+    if (accessToken == null || accessToken.isEmpty) {
+      _employeeAttendanceError = 'Login required to load attendance.';
+      notifyListeners();
+      return;
+    }
+
+    if (employeeId.trim().isEmpty) {
+      _employeeAttendanceError = 'Employee id is missing.';
+      notifyListeners();
+      return;
+    }
+
+    _isEmployeeAttendanceLoading = true;
+    _employeeAttendanceError = null;
+    notifyListeners();
+
+    try {
+      final url =
+          '${ApiConstants.baseUrl}${ApiConstants.hrEmployeeAttendance(employeeId: employeeId, month: month, year: year)}';
+      debugPrint('Calling employee attendance API: $url');
+
+      final response = await http.get(
+        Uri.parse(url),
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': 'Bearer ${accessToken.trim()}',
+        },
+      );
+
+      debugPrint(
+        'Employee attendance API response status=${response.statusCode}, '
+        'body=${response.body}',
+      );
+
+      if (response.statusCode == 304 &&
+          _employeeAttendanceByKey.containsKey(key)) {
+        _isEmployeeAttendanceLoading = false;
+        _employeeAttendanceError = null;
+        notifyListeners();
+        return;
+      }
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw Exception(
+          'Employee attendance API failed with ${response.statusCode}',
+        );
+      }
+
+      final decoded = jsonDecode(response.body);
+      _employeeAttendanceByKey[key] = HrEmployeeAttendanceResult.fromResponse(
+        decoded,
+      );
+      _isEmployeeAttendanceLoading = false;
+      _employeeAttendanceError = null;
+      notifyListeners();
+    } catch (error) {
+      debugPrint('Employee attendance API error: $error');
+      _isEmployeeAttendanceLoading = false;
+      _employeeAttendanceError = 'Unable to load attendance.';
+      notifyListeners();
+    }
+  }
+
+  Future<void> fetchPayrollHistory({
+    required String? accessToken,
+    required String employeeId,
+    bool forceRefresh = false,
+  }) async {
+    if (!forceRefresh && _payrollHistoryByEmployee.containsKey(employeeId)) {
+      return;
+    }
+
+    if (accessToken == null || accessToken.isEmpty) {
+      _payrollHistoryError = 'Login required to load payroll history.';
+      notifyListeners();
+      return;
+    }
+
+    if (employeeId.trim().isEmpty) {
+      _payrollHistoryError = 'Employee id is missing.';
+      notifyListeners();
+      return;
+    }
+
+    _isPayrollHistoryLoading = true;
+    _payrollHistoryError = null;
+    notifyListeners();
+
+    try {
+      final url =
+          '${ApiConstants.baseUrl}${ApiConstants.payrollEmployeeHistory(employeeId)}';
+      debugPrint('Calling payroll history API: $url');
+
+      final response = await http.get(
+        Uri.parse(url),
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': 'Bearer ${accessToken.trim()}',
+        },
+      );
+
+      debugPrint(
+        'Payroll history API response status=${response.statusCode}, '
+        'body=${response.body}',
+      );
+
+      if (response.statusCode == 304 &&
+          _payrollHistoryByEmployee.containsKey(employeeId)) {
+        _isPayrollHistoryLoading = false;
+        _payrollHistoryError = null;
+        notifyListeners();
+        return;
+      }
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw Exception(
+          'Payroll history API failed with ${response.statusCode}',
+        );
+      }
+
+      final decoded = jsonDecode(response.body);
+      _payrollHistoryByEmployee[employeeId] = HrPayrollHistoryItem.fromResponse(
+        decoded,
+      );
+      _isPayrollHistoryLoading = false;
+      _payrollHistoryError = null;
+      notifyListeners();
+    } catch (error) {
+      debugPrint('Payroll history API error: $error');
+      _isPayrollHistoryLoading = false;
+      _payrollHistoryError = 'Unable to load payroll history.';
+      notifyListeners();
+    }
   }
 
   Future<String?> updateEmployee({
@@ -186,9 +356,14 @@ class HrEmployeesProvider extends ChangeNotifier {
     return http.Response.fromStream(streamedResponse);
   }
 
-  void _replaceEmployee(HrEmployeeItem oldEmployee, HrEmployeeItem newEmployee) {
+  void _replaceEmployee(
+    HrEmployeeItem oldEmployee,
+    HrEmployeeItem newEmployee,
+  ) {
     _employees = _employees
-        .map((employee) => employee.id == oldEmployee.id ? newEmployee : employee)
+        .map(
+          (employee) => employee.id == oldEmployee.id ? newEmployee : employee,
+        )
         .toList();
     notifyListeners();
   }
@@ -228,6 +403,10 @@ class HrEmployeesProvider extends ChangeNotifier {
     }
 
     return _employees.first;
+  }
+
+  String _attendanceKey(String employeeId, int month, int year) {
+    return '$employeeId:$year:$month';
   }
 
   List<dynamic> _extractEmployeeRows(dynamic payload) {

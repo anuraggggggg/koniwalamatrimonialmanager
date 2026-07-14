@@ -15,11 +15,15 @@ class HolidayService {
     try {
       final response = await _dio.get(
         url,
-        options: Options(headers: {'Authorization': 'Bearer $_accessToken'}),
+        options: Options(
+          headers: {'Authorization': 'Bearer $_accessToken'},
+          validateStatus: (status) =>
+              status != null && status >= 200 && status < 400,
+        ),
       );
 
       if (response.statusCode == 200) {
-        final List<dynamic> data = response.data;
+        final data = _extractHolidayRows(response.data);
         return data.map((json) => HolidayModel.fromJson(json)).toList();
       } else {
         return [];
@@ -27,6 +31,36 @@ class HolidayService {
     } catch (e) {
       return [];
     }
+  }
+
+  List<Map<String, dynamic>> _extractHolidayRows(dynamic payload) {
+    if (payload is List) {
+      return payload
+          .whereType<Map>()
+          .map((item) => Map<String, dynamic>.from(item))
+          .toList();
+    }
+
+    if (payload is Map) {
+      final map = Map<String, dynamic>.from(payload);
+      for (final key in const ['data', 'holidays', 'items', 'results']) {
+        final value = map[key];
+        if (value is List) {
+          return value
+              .whereType<Map>()
+              .map((item) => Map<String, dynamic>.from(item))
+              .toList();
+        }
+        if (value is Map) {
+          final nestedRows = _extractHolidayRows(value);
+          if (nestedRows.isNotEmpty) {
+            return nestedRows;
+          }
+        }
+      }
+    }
+
+    return const [];
   }
 
   Future<HolidayModel?> createHoliday({

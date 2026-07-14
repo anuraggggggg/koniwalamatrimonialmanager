@@ -16,13 +16,14 @@ class HolidayModel {
   });
 
   factory HolidayModel.fromJson(Map<String, dynamic> json) {
+    final dateText = json['date']?.toString();
     return HolidayModel(
-      id: json['id'],
-      name: json['name'],
-      date: DateTime.parse(json['date']),
-      type: json['type'],
-      isHalfDay: json['isHalfDay'],
-      description: json['description'],
+      id: json['id']?.toString() ?? '',
+      name: json['name']?.toString() ?? 'Holiday',
+      date: DateTime.tryParse(dateText ?? '') ?? DateTime.now(),
+      type: json['type']?.toString() ?? 'HOLIDAY',
+      isHalfDay: json['isHalfDay'] == true,
+      description: json['description']?.toString() ?? '',
     );
   }
 }
