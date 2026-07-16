@@ -101,10 +101,7 @@ class DataEntryDashboardProvider extends ChangeNotifier {
 
       final response = await http.get(
         Uri.parse(url),
-        headers: {
-          'Accept': 'application/json',
-          'Authorization': authorization,
-        },
+        headers: {'Accept': 'application/json', 'Authorization': authorization},
       );
 
       debugPrint(
@@ -181,10 +178,7 @@ class DataEntryDashboardProvider extends ChangeNotifier {
 
       final response = await http.get(
         Uri.parse(url),
-        headers: {
-          'Accept': 'application/json',
-          'Authorization': authorization,
-        },
+        headers: {'Accept': 'application/json', 'Authorization': authorization},
       );
 
       debugPrint(
@@ -193,7 +187,9 @@ class DataEntryDashboardProvider extends ChangeNotifier {
       );
 
       if (response.statusCode < 200 || response.statusCode >= 300) {
-        throw Exception('Data entry users API failed with ${response.statusCode}');
+        throw Exception(
+          'Data entry users API failed with ${response.statusCode}',
+        );
       }
 
       final decoded = jsonDecode(response.body);

@@ -117,9 +117,9 @@ class _RelationshipManagerDashboardScreenState
                         children: [
                           Text(
                             'RM Dashboard',
-                            style: GoogleFonts.manrope(
+                            style: GoogleFonts.inter(
                               color: AppColors.rmHeading,
-                              fontSize: 26,
+                              fontSize: 26.sp,
                               fontWeight: FontWeight.w800,
                               height: 1.33,
                               letterSpacing: 0,
@@ -128,7 +128,7 @@ class _RelationshipManagerDashboardScreenState
                           SizedBox(height: _RmMetrics.smallGap.h),
                           Text(
                             'Follow up with your leads, reply faster, and clear your work for Saturday, 9 May.',
-                            style: GoogleFonts.manrope(
+                            style: GoogleFonts.inter(
                               fontSize: 14.sp,
                               color: AppColors.rmBodyText,
                               fontWeight: FontWeight.w500,
@@ -189,7 +189,6 @@ class _RelationshipManagerDashboardScreenState
                               fontSize: 26.sp,
                               fontWeight: FontWeight.w600,
                               color: AppColors.rmPrimary,
-                              fontFamily: 'Manrope',
                             ),
                           ),
                           SizedBox(height: _RmMetrics.itemGap.h),
@@ -213,10 +212,9 @@ class _RelationshipManagerDashboardScreenState
                       child: Text(
                         'Selected Tab: $selectedTab',
                         style: TextStyle(
-                          fontFamily: 'Manrope',
                           color: _maroon,
                           fontWeight: FontWeight.w700,
-                          fontSize: 20,
+                          fontSize: 20.sp,
                         ),
                       ),
                     ),
@@ -321,7 +319,7 @@ class _RmDashboardDrawer extends StatelessWidget {
                         ),
                         child: Text(
                           userName.isNotEmpty ? userName[0].toUpperCase() : 'R',
-                          style: GoogleFonts.manrope(
+                          style: GoogleFonts.inter(
                             color: AppColors.white,
                             fontSize: 22.sp,
                             fontWeight: FontWeight.w800,
@@ -337,7 +335,7 @@ class _RmDashboardDrawer extends StatelessWidget {
                               userName,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: GoogleFonts.manrope(
+                              style: GoogleFonts.inter(
                                 color: AppColors.white,
                                 fontSize: 19.sp,
                                 fontWeight: FontWeight.w800,
@@ -346,7 +344,7 @@ class _RmDashboardDrawer extends StatelessWidget {
                             SizedBox(height: 3.h),
                             Text(
                               'Relationship Manager',
-                              style: GoogleFonts.manrope(
+                              style: GoogleFonts.inter(
                                 color: AppColors.white.withValues(alpha: 0.78),
                                 fontSize: 14.sp,
                                 fontWeight: FontWeight.w600,
@@ -393,7 +391,7 @@ class _RmDashboardDrawer extends StatelessWidget {
                     padding: EdgeInsets.fromLTRB(6.w, 0, 6.w, 10.h),
                     child: Text(
                       'Main Menu',
-                      style: GoogleFonts.manrope(
+                      style: GoogleFonts.inter(
                         color: AppColors.rmMutedText,
                         fontSize: 13.sp,
                         fontWeight: FontWeight.w900,
@@ -522,7 +520,7 @@ class _RmDashboardDrawer extends StatelessWidget {
                         Expanded(
                           child: Text(
                             'Online and ready for follow-ups',
-                            style: GoogleFonts.manrope(
+                            style: GoogleFonts.inter(
                               color: AppColors.rmBodyText,
                               fontSize: 13.sp,
                               fontWeight: FontWeight.w700,
@@ -560,7 +558,7 @@ class _RmDashboardDrawer extends StatelessWidget {
                           SizedBox(width: 10.w),
                           Text(
                             'Logout',
-                            style: GoogleFonts.manrope(
+                            style: GoogleFonts.inter(
                               fontSize: 15.sp,
                               fontWeight: FontWeight.w800,
                             ),
@@ -598,7 +596,7 @@ class _RmDrawerMetric extends StatelessWidget {
         children: [
           Text(
             value,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: AppColors.white,
               fontSize: 19.sp,
               fontWeight: FontWeight.w900,
@@ -608,7 +606,7 @@ class _RmDrawerMetric extends StatelessWidget {
           SizedBox(height: 4.h),
           Text(
             label,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: AppColors.white.withValues(alpha: 0.78),
               fontSize: 12.sp,
               fontWeight: FontWeight.w700,
@@ -656,7 +654,7 @@ class _RmDrawerItem extends StatelessWidget {
                 Expanded(
                   child: Text(
                     label,
-                    style: GoogleFonts.manrope(
+                    style: GoogleFonts.inter(
                       color: color,
                       fontSize: 15.sp,
                       fontWeight: selected ? FontWeight.w800 : FontWeight.w700,
@@ -758,17 +756,16 @@ class _BottomNavItem extends StatelessWidget {
             if (iconAsset != null)
               Image.asset(
                 iconAsset!,
-                width: 26,
-                height: 26,
+                width: 26.sp,
+                height: 26.sp,
                 color: selected ? maroon : inactive,
               )
             else
-              Icon(icon, size: 26, color: selected ? maroon : inactive),
+              Icon(icon, size: 26.sp, color: selected ? maroon : inactive),
             SizedBox(height: _RmMetrics.smallGap.h),
             Text(
               label,
               style: TextStyle(
-                fontFamily: 'Manrope',
                 fontSize: 12.sp,
                 fontWeight: FontWeight.w700,
                 color: selected ? maroon : inactive,
@@ -888,7 +885,7 @@ class _StatCard extends StatelessWidget {
                   title,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     color: AppColors.rmHeading,
                     fontSize: 13.5.sp,
                     fontWeight: FontWeight.w800,
@@ -907,7 +904,7 @@ class _StatCard extends StatelessWidget {
                   value,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     color: borderColor,
                     fontSize: 31.sp,
                     fontWeight: FontWeight.w900,
@@ -928,7 +925,7 @@ class _StatCard extends StatelessWidget {
               subtitle,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.manrope(
+              style: GoogleFonts.inter(
                 color: AppColors.rmStatCaption,
                 fontSize: 11.sp,
                 fontWeight: FontWeight.w800,
@@ -974,7 +971,7 @@ class _OverviewCard extends StatelessWidget {
         children: [
           Text(
             'Lead Pipeline',
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: AppColors.rmDarkMaroon,
               fontSize: 20.sp,
               fontWeight: FontWeight.w800,
@@ -984,7 +981,7 @@ class _OverviewCard extends StatelessWidget {
           SizedBox(height: 4.h),
           Text(
             'Relationship Conversion Overview',
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               fontSize: 12.sp,
               color: AppColors.rmMutedText,
               fontWeight: FontWeight.w600,
@@ -1055,7 +1052,7 @@ class _OverviewCard extends StatelessWidget {
           SizedBox(height: 16.h),
           Text(
             'Pipeline Matrix',
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: AppColors.rmDarkMaroon,
               fontSize: 18.sp,
               fontWeight: FontWeight.w800,
@@ -1093,7 +1090,7 @@ class _OverviewCard extends StatelessWidget {
             child: Text(
               '+18% higher conversion this month',
               textAlign: TextAlign.center,
-              style: GoogleFonts.manrope(
+              style: GoogleFonts.inter(
                 color: AppColors.success,
                 fontSize: 12.sp,
                 fontWeight: FontWeight.w800,
@@ -1161,7 +1158,7 @@ class _PipelineLegendPill extends StatelessWidget {
           SizedBox(width: 6.w),
           Text(
             label,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: color,
               fontSize: 12.sp,
               fontWeight: FontWeight.w800,
@@ -1216,7 +1213,7 @@ class _PipelineMatrixCard extends StatelessWidget {
                   data.label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     color: AppColors.rmMutedText,
                     fontSize: 14.sp,
                     fontWeight: FontWeight.w800,
@@ -1228,7 +1225,7 @@ class _PipelineMatrixCard extends StatelessWidget {
           SizedBox(height: 4.h),
           Text(
             data.value,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: AppColors.rmHeading,
               fontSize: 27.sp,
               fontWeight: FontWeight.w800,
@@ -1290,7 +1287,7 @@ class _WhatsAppConversations extends StatelessWidget {
                       children: [
                         Text(
                           'WhatsApp Conversations',
-                          style: GoogleFonts.manrope(
+                          style: GoogleFonts.inter(
                             fontSize: 20.sp,
                             fontWeight: FontWeight.w800,
                             color: AppColors.whatsappGreen,
@@ -1299,7 +1296,7 @@ class _WhatsAppConversations extends StatelessWidget {
                         SizedBox(height: 2.h),
                         Text(
                           'Recent family interactions',
-                          style: GoogleFonts.manrope(
+                          style: GoogleFonts.inter(
                             fontSize: 14.sp,
                             color: AppColors.rmMutedText,
                             fontWeight: FontWeight.w500,
@@ -1319,7 +1316,7 @@ class _WhatsAppConversations extends StatelessWidget {
                     ),
                     child: Text(
                       'LIVE',
-                      style: GoogleFonts.manrope(
+                      style: GoogleFonts.inter(
                         color: AppColors.whatsappGreen,
                         fontSize: 11.sp,
                         fontWeight: FontWeight.w900,
@@ -1351,7 +1348,7 @@ class _WhatsAppConversations extends StatelessWidget {
                     Expanded(
                       child: Text(
                         'Messages sync from active WhatsApp follow-ups.',
-                        style: GoogleFonts.manrope(
+                        style: GoogleFonts.inter(
                           color: const Color(0xFF1F7A3B),
                           fontSize: 12.sp,
                           fontWeight: FontWeight.w700,
@@ -1422,8 +1419,7 @@ class _WhatsAppConversations extends StatelessWidget {
                           'View All Activity',
                           style: TextStyle(
                             color: AppColors.whatsappGreen,
-                            fontSize: 18,
-                            fontFamily: 'Manrope',
+                            fontSize: 18.sp,
                             fontWeight: FontWeight.w900,
                           ),
                         ),
@@ -1486,7 +1482,7 @@ class _ConversationItem extends StatelessWidget {
                 backgroundColor: avatarColor,
                 child: Text(
                   initials,
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     color: AppColors.white,
                     fontSize: 14.sp,
                     fontWeight: FontWeight.w800,
@@ -1517,7 +1513,7 @@ class _ConversationItem extends StatelessWidget {
                   name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     fontSize: 18.sp,
                     fontWeight: FontWeight.w800,
                     color: AppColors.rmHeading,
@@ -1537,7 +1533,7 @@ class _ConversationItem extends StatelessWidget {
                         lastMessage,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.manrope(
+                        style: GoogleFonts.inter(
                           fontSize: 15.sp,
                           color: AppColors.rmMutedText,
                           fontWeight: FontWeight.w500,
@@ -1555,7 +1551,7 @@ class _ConversationItem extends StatelessWidget {
             children: [
               Text(
                 time,
-                style: GoogleFonts.manrope(
+                style: GoogleFonts.inter(
                   fontSize: 13.sp,
                   fontWeight: FontWeight.w700,
                   color: badgeText != null
@@ -1573,7 +1569,7 @@ class _ConversationItem extends StatelessWidget {
                   ),
                   child: Text(
                     badgeText!,
-                    style: GoogleFonts.manrope(
+                    style: GoogleFonts.inter(
                       fontSize: 11.sp,
                       fontWeight: FontWeight.w800,
                       color: badgeTextColor ?? AppColors.white,
@@ -1618,7 +1614,7 @@ class _AIInsights extends StatelessWidget {
                 children: [
                   Text(
                     'AI Insights',
-                    style: GoogleFonts.manrope(
+                    style: GoogleFonts.inter(
                       fontSize: 22.sp,
                       fontWeight: FontWeight.w800,
                       color: AppColors.rmPrimary,
@@ -1627,7 +1623,7 @@ class _AIInsights extends StatelessWidget {
                   SizedBox(height: _RmMetrics.smallGap.h),
                   Text(
                     'Predictive Matchmaking Intelligence',
-                    style: GoogleFonts.manrope(
+                    style: GoogleFonts.inter(
                       fontSize: 14.sp,
                       color: AppColors.rmMutedText,
                       fontWeight: FontWeight.w500,
@@ -1714,7 +1710,6 @@ class _InsightItem extends StatelessWidget {
               Text(
                 label,
                 style: TextStyle(
-                  fontFamily: 'Manrope',
                   fontSize: 17.sp,
                   fontWeight: FontWeight.w700,
                   color: AppColors.rmHeading,
@@ -1723,11 +1718,7 @@ class _InsightItem extends StatelessWidget {
               SizedBox(height: _RmMetrics.smallGap.h),
               Text(
                 subtitle,
-                style: TextStyle(
-                  fontFamily: 'Manrope',
-                  fontSize: 14.sp,
-                  color: AppColors.rmMutedText,
-                ),
+                style: TextStyle(fontSize: 14.sp, color: AppColors.rmMutedText),
               ),
             ],
           ),
@@ -1738,7 +1729,6 @@ class _InsightItem extends StatelessWidget {
             Text(
               value,
               style: TextStyle(
-                fontFamily: 'Manrope',
                 fontSize: 17.sp,
                 fontWeight: FontWeight.w600,
                 color: AppColors.rmPrimary,
@@ -1748,7 +1738,6 @@ class _InsightItem extends StatelessWidget {
             Text(
               valueLabel,
               style: TextStyle(
-                fontFamily: 'Manrope',
                 fontSize: 13.sp,
                 fontWeight: FontWeight.w500,
                 color: valueColor,
@@ -1784,7 +1773,7 @@ class _AIMatches extends StatelessWidget {
         children: [
           Text(
             'AI Matches',
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               fontSize: 22.sp,
               fontWeight: FontWeight.w800,
               color: AppColors.rmPrimary,
@@ -1793,7 +1782,7 @@ class _AIMatches extends StatelessWidget {
           SizedBox(height: _RmMetrics.smallGap.h),
           Text(
             'High Compatibility Profiles',
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               fontSize: 14.sp,
               color: AppColors.rmMutedText,
               fontWeight: FontWeight.w500,
@@ -1880,7 +1869,6 @@ class _MatchCard extends StatelessWidget {
             child: Text(
               initials,
               style: TextStyle(
-                fontFamily: 'Manrope',
                 fontSize: 14.sp,
                 fontWeight: FontWeight.w600,
                 color: AppColors.white,
@@ -1895,7 +1883,6 @@ class _MatchCard extends StatelessWidget {
                 Text(
                   name,
                   style: TextStyle(
-                    fontFamily: 'Manrope',
                     fontSize: 17.sp,
                     fontWeight: FontWeight.w600,
                     color: AppColors.rmHeading,
@@ -1905,7 +1892,6 @@ class _MatchCard extends StatelessWidget {
                 Text(
                   details,
                   style: TextStyle(
-                    fontFamily: 'Manrope',
                     fontSize: 13.sp,
                     color: AppColors.rmMutedText,
                   ),
@@ -1914,7 +1900,6 @@ class _MatchCard extends StatelessWidget {
                 Text(
                   status,
                   style: TextStyle(
-                    fontFamily: 'Manrope',
                     fontSize: 13.sp,
                     fontWeight: FontWeight.w700,
                     color: accentColor,
@@ -1931,8 +1916,7 @@ class _MatchCard extends StatelessWidget {
                 textAlign: TextAlign.right,
                 style: TextStyle(
                   color: AppColors.rmPurple,
-                  fontSize: 11,
-                  fontFamily: 'Manrope',
+                  fontSize: 11.sp,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -1961,7 +1945,7 @@ class _SmartFilters extends StatelessWidget {
       children: [
         Text(
           'Smart Filters',
-          style: GoogleFonts.manrope(
+          style: GoogleFonts.inter(
             fontSize: 22.sp,
             fontWeight: FontWeight.w600,
             color: AppColors.rmHeading,
@@ -1970,7 +1954,7 @@ class _SmartFilters extends StatelessWidget {
         SizedBox(height: _RmMetrics.smallGap.h),
         Text(
           'Search Your Leads, Narrow The Stage, And Stay On Top Of Scheduled Follow-Ups From One Place.',
-          style: GoogleFonts.manrope(
+          style: GoogleFonts.inter(
             fontSize: 16.sp, // Increased from 14.sp
             color: AppColors.rmMutedText,
             fontWeight: FontWeight.w500,
@@ -2002,7 +1986,6 @@ class _SmartFilters extends StatelessWidget {
                       child: Text(
                         'Search By Name, Phone...',
                         style: TextStyle(
-                          fontFamily: 'Manrope',
                           fontSize: 16.sp,
                           color: AppColors.rmHintText,
                         ),
@@ -2042,7 +2025,7 @@ class _ActionQueue extends StatelessWidget {
       children: [
         Text(
           'Action Queue',
-          style: GoogleFonts.manrope(
+          style: GoogleFonts.inter(
             fontSize: 24.sp, // Increased from 22.sp
             fontWeight: FontWeight.w600,
             color: AppColors.rmHeading,
@@ -2051,7 +2034,7 @@ class _ActionQueue extends StatelessWidget {
         SizedBox(height: _RmMetrics.smallGap.h),
         Text(
           'Today - Work That Needs Action Today',
-          style: GoogleFonts.manrope(
+          style: GoogleFonts.inter(
             fontSize: 14.sp,
             color: AppColors.rmMutedText,
             fontWeight: FontWeight.w500,
@@ -2139,7 +2122,6 @@ class _FilterChip extends StatelessWidget {
           Text(
             label,
             style: TextStyle(
-              fontFamily: 'Manrope',
               fontSize: 14.sp, // Increased from 14.sp
               fontWeight: FontWeight.w500,
               color: isSelected
@@ -2226,7 +2208,6 @@ class _QueueItem extends StatelessWidget {
                     Text(
                       title,
                       style: TextStyle(
-                        fontFamily: 'Manrope',
                         fontSize: 18.sp,
                         fontWeight: FontWeight.w800,
                         color: AppColors.rmHeading,
@@ -2236,7 +2217,6 @@ class _QueueItem extends StatelessWidget {
                     Text(
                       phone,
                       style: TextStyle(
-                        fontFamily: 'Manrope',
                         fontSize: 14.sp,
                         color: AppColors.rmMutedText,
                       ),
@@ -2251,7 +2231,6 @@ class _QueueItem extends StatelessWidget {
                     Text(
                       time!,
                       style: TextStyle(
-                        fontFamily: 'Manrope',
                         fontSize: 13.sp,
                         fontWeight: FontWeight.w600,
                         color: AppColors.rmPrimary,
@@ -2261,7 +2240,6 @@ class _QueueItem extends StatelessWidget {
                     Text(
                       'Overdue',
                       style: TextStyle(
-                        fontFamily: 'Manrope',
                         fontSize: 13.sp,
                         fontWeight: FontWeight.w600,
                         color: AppColors.danger,
@@ -2286,7 +2264,6 @@ class _QueueItem extends StatelessWidget {
                     child: Text(
                       status,
                       style: TextStyle(
-                        fontFamily: 'Manrope',
                         fontSize: 12.sp,
                         fontWeight: FontWeight.w800,
                         color: AppColors.rmStatusText,
@@ -2313,7 +2290,6 @@ class _QueueItem extends StatelessWidget {
                 maxLines: 3,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  fontFamily: 'Manrope',
                   fontSize: 16.sp,
                   color: AppColors.rmBodyText,
                   fontStyle: FontStyle.italic,
@@ -2348,7 +2324,6 @@ class _QueueItem extends StatelessWidget {
                         Text(
                           'Current Focus',
                           style: TextStyle(
-                            fontFamily: 'Manrope',
                             fontSize: 12.sp,
                             fontWeight: FontWeight.w500,
                             color: AppColors.rmHintText,
@@ -2357,7 +2332,6 @@ class _QueueItem extends StatelessWidget {
                         Text(
                           focus,
                           style: TextStyle(
-                            fontFamily: 'Manrope',
                             fontSize: 14.sp,
                             fontWeight: FontWeight.w800,
                             color: AppColors.danger,
@@ -2371,7 +2345,6 @@ class _QueueItem extends StatelessWidget {
                         Text(
                           'Source',
                           style: TextStyle(
-                            fontFamily: 'Manrope',
                             fontSize: 12.sp,
                             fontWeight: FontWeight.w500,
                             color: AppColors.rmHintText,
@@ -2388,7 +2361,6 @@ class _QueueItem extends StatelessWidget {
                             Text(
                               source,
                               style: TextStyle(
-                                fontFamily: 'Manrope',
                                 fontSize: 14.sp,
                                 fontWeight: FontWeight.w600,
                                 color: AppColors.rmHeading,
@@ -2470,7 +2442,6 @@ class _QueueItem extends StatelessWidget {
                                   action,
                                   overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
-                                    fontFamily: 'Manrope',
                                     fontSize: 12.sp,
                                     fontWeight: FontWeight.w800,
                                     color: isPrimary
@@ -2526,7 +2497,6 @@ class _LeadConversationFocus extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontFamily: 'Manrope',
                     fontSize: 22.sp,
                     fontWeight: FontWeight.w600,
                     color: AppColors.rmPrimary,
@@ -2549,7 +2519,6 @@ class _LeadConversationFocus extends StatelessWidget {
                 child: Text(
                   'Contacted',
                   style: TextStyle(
-                    fontFamily: 'Manrope',
                     fontSize: 14.sp,
                     fontWeight: FontWeight.w800,
                     color: AppColors.rmStatusText,
@@ -2563,7 +2532,7 @@ class _LeadConversationFocus extends StatelessWidget {
             'Kayra Reply Demo',
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               fontSize: 23.sp,
               fontWeight: FontWeight.w800,
               color: AppColors.rmPrimary,
@@ -2584,7 +2553,6 @@ class _LeadConversationFocus extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontFamily: 'Manrope',
                     fontSize: 17.sp,
                     fontWeight: FontWeight.w500,
                     color: AppColors.rmHeading,
@@ -2649,7 +2617,6 @@ class _LeadConversationFocus extends StatelessWidget {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
-                                fontFamily: 'Manrope',
                                 fontSize: 15.sp,
                                 fontWeight: FontWeight.w600,
                                 color: AppColors.white,
@@ -2701,7 +2668,6 @@ class _LeadConversationFocus extends StatelessWidget {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
-                                fontFamily: 'Manrope',
                                 fontSize: 15.sp,
                                 fontWeight: FontWeight.w600,
                                 color: AppColors.rmHeading,
@@ -2757,7 +2723,6 @@ class _LeadConversationFocus extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            fontFamily: 'Manrope',
                             fontSize: 15.sp,
                             fontWeight: FontWeight.w800,
                             color: AppColors.rmHeading,
@@ -2787,7 +2752,6 @@ class _LeadConversationFocus extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontFamily: 'Manrope',
                     fontSize: 18.sp,
                     fontWeight: FontWeight.w900,
                     color: AppColors.rmPrimary,
@@ -2799,7 +2763,6 @@ class _LeadConversationFocus extends StatelessWidget {
                   maxLines: 4,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontFamily: 'Manrope',
                     fontSize: 14.sp,
                     color: AppColors.rmBodyText,
                     fontWeight: FontWeight.w600,
@@ -2842,7 +2805,6 @@ class _LeadConversationFocus extends StatelessWidget {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
-                                fontFamily: 'Manrope',
                                 fontSize: 15.sp,
                                 fontWeight: FontWeight.w900,
                                 color: AppColors.white,
@@ -2906,7 +2868,6 @@ class _TaskSmallCard extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontFamily: 'Manrope',
                     fontSize: 12.sp,
                     fontWeight: FontWeight.w500,
                     color: AppColors.rmHintText,
@@ -2920,7 +2881,6 @@ class _TaskSmallCard extends StatelessWidget {
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                fontFamily: 'Manrope',
                 fontSize: 14.sp,
                 fontWeight: FontWeight.w800,
                 color: AppColors.rmHeading,

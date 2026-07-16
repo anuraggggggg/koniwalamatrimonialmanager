@@ -14,6 +14,11 @@ class LeadFollowUpItem {
     required this.lastUserResponseAt,
     required this.lastRmActionAt,
     required this.tasks,
+    required this.followUpTasks,
+    required this.openFollowUps,
+    required this.doneFollowUps,
+    required this.latestTaskCreatedAt,
+    required this.searchIndex,
   });
 
   final String id;
@@ -30,13 +35,31 @@ class LeadFollowUpItem {
   final DateTime? lastUserResponseAt;
   final DateTime? lastRmActionAt;
   final List<LeadFollowUpTask> tasks;
+  final List<LeadFollowUpTask> followUpTasks;
+  final List<LeadFollowUpTask> openFollowUps;
+  final List<LeadFollowUpTask> doneFollowUps;
+  final DateTime? latestTaskCreatedAt;
+  final String searchIndex;
 
   factory LeadFollowUpItem.fromJson(Map<String, dynamic> json) {
     final assignedTo = json['assignedTo'];
     final customer = json['customer'];
     final taskRows = json['tasks'];
+    final tasks = taskRows is List
+        ? taskRows
+              .whereType<Map<String, dynamic>>()
+              .map(LeadFollowUpTask.fromJson)
+              .toList(growable: false)
+        : const <LeadFollowUpTask>[];
+    final followUps = _followUpTasksFor(tasks);
+    final openFollowUps = followUps
+        .where((task) => task.isOpen)
+        .toList(growable: false);
+    final doneFollowUps = followUps
+        .where((task) => task.isDone)
+        .toList(growable: false);
 
-    return LeadFollowUpItem(
+    final item = LeadFollowUpItem(
       id: _readText(json['id']),
       customerId: customer is Map<String, dynamic>
           ? _readText(customer['id'], fallback: _readText(json['customerId']))
@@ -54,44 +77,14 @@ class LeadFollowUpItem {
       createdAt: _readDate(json['createdAt']),
       lastUserResponseAt: _readDate(json['lastUserResponseAt']),
       lastRmActionAt: _readDate(json['lastRMActionAt']),
-      tasks: taskRows is List
-          ? taskRows
-                .whereType<Map<String, dynamic>>()
-                .map(LeadFollowUpTask.fromJson)
-                .toList()
-          : const [],
+      tasks: tasks,
+      followUpTasks: followUps,
+      openFollowUps: openFollowUps,
+      doneFollowUps: doneFollowUps,
+      latestTaskCreatedAt: _latestCreatedAt(followUps),
+      searchIndex: '',
     );
-  }
-
-  List<LeadFollowUpTask> get followUpTasks {
-    final followUps = tasks.where((task) {
-      final type = _enumKey(task.type);
-      final workflowStatus = _enumKey(task.workflowStatus);
-      final title = task.title.toLowerCase();
-
-      return type == 'CALL' ||
-          type == 'FOLLOW_UP' ||
-          workflowStatus.contains('FOLLOW_UP') ||
-          title.contains('follow');
-    }).toList();
-
-    followUps.sort((first, second) {
-      final firstCreatedAt = first.createdAt;
-      final secondCreatedAt = second.createdAt;
-      if (firstCreatedAt == null && secondCreatedAt == null) return 0;
-      if (firstCreatedAt == null) return 1;
-      if (secondCreatedAt == null) return -1;
-      return secondCreatedAt.compareTo(firstCreatedAt);
-    });
-    return followUps;
-  }
-
-  List<LeadFollowUpTask> get openFollowUps {
-    return followUpTasks.where((task) => task.isOpen).toList();
-  }
-
-  List<LeadFollowUpTask> get doneFollowUps {
-    return followUpTasks.where((task) => task.isDone).toList();
+    return item._withSearchIndex();
   }
 
   bool get hasOverdueFollowUp {
@@ -162,7 +155,35 @@ class LeadFollowUpItem {
       return true;
     }
 
-    final values = [
+    return searchIndex.contains(normalized);
+  }
+
+  LeadFollowUpItem _withSearchIndex() {
+    return LeadFollowUpItem(
+      id: id,
+      customerId: customerId,
+      name: name,
+      phone: phone,
+      email: email,
+      stage: stage,
+      source: source,
+      city: city,
+      assignedToName: assignedToName,
+      notes: notes,
+      createdAt: createdAt,
+      lastUserResponseAt: lastUserResponseAt,
+      lastRmActionAt: lastRmActionAt,
+      tasks: tasks,
+      followUpTasks: followUpTasks,
+      openFollowUps: openFollowUps,
+      doneFollowUps: doneFollowUps,
+      latestTaskCreatedAt: latestTaskCreatedAt,
+      searchIndex: _buildSearchIndex(),
+    );
+  }
+
+  String _buildSearchIndex() {
+    return <String>[
       name,
       phone,
       email,
@@ -174,10 +195,42 @@ class LeadFollowUpItem {
       ...tasks.map((task) => task.title),
       ...tasks.map((task) => task.priority),
       ...tasks.map((task) => task.workflowStatus),
-    ];
-
-    return values.any((value) => value.toLowerCase().contains(normalized));
+    ].join(' ').toLowerCase();
   }
+}
+
+List<LeadFollowUpTask> _followUpTasksFor(List<LeadFollowUpTask> tasks) {
+  final followUps = tasks.where((task) {
+    final type = _enumKey(task.type);
+    final workflowStatus = _enumKey(task.workflowStatus);
+    final title = task.title.toLowerCase();
+
+    return type == 'CALL' ||
+        type == 'FOLLOW_UP' ||
+        workflowStatus.contains('FOLLOW_UP') ||
+        title.contains('follow');
+  }).toList();
+
+  followUps.sort((first, second) {
+    final firstCreatedAt = first.createdAt;
+    final secondCreatedAt = second.createdAt;
+    if (firstCreatedAt == null && secondCreatedAt == null) return 0;
+    if (firstCreatedAt == null) return 1;
+    if (secondCreatedAt == null) return -1;
+    return secondCreatedAt.compareTo(firstCreatedAt);
+  });
+  return followUps;
+}
+
+DateTime? _latestCreatedAt(List<LeadFollowUpTask> tasks) {
+  DateTime? latest;
+  for (final task in tasks) {
+    final createdAt = task.createdAt;
+    if (createdAt != null && (latest == null || createdAt.isAfter(latest))) {
+      latest = createdAt;
+    }
+  }
+  return latest;
 }
 
 class LeadFollowUpTask {

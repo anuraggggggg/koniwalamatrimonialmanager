@@ -50,14 +50,14 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           children: [
             Text(
               'Notifications',
-              style: GoogleFonts.manrope(
+              style: GoogleFonts.inter(
                 fontSize: 22.sp,
                 fontWeight: FontWeight.w800,
               ),
             ),
             Text(
               _roleLabel(user?.role ?? 'User'),
-              style: GoogleFonts.manrope(
+              style: GoogleFonts.inter(
                 fontSize: 11.sp,
                 fontWeight: FontWeight.w700,
                 color: AppColors.white.withValues(alpha: 0.82),
@@ -99,7 +99,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     Text(
                       notificationsProvider.error!,
                       textAlign: TextAlign.center,
-                      style: GoogleFonts.manrope(
+                      style: GoogleFonts.inter(
                         color: AppColors.rmPrimary,
                         fontSize: 15.sp,
                         fontWeight: FontWeight.w700,
@@ -134,7 +134,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     Text(
                       'No notifications available.',
                       textAlign: TextAlign.center,
-                      style: GoogleFonts.manrope(
+                      style: GoogleFonts.inter(
                         color: AppColors.rmPrimary,
                         fontSize: 15.sp,
                         fontWeight: FontWeight.w700,
@@ -221,7 +221,7 @@ class _NotificationCard extends StatelessWidget {
                     Expanded(
                       child: Text(
                         item.title,
-                        style: GoogleFonts.manrope(
+                        style: GoogleFonts.inter(
                           color: AppColors.rmHeading,
                           fontSize: 15.sp,
                           fontWeight: FontWeight.w800,
@@ -238,7 +238,7 @@ class _NotificationCard extends StatelessWidget {
                 SizedBox(height: 6.h),
                 Text(
                   item.message.isEmpty ? 'No details available.' : item.message,
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     color: AppColors.rmBodyText,
                     fontSize: 13.sp,
                     fontWeight: FontWeight.w600,
@@ -257,7 +257,7 @@ class _NotificationCard extends StatelessWidget {
                     Expanded(
                       child: Text(
                         _formatDate(item.createdAt),
-                        style: GoogleFonts.manrope(
+                        style: GoogleFonts.inter(
                           color: AppColors.rmMutedText,
                           fontSize: 12.sp,
                           fontWeight: FontWeight.w700,
@@ -352,7 +352,7 @@ class _PriorityChip extends StatelessWidget {
       ),
       child: Text(
         normalized.toUpperCase(),
-        style: GoogleFonts.manrope(
+        style: GoogleFonts.inter(
           color: color,
           fontSize: 10.sp,
           fontWeight: FontWeight.w800,

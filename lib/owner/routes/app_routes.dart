@@ -29,9 +29,7 @@ class AppRoutes {
       default:
         return _materialRoute(
           Scaffold(
-            body: Center(
-              child: Text('No route defined for ${settings.name}'),
-            ),
+            body: Center(child: Text('No route defined for ${settings.name}')),
           ),
           settings,
         );
@@ -42,9 +40,6 @@ class AppRoutes {
     Widget page,
     RouteSettings settings,
   ) {
-    return MaterialPageRoute(
-      builder: (_) => page,
-      settings: settings,
-    );
+    return MaterialPageRoute(builder: (_) => page, settings: settings);
   }
 }

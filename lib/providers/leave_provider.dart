@@ -154,22 +154,17 @@ class LeaveProvider extends ChangeNotifier {
 
     try {
       _leaveService.setAccessToken(token);
-      await _leaveService.updateLeaveStatus(
-        leaveId: leaveId,
-        status: status,
-      );
+      await _leaveService.updateLeaveStatus(leaveId: leaveId, status: status);
       _leaves = _leaves
           .map(
-            (leave) => leave.id == leaveId
-                ? leave.copyWith(status: status)
-                : leave,
+            (leave) =>
+                leave.id == leaveId ? leave.copyWith(status: status) : leave,
           )
           .toList();
       _myLeaves = _myLeaves
           .map(
-            (leave) => leave.id == leaveId
-                ? leave.copyWith(status: status)
-                : leave,
+            (leave) =>
+                leave.id == leaveId ? leave.copyWith(status: status) : leave,
           )
           .toList();
       return null;

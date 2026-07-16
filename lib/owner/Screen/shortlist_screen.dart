@@ -268,7 +268,7 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
                                     borderRadius: BorderRadius.circular(14.r),
                                   ),
                                   elevation: 0,
-                                  textStyle: GoogleFonts.manrope(
+                                  textStyle: GoogleFonts.inter(
                                     fontSize: 15.sp,
                                     fontWeight: FontWeight.w800,
                                   ),
@@ -282,11 +282,11 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
                                 unselectedLabelColor: AppColors.rmMutedText,
                                 indicatorColor: AppColors.rmPrimary,
                                 indicatorWeight: 2.2,
-                                labelStyle: GoogleFonts.manrope(
+                                labelStyle: GoogleFonts.inter(
                                   fontWeight: FontWeight.w800,
                                   fontSize: 13.sp,
                                 ),
-                                unselectedLabelStyle: GoogleFonts.manrope(
+                                unselectedLabelStyle: GoogleFonts.inter(
                                   fontWeight: FontWeight.w600,
                                   fontSize: 13.sp,
                                 ),
@@ -320,7 +320,7 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
                                         onChanged: (value) => setState(
                                           () => _shortlistSearchQuery = value,
                                         ),
-                                        style: GoogleFonts.manrope(
+                                        style: GoogleFonts.inter(
                                           color: AppColors.rmHeading,
                                           fontSize: 14.sp,
                                           fontWeight: FontWeight.w600,
@@ -328,7 +328,7 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
                                         decoration: InputDecoration(
                                           hintText:
                                               'Search by name, ID, city, or keyword...',
-                                          hintStyle: GoogleFonts.manrope(
+                                          hintStyle: GoogleFonts.inter(
                                             color: AppColors.rmMutedText,
                                             fontSize: 14.sp,
                                           ),
@@ -400,7 +400,7 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
                                   Expanded(
                                     child: Text(
                                       '${_visibleShortlistedProfiles(tabIndex).length} Profiles Shortlisted Total',
-                                      style: GoogleFonts.manrope(
+                                      style: GoogleFonts.inter(
                                         color: AppColors.rmPrimary,
                                         fontSize: 15.sp,
                                         fontWeight: FontWeight.w800,
@@ -578,7 +578,7 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
                                   children: [
                                     Text(
                                       'Add $_candidateProfileLabel Profiles',
-                                      style: GoogleFonts.notoSerif(
+                                      style: GoogleFonts.inter(
                                         color: AppColors.rmHeading,
                                         fontSize: 22.sp,
                                         fontWeight: FontWeight.w800,
@@ -588,7 +588,7 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
                                     SizedBox(height: 6.h),
                                     Text(
                                       'Select a profile to add directly into $displayName\'s shortlist.',
-                                      style: GoogleFonts.manrope(
+                                      style: GoogleFonts.inter(
                                         color: AppColors.rmBodyText,
                                         fontSize: 13.sp,
                                         fontWeight: FontWeight.w500,
@@ -635,7 +635,7 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
                                     onChanged: (value) => setModalState(
                                       () => searchQuery = value,
                                     ),
-                                    style: GoogleFonts.manrope(
+                                    style: GoogleFonts.inter(
                                       color: AppColors.rmHeading,
                                       fontSize: 14.sp,
                                       fontWeight: FontWeight.w600,
@@ -643,7 +643,7 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
                                     decoration: InputDecoration(
                                       hintText:
                                           'Search ${_candidateProfileLabel.toLowerCase()} profiles...',
-                                      hintStyle: GoogleFonts.manrope(
+                                      hintStyle: GoogleFonts.inter(
                                         color: AppColors.rmMutedText,
                                         fontSize: 14.sp,
                                       ),
@@ -716,7 +716,7 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
                         Expanded(
                           child: Text(
                             profile.name,
-                            style: GoogleFonts.manrope(
+                            style: GoogleFonts.inter(
                               fontSize: 16.sp,
                               fontWeight: FontWeight.w800,
                               color: AppColors.rmHeading,
@@ -747,7 +747,7 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
                               Text(
                                 'View',
                                 overflow: TextOverflow.ellipsis,
-                                style: GoogleFonts.manrope(
+                                style: GoogleFonts.inter(
                                   color: AppColors.rmPrimary,
                                   fontWeight: FontWeight.w700,
                                   fontSize: 13.sp,
@@ -760,7 +760,7 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
                     ),
                     Text(
                       'ID: #${profile.id}',
-                      style: GoogleFonts.manrope(
+                      style: GoogleFonts.inter(
                         fontSize: 12.sp,
                         color: AppColors.rmMutedText,
                         fontWeight: FontWeight.w600,
@@ -769,7 +769,7 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
                     SizedBox(height: 4.h),
                     Text(
                       '${profile.age} Yrs • ${profile.height} • ${profile.city}',
-                      style: GoogleFonts.manrope(
+                      style: GoogleFonts.inter(
                         fontSize: 13.sp,
                         color: AppColors.rmBodyText,
                         fontWeight: FontWeight.w600,
@@ -807,7 +807,7 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
                       Flexible(
                         child: Text(
                           'View',
-                          style: GoogleFonts.manrope(
+                          style: GoogleFonts.inter(
                             color: AppColors.rmPrimary,
                             fontSize: 13.sp,
                             fontWeight: FontWeight.w800,
@@ -846,7 +846,7 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
                       Flexible(
                         child: Text(
                           isAdding ? 'Adding...' : 'Add to Shortlist',
-                          style: GoogleFonts.manrope(
+                          style: GoogleFonts.inter(
                             color: AppColors.white,
                             fontSize: 13.sp,
                             fontWeight: FontWeight.w700,
@@ -959,11 +959,11 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
         builder: (context) => AlertDialog(
           title: Text(
             'Success',
-            style: GoogleFonts.manrope(fontWeight: FontWeight.w800),
+            style: GoogleFonts.inter(fontWeight: FontWeight.w800),
           ),
           content: Text(
             '${profile.name} added to shortlist.',
-            style: GoogleFonts.manrope(),
+            style: GoogleFonts.inter(),
           ),
           actions: [
             TextButton(
@@ -973,7 +973,7 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
               },
               child: Text(
                 'OK',
-                style: GoogleFonts.manrope(fontWeight: FontWeight.w700),
+                style: GoogleFonts.inter(fontWeight: FontWeight.w700),
               ),
             ),
           ],
@@ -1310,7 +1310,7 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
                           ),
                           child: Text(
                             '${profile.matchScore}% Match',
-                            style: GoogleFonts.manrope(
+                            style: GoogleFonts.inter(
                               color: AppColors.white,
                               fontSize: 11.sp,
                               fontWeight: FontWeight.w800,
@@ -1328,7 +1328,7 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
                     children: [
                       Text(
                         profile.name,
-                        style: GoogleFonts.manrope(
+                        style: GoogleFonts.inter(
                           fontSize: 17.sp,
                           fontWeight: FontWeight.w800,
                           color: AppColors.rmPrimary,
@@ -1343,7 +1343,7 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
                           Expanded(
                             child: Text(
                               '#${profile.shortCode}',
-                              style: GoogleFonts.manrope(
+                              style: GoogleFonts.inter(
                                 fontSize: 12.sp,
                                 color: const Color(0xFF4B4747),
                                 fontWeight: FontWeight.w600,
@@ -1363,7 +1363,7 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
                             ),
                             child: Text(
                               profile.statusLabel.toUpperCase(),
-                              style: GoogleFonts.manrope(
+                              style: GoogleFonts.inter(
                                 fontSize: 11.sp,
                                 color: const Color(0xFF149647),
                                 fontWeight: FontWeight.w800,
@@ -1379,7 +1379,7 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
                         children: [
                           Text(
                             '${profile.age} Yrs',
-                            style: GoogleFonts.manrope(
+                            style: GoogleFonts.inter(
                               fontSize: 13.sp,
                               color: const Color(0xFF3A3434),
                               fontWeight: FontWeight.w600,
@@ -1387,14 +1387,14 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
                           ),
                           Text(
                             '•',
-                            style: GoogleFonts.manrope(
+                            style: GoogleFonts.inter(
                               color: AppColors.rmMutedText,
                               fontSize: 13.sp,
                             ),
                           ),
                           Text(
                             profile.city,
-                            style: GoogleFonts.manrope(
+                            style: GoogleFonts.inter(
                               fontSize: 13.sp,
                               color: const Color(0xFF3A3434),
                               fontWeight: FontWeight.w600,
@@ -1402,14 +1402,14 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
                           ),
                           Text(
                             '•',
-                            style: GoogleFonts.manrope(
+                            style: GoogleFonts.inter(
                               color: AppColors.rmMutedText,
                               fontSize: 13.sp,
                             ),
                           ),
                           Text(
                             profile.height,
-                            style: GoogleFonts.manrope(
+                            style: GoogleFonts.inter(
                               fontSize: 13.sp,
                               color: const Color(0xFF3A3434),
                               fontWeight: FontWeight.w600,
@@ -1460,7 +1460,7 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
                   SizedBox(width: 6.w),
                   Text(
                     'Compare Profile',
-                    style: GoogleFonts.manrope(
+                    style: GoogleFonts.inter(
                       fontSize: 14.sp,
                       fontWeight: FontWeight.w800,
                       color: AppColors.white,
@@ -1484,7 +1484,7 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
                     ),
                     label: Text(
                       isSending ? 'Sending...' : 'Send Profile',
-                      style: GoogleFonts.manrope(
+                      style: GoogleFonts.inter(
                         fontSize: 13.sp,
                         fontWeight: FontWeight.w700,
                         color: AppColors.rmPrimary,
@@ -1511,7 +1511,7 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
                     ),
                     label: Text(
                       'Remove',
-                      style: GoogleFonts.manrope(
+                      style: GoogleFonts.inter(
                         fontSize: 13.sp,
                         fontWeight: FontWeight.w700,
                         color: AppColors.danger,
@@ -1538,7 +1538,7 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
               ),
               child: Text(
                 'Shortlisted on ${_formatShortlistedOn(profile.shortlistedAt)} by ${profile.shortlistedBy}',
-                style: GoogleFonts.manrope(
+                style: GoogleFonts.inter(
                   fontSize: 12.5.sp,
                   fontWeight: FontWeight.w500,
                   color: const Color(0xFF463F3F),
@@ -1583,7 +1583,7 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
                   profile.name,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     color: AppColors.rmPrimary,
                     fontSize: 14.sp,
                     fontWeight: FontWeight.w800,
@@ -1593,7 +1593,7 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
                 SizedBox(height: 4.h),
                 Text(
                   '#${profile.shortCode}',
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     color: AppColors.rmMutedText,
                     fontSize: 11.sp,
                     fontWeight: FontWeight.w600,
@@ -1612,7 +1612,7 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
                   ),
                   child: Text(
                     'Compare',
-                    style: GoogleFonts.manrope(
+                    style: GoogleFonts.inter(
                       color: AppColors.white,
                       fontSize: 12.sp,
                       fontWeight: FontWeight.w700,
@@ -1803,7 +1803,7 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
                             children: [
                               Text(
                                 'Remove from Shortlist',
-                                style: GoogleFonts.manrope(
+                                style: GoogleFonts.inter(
                                   color: titleColor,
                                   fontSize: 20.sp,
                                   fontWeight: FontWeight.w800,
@@ -1813,7 +1813,7 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
                               SizedBox(height: 4.h),
                               Text(
                                 'Are you sure you want to remove this\nprofile from the shortlist?',
-                                style: GoogleFonts.manrope(
+                                style: GoogleFonts.inter(
                                   color: bodyColor,
                                   fontSize: 14.sp,
                                   fontWeight: FontWeight.w600,
@@ -1867,7 +1867,7 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
                                 Text(
                                   profile.name,
                                   overflow: TextOverflow.ellipsis,
-                                  style: GoogleFonts.manrope(
+                                  style: GoogleFonts.inter(
                                     color: titleColor,
                                     fontSize: 18.sp,
                                     fontWeight: FontWeight.w800,
@@ -1877,7 +1877,7 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
                                 Text(
                                   '#${profile.shortCode}',
                                   overflow: TextOverflow.ellipsis,
-                                  style: GoogleFonts.manrope(
+                                  style: GoogleFonts.inter(
                                     color: bodyColor,
                                     fontSize: 13.sp,
                                     fontWeight: FontWeight.w700,
@@ -1896,7 +1896,7 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
                             ),
                             child: Text(
                               'REMOVE',
-                              style: GoogleFonts.manrope(
+                              style: GoogleFonts.inter(
                                 fontSize: 13.sp,
                                 fontWeight: FontWeight.w900,
                               ),
@@ -1926,7 +1926,7 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
                           Expanded(
                             child: Text(
                               'This will only remove the candidate from\nthis client\'s shortlist. The profile will remain\nactive in the main registry.',
-                              style: GoogleFonts.manrope(
+                              style: GoogleFonts.inter(
                                 color: bodyColor,
                                 fontSize: 12.sp,
                                 fontWeight: FontWeight.w700,
@@ -1951,7 +1951,7 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
                             ),
                             child: Text(
                               'Cancel',
-                              style: GoogleFonts.manrope(
+                              style: GoogleFonts.inter(
                                 fontSize: 14.sp,
                                 fontWeight: FontWeight.w800,
                               ),
@@ -1982,7 +1982,7 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
                                   )
                                 : Text(
                                     'Remove Profile',
-                                    style: GoogleFonts.manrope(
+                                    style: GoogleFonts.inter(
                                       fontSize: 14.sp,
                                       fontWeight: FontWeight.w800,
                                     ),
@@ -2106,7 +2106,7 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
             child: Text(
               'shortlist',
               textAlign: TextAlign.center,
-              style: GoogleFonts.playfairDisplay(
+              style: GoogleFonts.inter(
                 color: const Color(0xFF2C2626),
                 fontSize: 18.sp,
                 fontWeight: FontWeight.w700,
@@ -2222,7 +2222,7 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
                 value,
                 maxLines: fullWidth ? 1 : 2,
                 overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.manrope(
+                style: GoogleFonts.inter(
                   fontWeight: FontWeight.w800,
                   fontSize: fullWidth ? 14.sp : 15.sp,
                   color: const Color(0xFF2F2B2B),
@@ -2235,7 +2235,7 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
         SizedBox(height: 3.h),
         Text(
           label,
-          style: GoogleFonts.manrope(
+          style: GoogleFonts.inter(
             fontSize: 11.sp,
             color: AppColors.rmMutedText,
             fontWeight: FontWeight.w500,
@@ -2256,7 +2256,7 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
             text,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               fontSize: 12.8.sp,
               color: const Color(0xFF2F2B2B),
               fontWeight: FontWeight.w500,
@@ -2601,7 +2601,7 @@ class _ShortlistMessage extends StatelessWidget {
           Text(
             message,
             textAlign: TextAlign.center,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: AppColors.rmBodyText,
               fontSize: 14.sp,
               fontWeight: FontWeight.w700,
@@ -2620,7 +2620,7 @@ class _ShortlistMessage extends StatelessWidget {
               ),
               child: Text(
                 actionLabel!,
-                style: GoogleFonts.manrope(fontWeight: FontWeight.w800),
+                style: GoogleFonts.inter(fontWeight: FontWeight.w800),
               ),
             ),
           ],

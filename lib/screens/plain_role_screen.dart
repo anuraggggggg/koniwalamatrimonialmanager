@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:koniwalamatrimonial/constants/app_colors.dart';
 
 class PlainRoleScreen extends StatelessWidget {
@@ -19,28 +20,29 @@ class PlainRoleScreen extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
+            Icon(
               Icons.lock_person_outlined,
-              size: 80,
+              size: 80.sp,
               color: AppColors.primary,
             ),
             const SizedBox(height: 24),
-            const Text(
+            Text(
               'Your logged in role is:',
-              style: TextStyle(fontSize: 18, color: Colors.grey),
+              style: TextStyle(fontSize: 18.sp, color: const Color(0xFF1E1F1F)),
             ),
             const SizedBox(height: 8),
             Text(
               roleName,
-              style: const TextStyle(
-                fontSize: 28,
+              style: TextStyle(
+                fontSize: 28.sp,
                 fontWeight: FontWeight.bold,
                 color: AppColors.primary,
               ),
             ),
             const SizedBox(height: 48),
             OutlinedButton(
-              onPressed: () => Navigator.of(context).pushReplacementNamed('/login'),
+              onPressed: () =>
+                  Navigator.of(context).pushReplacementNamed('/login'),
               child: const Text('Back to Login'),
             ),
           ],

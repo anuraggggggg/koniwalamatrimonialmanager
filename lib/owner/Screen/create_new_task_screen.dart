@@ -321,7 +321,7 @@ class _CreateNewTaskScreenState extends State<CreateNewTaskScreen> {
                 children: [
                   Text(
                     'WORKFLOW MANAGEMENT',
-                    style: GoogleFonts.manrope(
+                    style: GoogleFonts.inter(
                       color: AppColors.rmPrimary,
                       fontSize: 8.sp,
                       fontWeight: FontWeight.w800,
@@ -330,7 +330,7 @@ class _CreateNewTaskScreenState extends State<CreateNewTaskScreen> {
                   SizedBox(height: 3.h),
                   Text(
                     'Create New\nTask',
-                    style: GoogleFonts.manrope(
+                    style: GoogleFonts.inter(
                       color: AppColors.rmHeading,
                       fontSize: 20.sp,
                       fontWeight: FontWeight.w700,
@@ -354,7 +354,7 @@ class _CreateNewTaskScreenState extends State<CreateNewTaskScreen> {
         SizedBox(height: 14.h),
         Text(
           'Create and assign a task for lead follow-up and workflow tracking.',
-          style: GoogleFonts.manrope(
+          style: GoogleFonts.inter(
             color: AppColors.rmBodyText,
             fontSize: 11.sp,
             fontWeight: FontWeight.w500,
@@ -388,7 +388,7 @@ class _CreateNewTaskScreenState extends State<CreateNewTaskScreen> {
         children: [
           Text(
             title,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: AppColors.rmPrimary,
               fontSize: 11.sp,
               fontWeight: FontWeight.w700,
@@ -406,7 +406,7 @@ class _CreateNewTaskScreenState extends State<CreateNewTaskScreen> {
   Widget _buildLabel(String text) {
     return Text(
       text,
-      style: GoogleFonts.manrope(
+      style: GoogleFonts.inter(
         color: AppColors.rmHeading,
         fontSize: 9.sp,
         fontWeight: FontWeight.w600,
@@ -424,14 +424,14 @@ class _CreateNewTaskScreenState extends State<CreateNewTaskScreen> {
       controller: controller,
       maxLines: maxLines,
       validator: validator,
-      style: GoogleFonts.manrope(
+      style: GoogleFonts.inter(
         color: AppColors.rmHeading,
         fontSize: 14.sp,
         fontWeight: FontWeight.w600,
       ),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: GoogleFonts.manrope(
+        hintStyle: GoogleFonts.inter(
           color: AppColors.rmHintText,
           fontSize: 14.sp,
           fontWeight: FontWeight.w500,
@@ -481,7 +481,7 @@ class _CreateNewTaskScreenState extends State<CreateNewTaskScreen> {
             Icons.keyboard_arrow_down_rounded,
             color: AppColors.rmMutedText,
           ),
-          style: GoogleFonts.manrope(
+          style: GoogleFonts.inter(
             color: AppColors.rmHeading,
             fontSize: 14.sp,
             fontWeight: FontWeight.w600,
@@ -504,7 +504,7 @@ class _CreateNewTaskScreenState extends State<CreateNewTaskScreen> {
           value: _selectedLead,
           hint: Text(
             'Select Lead',
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: AppColors.rmHintText,
               fontSize: 14.sp,
               fontWeight: FontWeight.w500,
@@ -527,7 +527,7 @@ class _CreateNewTaskScreenState extends State<CreateNewTaskScreen> {
             Icons.keyboard_arrow_down_rounded,
             color: AppColors.rmMutedText,
           ),
-          style: GoogleFonts.manrope(
+          style: GoogleFonts.inter(
             color: AppColors.rmHeading,
             fontSize: 14.sp,
             fontWeight: FontWeight.w600,
@@ -550,7 +550,7 @@ class _CreateNewTaskScreenState extends State<CreateNewTaskScreen> {
           value: _selectedManager,
           hint: Text(
             'Select relationship manager',
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: AppColors.rmHintText,
               fontSize: 14.sp,
               fontWeight: FontWeight.w500,
@@ -565,7 +565,7 @@ class _CreateNewTaskScreenState extends State<CreateNewTaskScreen> {
             Icons.keyboard_arrow_down_rounded,
             color: AppColors.rmMutedText,
           ),
-          style: GoogleFonts.manrope(
+          style: GoogleFonts.inter(
             color: AppColors.rmHeading,
             fontSize: 14.sp,
             fontWeight: FontWeight.w600,
@@ -597,7 +597,7 @@ class _CreateNewTaskScreenState extends State<CreateNewTaskScreen> {
               child: Text(
                 text,
                 overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.manrope(
+                style: GoogleFonts.inter(
                   color: AppColors.rmHeading,
                   fontSize: 11.sp,
                   fontWeight: FontWeight.w500,
@@ -641,7 +641,7 @@ class _CreateNewTaskScreenState extends State<CreateNewTaskScreen> {
               ),
               child: Text(
                 'Cancel',
-                style: GoogleFonts.manrope(
+                style: GoogleFonts.inter(
                   fontSize: 11.sp,
                   fontWeight: FontWeight.w700,
                 ),
@@ -678,7 +678,7 @@ class _CreateNewTaskScreenState extends State<CreateNewTaskScreen> {
                     else ...[
                       Text(
                         'Create Task',
-                        style: GoogleFonts.manrope(
+                        style: GoogleFonts.inter(
                           fontSize: 11.sp,
                           fontWeight: FontWeight.w700,
                         ),

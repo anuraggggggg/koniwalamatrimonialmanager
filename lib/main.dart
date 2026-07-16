@@ -11,6 +11,7 @@ import 'package:koniwalamatrimonial/owner/providers/dashboard_provider.dart'
     as owner_dashboard;
 import 'package:koniwalamatrimonial/owner/providers/app_flow_provider.dart';
 import 'package:koniwalamatrimonial/owner/providers/customer_registry_provider.dart';
+import 'package:koniwalamatrimonial/owner/providers/follow_up_control_actions_provider.dart';
 import 'package:koniwalamatrimonial/owner/providers/hr_employees_provider.dart';
 import 'package:koniwalamatrimonial/owner/providers/leave_request_provider.dart';
 import 'package:koniwalamatrimonial/owner/providers/lead_follow_ups_provider.dart';
@@ -25,10 +26,12 @@ import 'package:koniwalamatrimonial/services/leave_service.dart';
 import 'package:koniwalamatrimonial/providers/holiday_provider.dart';
 import 'package:koniwalamatrimonial/providers/hr_attendance_calendar_provider.dart';
 import 'package:koniwalamatrimonial/services/holiday_service.dart';
+import 'package:koniwalamatrimonial/services/follow_up_control_service.dart';
 import 'package:koniwalamatrimonial/constants/app_colors.dart';
 import 'package:koniwalamatrimonial/routes/app_router.dart';
 import 'package:koniwalamatrimonial/routes/app_routes.dart';
 import 'package:koniwalamatrimonial/rm/providers/rm_dashboard_summary_provider.dart';
+import 'package:koniwalamatrimonial/utils/app_responsive.dart';
 import 'package:provider/provider.dart';
 
 void main() {
@@ -40,9 +43,7 @@ class _AppScrollBehavior extends MaterialScrollBehavior {
 
   @override
   ScrollPhysics getScrollPhysics(BuildContext context) {
-    return const BouncingScrollPhysics(
-      parent: AlwaysScrollableScrollPhysics(),
-    );
+    return const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics());
   }
 
   @override
@@ -53,6 +54,78 @@ class _AppScrollBehavior extends MaterialScrollBehavior {
     PointerDeviceKind.invertedStylus,
     PointerDeviceKind.trackpad,
   };
+}
+
+ThemeData _buildAppTheme(Brightness brightness) {
+  final baseTheme = ThemeData(
+    useMaterial3: true,
+    brightness: brightness,
+    colorScheme: ColorScheme.fromSeed(
+      seedColor: AppColors.primary,
+      brightness: brightness,
+      surface: brightness == Brightness.dark
+          ? const Color(0xFF141213)
+          : const Color(0xFFFFFFFF),
+    ),
+  );
+  final interTextTheme = AppResponsive.scaleTextTheme(
+    GoogleFonts.interTextTheme(baseTheme.textTheme).apply(
+      bodyColor: brightness == Brightness.dark
+          ? Colors.white
+          : AppColors.titleColor,
+      displayColor: brightness == Brightness.dark
+          ? Colors.white
+          : AppColors.titleColor,
+    ),
+  );
+  final interPrimaryTextTheme = AppResponsive.scaleTextTheme(
+    GoogleFonts.interTextTheme(baseTheme.primaryTextTheme).apply(
+      bodyColor: brightness == Brightness.dark
+          ? Colors.white
+          : AppColors.titleColor,
+      displayColor: brightness == Brightness.dark
+          ? Colors.white
+          : AppColors.titleColor,
+    ),
+  );
+
+  return baseTheme.copyWith(
+    appBarTheme: AppBarTheme(
+      backgroundColor: AppColors.primary,
+      surfaceTintColor: AppColors.primary,
+      foregroundColor: Colors.white,
+      elevation: 0,
+      iconTheme: IconThemeData(color: Colors.white, size: 24.sp),
+      actionsIconTheme: IconThemeData(color: Colors.white, size: 24.sp),
+    ),
+    iconTheme: IconThemeData(
+      size: 24.sp,
+      color: brightness == Brightness.dark
+          ? Colors.white
+          : AppColors.titleColor,
+    ),
+    primaryIconTheme: IconThemeData(
+      size: 24.sp,
+      color: brightness == Brightness.dark
+          ? Colors.white
+          : AppColors.titleColor,
+    ),
+    iconButtonTheme: IconButtonThemeData(
+      style: IconButton.styleFrom(iconSize: 24.sp),
+    ),
+    bottomNavigationBarTheme: BottomNavigationBarThemeData(
+      selectedItemColor: AppColors.primary,
+      selectedIconTheme: IconThemeData(size: 24.sp),
+      unselectedIconTheme: IconThemeData(size: 24.sp),
+      selectedLabelStyle: TextStyle(fontSize: 12.sp),
+      unselectedLabelStyle: TextStyle(fontSize: 11.sp),
+    ),
+    scaffoldBackgroundColor: brightness == Brightness.dark
+        ? const Color(0xFF141213)
+        : AppColors.rmSoftPink,
+    textTheme: interTextTheme,
+    primaryTextTheme: interPrimaryTextTheme,
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -82,6 +155,17 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => SettingsProvider()),
         ChangeNotifierProvider(create: (_) => MatchHistoryProvider()),
         ChangeNotifierProvider(create: (_) => TasksProvider()),
+        Provider(create: (_) => FollowUpControlService()),
+        ChangeNotifierProxyProvider<
+          FollowUpControlService,
+          FollowUpControlActionsProvider
+        >(
+          create: (context) => FollowUpControlActionsProvider(
+            context.read<FollowUpControlService>(),
+          ),
+          update: (_, service, previous) =>
+              previous ?? FollowUpControlActionsProvider(service),
+        ),
         Provider(create: (_) => HolidayService()),
         ChangeNotifierProxyProvider<HolidayService, HolidayProvider>(
           create: (context) => HolidayProvider(context.read<HolidayService>()),
@@ -102,46 +186,28 @@ class MyApp extends StatelessWidget {
       ],
 
       child: ScreenUtilInit(
-        designSize: const Size(375, 812),
+        designSize: AppResponsive.designSize,
         minTextAdapt: true,
         splitScreenMode: true,
+        fontSizeResolver: AppResponsive.clampedFontSize,
         builder: (context, child) {
-          return child!;
+          return MaterialApp(
+            title: 'Koniwala Matrimonial',
+            scrollBehavior: const _AppScrollBehavior(),
+            builder: (context, child) {
+              return MediaQuery(
+                data: MediaQuery.of(
+                  context,
+                ).copyWith(textScaler: TextScaler.noScaling),
+                child: child!,
+              );
+            },
+            theme: _buildAppTheme(Brightness.light),
+            darkTheme: _buildAppTheme(Brightness.dark),
+            initialRoute: AppRoutes.splash,
+            onGenerateRoute: AppRouter.onGenerateRoute,
+          );
         },
-        child: MaterialApp(
-          title: 'Koniwala Matrimonial',
-          scrollBehavior: const _AppScrollBehavior(),
-          builder: (context, child) {
-            return MediaQuery(
-              data: MediaQuery.of(
-                context,
-              ).copyWith(textScaler: TextScaler.noScaling),
-              child: child!,
-            );
-          },
-          theme: ThemeData(
-            useMaterial3: true,
-            colorScheme: ColorScheme.fromSeed(
-              seedColor: AppColors.primary,
-              surface: const Color(0xFFFFFFFF),
-            ),
-            appBarTheme: const AppBarTheme(
-              backgroundColor: AppColors.primary,
-              surfaceTintColor: AppColors.primary,
-              foregroundColor: Colors.white,
-              elevation: 0,
-            ),
-            bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-              selectedItemColor: AppColors.primary,
-            ),
-            scaffoldBackgroundColor: AppColors.rmSoftPink,
-            textTheme: GoogleFonts.manropeTextTheme(
-              ThemeData.light().textTheme,
-            ),
-          ),
-          initialRoute: AppRoutes.splash,
-          onGenerateRoute: AppRouter.onGenerateRoute,
-        ),
       ),
     );
   }

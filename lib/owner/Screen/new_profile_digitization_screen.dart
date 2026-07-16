@@ -34,6 +34,18 @@ class _NewProfileDigitizationScreenState
   late final TextEditingController _birthPlaceController;
   late final TextEditingController _currentResidentialController;
   late final TextEditingController _heightController;
+  late final TextEditingController _educationSummaryController;
+  late final TextEditingController _occupationRoleController;
+  late final TextEditingController _fatherNameController;
+  late final TextEditingController _fatherOccupationController;
+  late final TextEditingController _fatherFirmController;
+  late final TextEditingController _motherNameController;
+  late final TextEditingController _motherOccupationController;
+  late final TextEditingController _paternalRelativeNameController;
+  late final TextEditingController _paternalRelativeNotesController;
+  late final TextEditingController _siblingNameController;
+  late final TextEditingController _siblingOccupationController;
+  late final TextEditingController _siblingDetailsController;
   String? _selectedPackageType;
   String? _selectedProfileCategory;
   String? _selectedGender;
@@ -43,7 +55,16 @@ class _NewProfileDigitizationScreenState
   String? _selectedState;
   String? _selectedGotra;
   String? _selectedComplexion;
+  String _selectedDietaryHabit = 'Vegetarian';
+  String _selectedDrinking = 'Non Consumer';
+  String _selectedSmoking = 'Non Smoker';
+  String? _selectedFamilyType;
+  String? _selectedPaternalRelation;
+  String? _selectedSiblingRelation;
+  String? _selectedSiblingStatus;
+  String? _selectedIncomeRange;
   bool _isManualEntryEnabled = false;
+  bool _isManglik = false;
   int _selectedProfileTab = 0;
   final ImagePicker _imagePicker = ImagePicker();
   String? _resumePdfPath;
@@ -66,11 +87,26 @@ class _NewProfileDigitizationScreenState
     _birthPlaceController = TextEditingController();
     _currentResidentialController = TextEditingController();
     _heightController = TextEditingController(text: '0');
+    _educationSummaryController = TextEditingController();
+    _occupationRoleController = TextEditingController();
+    _fatherNameController = TextEditingController();
+    _fatherOccupationController = TextEditingController();
+    _fatherFirmController = TextEditingController();
+    _motherNameController = TextEditingController();
+    _motherOccupationController = TextEditingController();
+    _paternalRelativeNameController = TextEditingController(text: 'Brother');
+    _paternalRelativeNotesController = TextEditingController(text: 'Brother');
+    _siblingNameController = TextEditingController();
+    _siblingOccupationController = TextEditingController();
+    _siblingDetailsController = TextEditingController();
     _selectedPackageType = _normalizePackageType(widget.customer?.packageType);
     _selectedProfileCategory = 'Other';
     _selectedMaritalStatus = 'Never Married';
     _selectedCountry = 'India';
     _selectedComplexion = 'Fair';
+    _selectedPaternalRelation = 'Brother';
+    _selectedSiblingRelation = 'Brother';
+    _selectedSiblingStatus = 'Married';
   }
 
   @override
@@ -84,6 +120,18 @@ class _NewProfileDigitizationScreenState
     _birthPlaceController.dispose();
     _currentResidentialController.dispose();
     _heightController.dispose();
+    _educationSummaryController.dispose();
+    _occupationRoleController.dispose();
+    _fatherNameController.dispose();
+    _fatherOccupationController.dispose();
+    _fatherFirmController.dispose();
+    _motherNameController.dispose();
+    _motherOccupationController.dispose();
+    _paternalRelativeNameController.dispose();
+    _paternalRelativeNotesController.dispose();
+    _siblingNameController.dispose();
+    _siblingOccupationController.dispose();
+    _siblingDetailsController.dispose();
     super.dispose();
   }
 
@@ -135,64 +183,38 @@ class _NewProfileDigitizationScreenState
       backgroundColor: AppColors.rmSoftPink,
       bottomNavigationBar: _buildBottomActionBar(),
       body: SafeArea(
-        child: Form(
-          key: _formKey,
-          child: SingleChildScrollView(
-            padding: EdgeInsets.fromLTRB(14.w, 12.h, 14.w, 28.h),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildTopBar(context),
-                SizedBox(height: 18.h),
-                _buildStatusPill(),
-                SizedBox(height: 18.h),
-                _buildResumeUploadCard(),
-                SizedBox(height: 16.h),
-                Text(
-                  'PROFILE DIGITIZATION | DATA ENTRY CORE',
-                  style: GoogleFonts.manrope(
-                    color: const Color(0xFF8C7F84),
-                    fontSize: 12.sp,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.6,
+        child: Column(
+          children: [
+            _buildTopBar(context),
+            Expanded(
+              child: Form(
+                key: _formKey,
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.fromLTRB(12.w, 14.h, 12.w, 28.h),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Configure and manage organization-wide holidays and calendar events.',
+                        style: GoogleFonts.inter(
+                          color: const Color(0xFF1E1F1F),
+                          fontSize: 15.sp,
+                          height: 1.45,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      SizedBox(height: 14.h),
+                      _buildStatusPill(),
+                      SizedBox(height: 14.h),
+                      _buildResumeUploadCard(),
+                      SizedBox(height: 12.h),
+                      _buildDigitizationCoreCard(),
+                    ],
                   ),
                 ),
-                SizedBox(height: 8.h),
-                Text(
-                  'Digitizing Profile for $_linkedClientName',
-                  style: GoogleFonts.manrope(
-                    color: AppColors.rmPrimary,
-                    fontSize: 28.sp,
-                    fontWeight: FontWeight.w700,
-                    height: 1.08,
-                  ),
-                ),
-                SizedBox(height: 14.h),
-                _buildInfoChip(
-                  label: 'Status: Direct profile creation',
-                  backgroundColor: AppColors.white,
-                  borderColor: const Color(0xFFE5B8C6),
-                  textColor: const Color(0xFF7B5A64),
-                ),
-                SizedBox(height: 10.h),
-                _buildInfoChip(
-                  label: 'Linking to Client: $_linkedClientName',
-                  icon: Icons.link_rounded,
-                  backgroundColor: const Color(0xFF08A66C),
-                  borderColor: const Color(0xFF08A66C),
-                  textColor: AppColors.white,
-                ),
-                SizedBox(height: 26.h),
-                _buildPhotoUploadCard(),
-                SizedBox(height: 24.h),
-                _buildProfileWorkspaceSection(),
-                if (_isManualEntryEnabled || widget.customer == null) ...[
-                  SizedBox(height: 24.h),
-                  _buildManualEntrySection(),
-                ],
-              ],
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );
@@ -204,13 +226,24 @@ class _NewProfileDigitizationScreenState
     return SafeArea(
       top: false,
       child: Container(
-        padding: EdgeInsets.fromLTRB(12.w, 10.h, 12.w, 12.h),
+        padding: EdgeInsets.fromLTRB(12.w, 9.h, 12.w, 10.h),
         decoration: const BoxDecoration(
           color: AppColors.white,
           border: Border(top: BorderSide(color: Color(0xFFF0DDE4))),
         ),
         child: Row(
           children: [
+            Expanded(
+              child: _buildBottomActionButton(
+                label: 'Save Draft',
+                icon: Icons.description_outlined,
+                onTap: isCreating ? null : _handleSaveDraft,
+                foregroundColor: const Color(0xFF7A6C72),
+                backgroundColor: AppColors.white,
+                borderColor: AppColors.transparent,
+              ),
+            ),
+            SizedBox(width: 6.w),
             Expanded(
               child: _buildBottomActionButton(
                 label: 'Discard',
@@ -221,19 +254,9 @@ class _NewProfileDigitizationScreenState
                 borderColor: const Color(0xFFEBC6D1),
               ),
             ),
-            SizedBox(width: 8.w),
+            SizedBox(width: 6.w),
             Expanded(
-              child: _buildBottomActionButton(
-                label: 'Save Draft',
-                icon: Icons.description_outlined,
-                onTap: isCreating ? null : _handleSaveDraft,
-                foregroundColor: const Color(0xFF7A6C72),
-                backgroundColor: AppColors.white,
-                borderColor: const Color(0xFFEBC6D1),
-              ),
-            ),
-            SizedBox(width: 8.w),
-            Expanded(
+              flex: 2,
               child: _buildBottomActionButton(
                 label: isCreating ? 'Creating...' : 'Create Profile',
                 icon: isCreating
@@ -252,48 +275,87 @@ class _NewProfileDigitizationScreenState
   }
 
   Widget _buildTopBar(BuildContext context) {
-    final isCreating = context.watch<RegistryProfilesProvider>().isCreating;
-
-    return Row(
-      children: [
-        InkWell(
-          onTap: () => Navigator.of(context).maybePop(),
-          borderRadius: BorderRadius.circular(16.r),
-          child: Padding(
-            padding: EdgeInsets.all(8.r),
-            child: Icon(
-              Icons.close_rounded,
-              color: const Color(0xFF9E5D75),
-              size: 20.sp,
+    return Container(
+      height: 68.h,
+      decoration: const BoxDecoration(
+        color: Color(0xFFFFF7F5),
+        border: Border(bottom: BorderSide(color: Color(0xFFE7D6CE))),
+      ),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 44.w,
+            height: double.infinity,
+            child: IconButton(
+              onPressed: () => Navigator.of(context).maybePop(),
+              icon: Icon(
+                Icons.arrow_back_rounded,
+                color: const Color(0xFF1F2023),
+                size: 22.sp,
+              ),
             ),
           ),
-        ),
-        const Spacer(),
-        TextButton(
-          onPressed: isCreating ? null : _handleCommit,
-          style: TextButton.styleFrom(
-            foregroundColor: AppColors.rmPrimary,
-            padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 6.h),
-          ),
-          child: Text(
-            isCreating ? 'Saving...' : 'Commit',
-            style: GoogleFonts.manrope(
-              fontSize: 18.sp,
-              fontWeight: FontWeight.w800,
+          Expanded(
+            child: Center(
+              child: Text(
+                'Profile Digitizer',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF1F2023),
+                  fontSize: 18.sp,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
             ),
           ),
-        ),
-      ],
+          SizedBox(
+            width: 44.w,
+            height: double.infinity,
+            child: PopupMenuButton<_DigitizerMenuAction>(
+              padding: EdgeInsets.zero,
+              icon: Icon(
+                Icons.more_vert_rounded,
+                color: const Color(0xFF1F2023),
+                size: 23.sp,
+              ),
+              onSelected: (action) {
+                if (action == _DigitizerMenuAction.discard) {
+                  _handleDiscard();
+                  return;
+                }
+                _handleSaveDraft();
+              },
+              itemBuilder: (context) => [
+                PopupMenuItem(
+                  value: _DigitizerMenuAction.saveDraft,
+                  child: Text(
+                    'Save Draft',
+                    style: GoogleFonts.inter(fontWeight: FontWeight.w700),
+                  ),
+                ),
+                PopupMenuItem(
+                  value: _DigitizerMenuAction.discard,
+                  child: Text(
+                    'Discard',
+                    style: GoogleFonts.inter(fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildStatusPill() {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
+      padding: EdgeInsets.symmetric(horizontal: 11.w, vertical: 7.h),
       decoration: BoxDecoration(
         color: AppColors.white,
-        borderRadius: BorderRadius.circular(10.r),
-        border: Border.all(color: const Color(0xFFE7CCD5)),
+        borderRadius: BorderRadius.circular(5.r),
+        border: Border.all(color: const Color(0xFFE6B7C6)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -306,9 +368,9 @@ class _NewProfileDigitizationScreenState
           SizedBox(width: 6.w),
           Text(
             'Resume Upload On',
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: const Color(0xFF4F4A4C),
-              fontSize: 16.sp,
+              fontSize: 14.sp,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -333,58 +395,58 @@ class _NewProfileDigitizationScreenState
               icon: Icon(Icons.edit_note_outlined, size: 16.sp),
               label: Text(
                 'Manual Entry',
-                style: GoogleFonts.manrope(
-                  fontSize: 15.sp,
+                style: GoogleFonts.inter(
+                  fontSize: 13.sp,
                   fontWeight: FontWeight.w700,
                 ),
               ),
               style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFF6A5A60),
-                side: const BorderSide(color: Color(0xFFE7D7DD)),
+                foregroundColor: const Color(0xFF3F3C3D),
+                side: const BorderSide(color: Color(0xFFBEB8B5)),
                 backgroundColor: AppColors.white,
-                padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 8.h),
+                padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 7.h),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10.r),
+                  borderRadius: BorderRadius.circular(7.r),
                 ),
               ),
             ),
           ),
-          SizedBox(height: 12.h),
+          SizedBox(height: 20.h),
           Container(
-            width: 64.r,
-            height: 64.r,
+            width: 56.r,
+            height: 56.r,
             decoration: const BoxDecoration(
-              color: Color(0xFFFFF1F4),
+              color: Color(0xFFFFF0EC),
               shape: BoxShape.circle,
             ),
             child: Icon(
               Icons.cloud_upload_outlined,
               color: AppColors.rmPrimary,
-              size: 30.sp,
+              size: 28.sp,
             ),
           ),
-          SizedBox(height: 18.h),
+          SizedBox(height: 16.h),
           Text(
             'Upload Resume PDF',
             textAlign: TextAlign.center,
-            style: GoogleFonts.manrope(
-              color: const Color(0xFF3D3035),
-              fontSize: 25.sp,
-              fontWeight: FontWeight.w700,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF1F2023),
+              fontSize: 21.sp,
+              fontWeight: FontWeight.w800,
             ),
           ),
           SizedBox(height: 8.h),
           Text(
             'Drag and drop a PDF here, or click to browse files.',
             textAlign: TextAlign.center,
-            style: GoogleFonts.manrope(
-              color: const Color(0xFF7A6D72),
-              fontSize: 16.sp,
-              height: 1.45,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF1E1F1F),
+              fontSize: 14.sp,
+              height: 1.35,
               fontWeight: FontWeight.w500,
             ),
           ),
-          SizedBox(height: 20.h),
+          SizedBox(height: 16.h),
           if (_resumePdfName != null) ...[
             Container(
               width: double.infinity,
@@ -407,7 +469,7 @@ class _NewProfileDigitizationScreenState
                       _resumePdfName!,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.manrope(
+                      style: GoogleFonts.inter(
                         color: const Color(0xFF3D3035),
                         fontSize: 14.sp,
                         fontWeight: FontWeight.w800,
@@ -435,24 +497,95 @@ class _NewProfileDigitizationScreenState
           ],
           OutlinedButton.icon(
             onPressed: _pickResumePdf,
-            icon: Icon(Icons.upload_file_rounded, size: 16.sp),
+            icon: Icon(Icons.code_rounded, size: 14.sp),
             label: Text(
-              _resumePdfName == null ? 'Browse PDF' : 'Change PDF',
-              style: GoogleFonts.manrope(
-                fontSize: 15.sp,
+              _resumePdfName == null
+                  ? 'Code-based PDF parsing ready'
+                  : 'Change PDF',
+              style: GoogleFonts.inter(
+                fontSize: 12.sp,
                 fontWeight: FontWeight.w700,
               ),
             ),
             style: OutlinedButton.styleFrom(
               foregroundColor: const Color(0xFF7B666E),
-              side: const BorderSide(color: Color(0xFFE8D7DD)),
+              side: const BorderSide(color: Color(0xFFF1C7B8)),
               backgroundColor: AppColors.white,
-              padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
+              padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 7.h),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10.r),
+                borderRadius: BorderRadius.circular(7.r),
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDigitizationCoreCard() {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.fromLTRB(7.w, 12.h, 7.w, 14.h),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(10.r),
+        border: Border.all(color: const Color(0xFFE4DAD6)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 6.w),
+            child: Text(
+              'PROFILE DIGITIZATION | DATA ENTRY CORE',
+              style: GoogleFonts.inter(
+                color: const Color(0xFF1E1F1F),
+                fontSize: 10.sp,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.3,
+              ),
+            ),
+          ),
+          SizedBox(height: 12.h),
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 6.w),
+            child: Text(
+              'Digitizing Profile for\n$_linkedClientName',
+              style: GoogleFonts.inter(
+                color: const Color(0xFF1F2023),
+                fontSize: 20.sp,
+                fontWeight: FontWeight.w800,
+                height: 1.12,
+              ),
+            ),
+          ),
+          SizedBox(height: 22.h),
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 1.w),
+            child: _buildInfoChip(
+              label: 'Status: Direct profile creation',
+              backgroundColor: AppColors.white,
+              borderColor: AppColors.rmPrimary,
+              textColor: const Color(0xFF1E1F1F),
+            ),
+          ),
+          SizedBox(height: 14.h),
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 1.w),
+            child: _buildInfoChip(
+              label: 'Linking to Client: $_linkedClientName',
+              icon: Icons.link_rounded,
+              backgroundColor: const Color(0xFF10A95F),
+              borderColor: const Color(0xFF10A95F),
+              textColor: AppColors.white,
+            ),
+          ),
+          SizedBox(height: 10.h),
+          _buildProfileWorkspaceSection(),
+          if (_isManualEntryEnabled || widget.customer == null) ...[
+            SizedBox(height: 14.h),
+            _buildManualEntrySection(),
+          ],
         ],
       ),
     );
@@ -463,39 +596,39 @@ class _NewProfileDigitizationScreenState
       child: Column(
         children: [
           Container(
-            width: 62.r,
-            height: 62.r,
+            width: 56.r,
+            height: 56.r,
             decoration: const BoxDecoration(
-              color: Color(0xFFFFF1F4),
+              color: Color(0xFFFFF0EC),
               shape: BoxShape.circle,
             ),
             child: Icon(
               Icons.add_a_photo_outlined,
-              color: const Color(0xFF6A545E),
+              color: const Color(0xFF1F2023),
               size: 28.sp,
             ),
           ),
-          SizedBox(height: 16.h),
+          SizedBox(height: 14.h),
           Text(
             _photoPaths.isEmpty ? 'Upload Profile Picture' : 'Profile Photos',
             textAlign: TextAlign.center,
-            style: GoogleFonts.manrope(
-              color: const Color(0xFF55484D),
-              fontSize: 20.sp,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF1E1F1F),
+              fontSize: 14.sp,
               fontWeight: FontWeight.w800,
             ),
           ),
-          SizedBox(height: 6.h),
+          SizedBox(height: 4.h),
           Text(
-            'JPEG, PNG visual assets supported.',
+            'JPEG, PNG visually extracted onto AWS',
             textAlign: TextAlign.center,
-            style: GoogleFonts.manrope(
-              color: const Color(0xFF8C8084),
-              fontSize: 15.sp,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF1E1F1F),
+              fontSize: 12.sp,
               fontWeight: FontWeight.w500,
             ),
           ),
-          SizedBox(height: 18.h),
+          SizedBox(height: 16.h),
           if (_photoPaths.isNotEmpty) ...[
             SizedBox(
               height: 84.w,
@@ -516,19 +649,26 @@ class _NewProfileDigitizationScreenState
           OutlinedButton(
             onPressed: _pickPhotoFromGallery,
             style: OutlinedButton.styleFrom(
-              foregroundColor: const Color(0xFF6C4D5A),
-              side: const BorderSide(color: Color(0xFFE5CBD5)),
-              padding: EdgeInsets.symmetric(horizontal: 18.w, vertical: 12.h),
+              foregroundColor: const Color(0xFF1F2023),
+              side: const BorderSide(color: AppColors.rmPrimary),
+              padding: EdgeInsets.symmetric(horizontal: 18.w, vertical: 10.h),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10.r),
+                borderRadius: BorderRadius.circular(24.r),
               ),
             ),
-            child: Text(
-              _photoPaths.isEmpty ? '+ Add First Photo' : '+ Add More Photos',
-              style: GoogleFonts.manrope(
-                fontSize: 17.sp,
-                fontWeight: FontWeight.w700,
-              ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.add_rounded, size: 17.sp),
+                SizedBox(width: 5.w),
+                Text(
+                  _photoPaths.isEmpty ? 'Add First Photo' : 'Add More Photos',
+                  style: GoogleFonts.inter(
+                    fontSize: 13.sp,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -543,97 +683,94 @@ class _NewProfileDigitizationScreenState
         _buildProfileTabBar(),
         SizedBox(height: 14.h),
         if (_selectedProfileTab == 0) ...[
-          _buildPersonalDetailsCard(),
+          _buildPhotoUploadCard(),
           SizedBox(height: 16.h),
           _buildPortfolioPhotosCard(),
           SizedBox(height: 16.h),
           _buildBiographyCard(),
           SizedBox(height: 18.h),
+          _buildPersonalDetailsCard(),
+          SizedBox(height: 18.h),
           _buildPersonalFormSection(),
-        ] else
-          _buildComingSoonCard(
-            title: _selectedProfileTab == 1
-                ? 'Astro Details'
-                : 'Education Details',
-            description: _selectedProfileTab == 1
-                ? 'Match kundali, birth information, and related astro details here.'
-                : 'Add academic background and qualification details here.',
-          ),
+        ] else if (_selectedProfileTab == 1) ...[
+          _buildAstroDetailsSection(),
+        ] else if (_selectedProfileTab == 2) ...[
+          _buildEducationDetailsSection(),
+        ] else if (_selectedProfileTab == 3) ...[
+          _buildFamilyDetailsSection(),
+        ],
       ],
     );
   }
 
   Widget _buildProfileTabBar() {
-    const tabs = <String>['Personal', 'Astro', 'Education'];
+    const tabs = <String>['Personal', 'Astro', 'Education', 'Family'];
     const icons = <IconData>[
       Icons.person_outline_rounded,
       Icons.auto_awesome_outlined,
       Icons.school_outlined,
+      Icons.family_restroom_rounded,
     ];
 
-    return Row(
-      children: List.generate(tabs.length, (index) {
-        final isSelected = _selectedProfileTab == index;
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: List.generate(tabs.length, (index) {
+          final isSelected = _selectedProfileTab == index;
 
-        return Expanded(
-          child: InkWell(
-            onTap: () => setState(() => _selectedProfileTab = index),
-            child: Container(
-              padding: EdgeInsets.only(bottom: 10.h),
-              decoration: BoxDecoration(
-                border: Border(
-                  bottom: BorderSide(
-                    color: isSelected
-                        ? AppColors.rmPrimary
-                        : const Color(0xFFECDDE3),
-                    width: isSelected ? 2.4 : 1,
-                  ),
+          return Padding(
+            padding: EdgeInsets.only(right: index == tabs.length - 1 ? 0 : 6.w),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(22.r),
+              onTap: () => setState(() => _selectedProfileTab = index),
+              child: Container(
+                constraints: BoxConstraints(minWidth: index == 0 ? 92.w : 86.w),
+                padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 8.h),
+                decoration: BoxDecoration(
+                  color: isSelected ? AppColors.rmPrimary : AppColors.white,
+                  borderRadius: BorderRadius.circular(22.r),
+                  border: Border.all(color: AppColors.rmPrimary),
                 ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    icons[index],
-                    size: 15.sp,
-                    color: isSelected
-                        ? AppColors.rmPrimary
-                        : const Color(0xFF6E646A),
-                  ),
-                  SizedBox(width: 5.w),
-                  Flexible(
-                    child: Text(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      icons[index],
+                      size: 14.sp,
+                      color: isSelected ? AppColors.white : AppColors.rmPrimary,
+                    ),
+                    SizedBox(width: 5.w),
+                    Text(
                       tabs[index],
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.manrope(
+                      style: GoogleFonts.inter(
                         color: isSelected
-                            ? AppColors.rmPrimary
-                            : const Color(0xFF6E646A),
-                        fontSize: 16.sp,
-                        fontWeight: isSelected
-                            ? FontWeight.w800
-                            : FontWeight.w600,
+                            ? AppColors.white
+                            : const Color(0xFF1E1F1F),
+                        fontSize: 13.sp,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-          ),
-        );
-      }),
+          );
+        }),
+      ),
     );
   }
 
   Widget _buildPersonalDetailsCard() {
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.all(14.r),
+      padding: EdgeInsets.all(12.r),
       decoration: BoxDecoration(
         color: AppColors.white,
-        borderRadius: BorderRadius.circular(16.r),
-        border: Border.all(color: const Color(0xFFBFEBD9)),
+        borderRadius: BorderRadius.circular(10.r),
+        border: Border.all(color: const Color(0xFFF0D3C8)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -661,9 +798,9 @@ class _NewProfileDigitizationScreenState
                   children: [
                     Text(
                       _linkedClientName,
-                      style: GoogleFonts.manrope(
-                        color: const Color(0xFF3E5A4E),
-                        fontSize: 19.sp,
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF1F2023),
+                        fontSize: 18.sp,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
@@ -680,9 +817,9 @@ class _NewProfileDigitizationScreenState
                         ),
                         Text(
                           'Change',
-                          style: GoogleFonts.manrope(
-                            color: AppColors.rmPrimary,
-                            fontSize: 15.sp,
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFF1E1F1F),
+                            fontSize: 12.sp,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
@@ -724,11 +861,11 @@ class _NewProfileDigitizationScreenState
   Widget _buildPortfolioPhotosCard() {
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.all(16.r),
+      padding: EdgeInsets.all(14.r),
       decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(16.r),
-        border: Border.all(color: const Color(0xFFF0DDE4)),
+        color: const Color(0xFFFFFCFB),
+        borderRadius: BorderRadius.circular(10.r),
+        border: Border.all(color: const Color(0xFFF0CFC2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -741,18 +878,18 @@ class _NewProfileDigitizationScreenState
                   children: [
                     Text(
                       'Portfolio Photos',
-                      style: GoogleFonts.manrope(
+                      style: GoogleFonts.inter(
                         color: const Color(0xFF4D4347),
-                        fontSize: 18.sp,
+                        fontSize: 14.sp,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
                     SizedBox(height: 4.h),
                     Text(
                       'Add more bride/groom photos to the portfolio gallery.',
-                      style: GoogleFonts.manrope(
+                      style: GoogleFonts.inter(
                         color: const Color(0xFF7E7479),
-                        fontSize: 14.sp,
+                        fontSize: 11.sp,
                         height: 1.4,
                         fontWeight: FontWeight.w500,
                       ),
@@ -766,20 +903,20 @@ class _NewProfileDigitizationScreenState
                 icon: Icon(Icons.add_photo_alternate_outlined, size: 16.sp),
                 label: Text(
                   'Add Photo',
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     fontSize: 16.sp,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.rmPrimary,
-                  side: const BorderSide(color: Color(0xFFE4B3C4)),
+                  side: const BorderSide(color: AppColors.rmPrimary),
                   padding: EdgeInsets.symmetric(
                     horizontal: 12.w,
-                    vertical: 12.h,
+                    vertical: 10.h,
                   ),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10.r),
+                    borderRadius: BorderRadius.circular(24.r),
                   ),
                 ),
               ),
@@ -806,7 +943,7 @@ class _NewProfileDigitizationScreenState
             SizedBox(height: 12.h),
             Text(
               'No gallery photos added yet.',
-              style: GoogleFonts.manrope(
+              style: GoogleFonts.inter(
                 color: const Color(0xFF9B8E94),
                 fontSize: 13.sp,
                 fontWeight: FontWeight.w600,
@@ -824,13 +961,13 @@ class _NewProfileDigitizationScreenState
       children: [
         Text(
           'Biography / About Me',
-          style: GoogleFonts.manrope(
+          style: GoogleFonts.inter(
             color: const Color(0xFF4D4347),
-            fontSize: 19.sp,
+            fontSize: 14.sp,
             fontWeight: FontWeight.w800,
           ),
         ),
-        SizedBox(height: 8.h),
+        SizedBox(height: 6.h),
         Container(
           padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
           decoration: BoxDecoration(
@@ -848,9 +985,9 @@ class _NewProfileDigitizationScreenState
               SizedBox(width: 4.w),
               Text(
                 'GENERATED BY AI',
-                style: GoogleFonts.manrope(
+                style: GoogleFonts.inter(
                   color: const Color(0xFF9C5BE6),
-                  fontSize: 12.sp,
+                  fontSize: 9.sp,
                   fontWeight: FontWeight.w800,
                 ),
               ),
@@ -865,25 +1002,25 @@ class _NewProfileDigitizationScreenState
           decoration: InputDecoration(
             hintText:
                 'Write a short biography about the bride/groom, their personality, and life goals...',
-            hintStyle: GoogleFonts.manrope(
+            hintStyle: GoogleFonts.inter(
               color: const Color(0xFF7F7277),
-              fontSize: 16.sp,
+              fontSize: 13.sp,
               height: 1.45,
               fontWeight: FontWeight.w500,
             ),
             filled: true,
             fillColor: AppColors.white,
-            contentPadding: EdgeInsets.all(14.r),
+            contentPadding: EdgeInsets.all(12.r),
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16.r),
-              borderSide: const BorderSide(color: Color(0xFFF0DDE4)),
+              borderRadius: BorderRadius.circular(8.r),
+              borderSide: const BorderSide(color: Color(0xFFF0CFC2)),
             ),
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16.r),
-              borderSide: const BorderSide(color: Color(0xFFF0DDE4)),
+              borderRadius: BorderRadius.circular(8.r),
+              borderSide: const BorderSide(color: Color(0xFFF0CFC2)),
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16.r),
+              borderRadius: BorderRadius.circular(8.r),
               borderSide: const BorderSide(color: AppColors.rmPrimary),
             ),
           ),
@@ -1077,37 +1214,516 @@ class _NewProfileDigitizationScreenState
     );
   }
 
-  Widget _buildComingSoonCard({
-    required String title,
-    required String description,
-  }) {
+  Widget _buildAstroDetailsSection() {
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.all(18.r),
+      padding: EdgeInsets.all(16.r),
       decoration: BoxDecoration(
         color: AppColors.white,
-        borderRadius: BorderRadius.circular(16.r),
-        border: Border.all(color: const Color(0xFFF0DDE4)),
+        borderRadius: BorderRadius.circular(10.r),
+        border: Border.all(color: const Color(0xFFF0D3C8)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            title,
-            style: GoogleFonts.manrope(
-              color: AppColors.rmPrimary,
-              fontSize: 23.sp,
-              fontWeight: FontWeight.w700,
+            'MANGLIK STATUS',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF1F2023),
+              fontSize: 12.sp,
+              fontWeight: FontWeight.w600,
             ),
           ),
           SizedBox(height: 8.h),
+          Row(
+            children: [
+              Expanded(
+                child: _buildManglikOption(
+                  label: 'Yes',
+                  selected: _isManglik,
+                  onTap: () => setState(() => _isManglik = true),
+                ),
+              ),
+              SizedBox(width: 16.w),
+              Expanded(
+                child: _buildManglikOption(
+                  label: 'No',
+                  selected: !_isManglik,
+                  onTap: () => setState(() => _isManglik = false),
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 14.h),
+          _buildProfileDropdownField(
+            label: 'DIETARY HABIT',
+            value: _selectedDietaryHabit,
+            items: const [
+              'Vegetarian',
+              'Non Vegetarian',
+              'Eggetarian',
+              'Vegan',
+            ],
+            onChanged: (value) {
+              if (value != null) {
+                setState(() => _selectedDietaryHabit = value);
+              }
+            },
+          ),
+          SizedBox(height: 14.h),
+          _buildProfileDropdownField(
+            label: 'DRINKING',
+            value: _selectedDrinking,
+            items: const ['Non Consumer', 'Occasionally', 'Regular'],
+            onChanged: (value) {
+              if (value != null) {
+                setState(() => _selectedDrinking = value);
+              }
+            },
+          ),
+          SizedBox(height: 14.h),
+          _buildProfileDropdownField(
+            label: 'SMOKING',
+            value: _selectedSmoking,
+            items: const ['Non Smoker', 'Occasionally', 'Regular'],
+            onChanged: (value) {
+              if (value != null) {
+                setState(() => _selectedSmoking = value);
+              }
+            },
+          ),
+          SizedBox(height: 58.h),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildManglikOption({
+    required String label,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(9.r),
+      onTap: onTap,
+      child: Container(
+        height: 46.h,
+        decoration: BoxDecoration(
+          color: AppColors.white,
+          borderRadius: BorderRadius.circular(9.r),
+          border: Border.all(
+            color: selected ? AppColors.rmPrimary : const Color(0xFFC9C4C2),
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              selected
+                  ? Icons.radio_button_checked_rounded
+                  : Icons.radio_button_unchecked_rounded,
+              color: selected ? AppColors.rmPrimary : const Color(0xFF1F2023),
+              size: 18.sp,
+            ),
+            SizedBox(width: 10.w),
+            Text(
+              label,
+              style: GoogleFonts.inter(
+                color: selected ? AppColors.rmPrimary : const Color(0xFF1F2023),
+                fontSize: 14.sp,
+                fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEducationDetailsSection() {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(16.r),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(10.r),
+        border: Border.all(color: const Color(0xFFF0D3C8)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           Text(
-            description,
-            style: GoogleFonts.manrope(
-              color: const Color(0xFF7E7479),
+            'ACADEMIC BACKGROUND',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF1F2023),
               fontSize: 15.sp,
-              height: 1.45,
-              fontWeight: FontWeight.w500,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          SizedBox(height: 12.h),
+          _buildProfileTextField(
+            controller: _educationSummaryController,
+            label: 'Education Summary',
+            hint: 'Highest qualification',
+          ),
+          SizedBox(height: 14.h),
+          _buildProfileDropdownField(
+            label: 'Occupation / Role',
+            value: _occupationRoleController.text.trim().isEmpty
+                ? null
+                : _occupationRoleController.text.trim(),
+            hint: 'Non Consumer',
+            items: const [
+              'Non Consumer',
+              'Business',
+              'Service',
+              'Professional',
+              'Student',
+            ],
+            onChanged: (value) {
+              _occupationRoleController.text = value ?? '';
+              setState(() {});
+            },
+          ),
+          SizedBox(height: 56.h),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFamilyDetailsSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildFamilyCard(
+          title: 'Parents & Family Background',
+          child: Column(
+            children: [
+              _buildProfileTextField(
+                controller: _fatherNameController,
+                label: 'Father\'s Name',
+                hint: 'Enter Father\'s Name',
+              ),
+              SizedBox(height: 12.h),
+              _buildProfileTextField(
+                controller: _fatherOccupationController,
+                label: 'Occupation',
+                hint: 'E.g. Business, Service',
+              ),
+              SizedBox(height: 12.h),
+              _buildProfileTextField(
+                controller: _fatherFirmController,
+                label: 'Firm Details',
+                hint: 'Enter firm details or workplace information...',
+              ),
+              SizedBox(height: 18.h),
+              const Divider(color: Color(0xFFF0D3C8)),
+              SizedBox(height: 14.h),
+              _buildProfileTextField(
+                controller: _motherNameController,
+                label: 'Mother\'s Name',
+                hint: 'Enter Mother\'s Name',
+              ),
+              SizedBox(height: 12.h),
+              _buildProfileTextField(
+                controller: _motherOccupationController,
+                label: 'Occupation',
+                hint: 'E.g. Homemaker, Professional',
+              ),
+              SizedBox(height: 18.h),
+              const Divider(color: Color(0xFFF0D3C8)),
+              SizedBox(height: 14.h),
+              _buildProfileDropdownField(
+                label: 'Family Type',
+                value: _selectedFamilyType,
+                hint: 'Select Family Type',
+                items: const [
+                  'Joint Family',
+                  'Nuclear Family',
+                  'Extended Family',
+                ],
+                onChanged: (value) =>
+                    setState(() => _selectedFamilyType = value),
+              ),
+            ],
+          ),
+        ),
+        SizedBox(height: 12.h),
+        _buildFamilyCard(
+          title: 'Paternal Side Relatives',
+          trailing: _buildFamilyOutlineButton('+ Add Relative'),
+          child: Container(
+            width: double.infinity,
+            padding: EdgeInsets.all(12.r),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFFCFB),
+              borderRadius: BorderRadius.circular(8.r),
+              border: Border.all(color: const Color(0xFFF0D3C8)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Icon(
+                    Icons.delete_outline_rounded,
+                    color: const Color(0xFFD32F2F),
+                    size: 19.sp,
+                  ),
+                ),
+                SizedBox(
+                  width: 126.w,
+                  child: _buildProfileDropdownField(
+                    label: 'RELATION',
+                    value: _selectedPaternalRelation,
+                    items: const ['Brother', 'Uncle', 'Aunt', 'Cousin'],
+                    onChanged: (value) =>
+                        setState(() => _selectedPaternalRelation = value),
+                  ),
+                ),
+                SizedBox(height: 12.h),
+                SizedBox(
+                  width: 126.w,
+                  child: _buildProfileTextField(
+                    controller: _paternalRelativeNameController,
+                    label: 'NAME',
+                    hint: 'Brother',
+                  ),
+                ),
+                SizedBox(height: 12.h),
+                _buildProfileTextField(
+                  controller: _paternalRelativeNotesController,
+                  label: 'NOTES',
+                  hint: 'Brother',
+                ),
+              ],
+            ),
+          ),
+        ),
+        SizedBox(height: 12.h),
+        _buildFamilyCard(
+          title: 'Maternal Side Relatives',
+          trailing: _buildFamilyOutlineButton('+ Add Relative'),
+          child: _buildEmptyFamilyBox('No relatives added yet.'),
+        ),
+        SizedBox(height: 12.h),
+        _buildFamilyCard(
+          title: 'Brothers & Sisters Information',
+          trailing: _buildFamilyOutlineButton('+ Add'),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildFamilyMetric('RECORDED\nSIBLINGS', '1'),
+                  ),
+                  SizedBox(width: 12.w),
+                  Expanded(
+                    child: _buildFamilyMetric('', 'Quick Helper\nInformation'),
+                  ),
+                ],
+              ),
+              SizedBox(height: 14.h),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Sibling #1',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF1F2023),
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  Icon(
+                    Icons.delete_outline_rounded,
+                    color: const Color(0xFFD32F2F),
+                    size: 18.sp,
+                  ),
+                ],
+              ),
+              SizedBox(height: 10.h),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildProfileDropdownField(
+                      label: 'RELATION',
+                      value: _selectedSiblingRelation,
+                      items: const ['Brother', 'Sister'],
+                      onChanged: (value) =>
+                          setState(() => _selectedSiblingRelation = value),
+                    ),
+                  ),
+                  SizedBox(width: 12.w),
+                  Expanded(
+                    child: _buildProfileDropdownField(
+                      label: 'STATUS',
+                      value: _selectedSiblingStatus,
+                      items: const ['Married', 'Unmarried'],
+                      onChanged: (value) =>
+                          setState(() => _selectedSiblingStatus = value),
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 12.h),
+              _buildProfileTextField(
+                controller: _siblingNameController,
+                label: 'NAME',
+                hint: 'Enter Name',
+              ),
+              SizedBox(height: 12.h),
+              _buildProfileTextField(
+                controller: _siblingOccupationController,
+                label: 'OCCUPATION',
+                hint: 'Enter Occupation',
+              ),
+              SizedBox(height: 12.h),
+              _buildProfileTextField(
+                controller: _siblingDetailsController,
+                label: 'DETAILS / NOTES',
+                hint: 'Additional information...',
+              ),
+            ],
+          ),
+        ),
+        SizedBox(height: 12.h),
+        _buildFamilyCard(
+          title: 'Family Income Range',
+          trailing: _buildFamilyOutlineButton('+ Add Relative'),
+          child: _buildProfileDropdownField(
+            label: '',
+            value: _selectedIncomeRange,
+            hint: 'Select Income Range',
+            items: const [
+              'Below 5 Lakh',
+              '5 - 10 Lakh',
+              '10 - 25 Lakh',
+              '25 Lakh+',
+            ],
+            onChanged: (value) => setState(() => _selectedIncomeRange = value),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFamilyCard({
+    required String title,
+    required Widget child,
+    Widget? trailing,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(10.r),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(10.r),
+        border: Border.all(color: const Color(0xFFF0D3C8)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF1F2023),
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              ?trailing,
+            ],
+          ),
+          SizedBox(height: 14.h),
+          child,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFamilyOutlineButton(String label) {
+    return OutlinedButton(
+      onPressed: () {},
+      style: OutlinedButton.styleFrom(
+        foregroundColor: const Color(0xFF1F2023),
+        side: const BorderSide(color: AppColors.rmPrimary),
+        padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 7.h),
+        minimumSize: Size.zero,
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(22.r),
+        ),
+      ),
+      child: Text(
+        label,
+        style: GoogleFonts.inter(fontSize: 13.sp, fontWeight: FontWeight.w700),
+      ),
+    );
+  }
+
+  Widget _buildEmptyFamilyBox(String message) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.symmetric(vertical: 22.h),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFFCFB),
+        borderRadius: BorderRadius.circular(8.r),
+        border: Border.all(color: const Color(0xFFF0D3C8)),
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        message,
+        style: GoogleFonts.inter(
+          color: const Color(0xFF1F2023),
+          fontSize: 14.sp,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFamilyMetric(String label, String value) {
+    return Container(
+      height: 90.h,
+      padding: EdgeInsets.all(12.r),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFFCFB),
+        borderRadius: BorderRadius.circular(8.r),
+        border: Border.all(color: const Color(0xFFF0D3C8)),
+      ),
+      child: Column(
+        crossAxisAlignment: label.isEmpty
+            ? CrossAxisAlignment.center
+            : CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          if (label.isNotEmpty) ...[
+            Text(
+              label,
+              style: GoogleFonts.inter(
+                color: const Color(0xFF1E1F1F),
+                fontSize: 11.sp,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.4,
+              ),
+            ),
+            SizedBox(height: 8.h),
+          ],
+          Text(
+            value,
+            textAlign: label.isEmpty ? TextAlign.center : TextAlign.start,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF1F2023),
+              fontSize: label.isEmpty ? 12.sp : 20.sp,
+              fontWeight: FontWeight.w800,
+              height: 1.2,
             ),
           ),
         ],
@@ -1124,16 +1740,16 @@ class _NewProfileDigitizationScreenState
     required Color borderColor,
   }) {
     return SizedBox(
-      height: 44.h,
+      height: 40.h,
       child: ElevatedButton.icon(
         onPressed: onTap,
-        icon: Icon(icon, size: 15.sp),
+        icon: Icon(icon, size: 14.sp),
         label: Text(
           label,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: GoogleFonts.manrope(
-            fontSize: 15.sp,
+          style: GoogleFonts.inter(
+            fontSize: 12.sp,
             fontWeight: FontWeight.w800,
           ),
         ),
@@ -1141,10 +1757,10 @@ class _NewProfileDigitizationScreenState
           foregroundColor: foregroundColor,
           backgroundColor: backgroundColor,
           elevation: 0,
-          padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 10.h),
+          padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 9.h),
           side: BorderSide(color: borderColor),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8.r),
+            borderRadius: BorderRadius.circular(7.r),
           ),
         ),
       ),
@@ -1162,8 +1778,10 @@ class _NewProfileDigitizationScreenState
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildProfileFieldLabel(label, required: required),
-        SizedBox(height: 6.h),
+        if (label.trim().isNotEmpty) ...[
+          _buildProfileFieldLabel(label, required: required),
+          SizedBox(height: 6.h),
+        ],
         DropdownButtonFormField<String>(
           initialValue: value,
           isExpanded: true,
@@ -1173,9 +1791,9 @@ class _NewProfileDigitizationScreenState
             size: 20.sp,
           ),
           decoration: _profileFieldDecoration(hint: hint),
-          style: GoogleFonts.manrope(
-            color: const Color(0xFF5B5054),
-            fontSize: 15.sp,
+          style: GoogleFonts.inter(
+            color: const Color(0xFF1E1F1F),
+            fontSize: 12.sp,
             fontWeight: FontWeight.w600,
           ),
           hint: hint == null
@@ -1184,9 +1802,9 @@ class _NewProfileDigitizationScreenState
                   hint,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     color: const Color(0xFF9A8C91),
-                    fontSize: 15.sp,
+                    fontSize: 12.sp,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -1218,15 +1836,17 @@ class _NewProfileDigitizationScreenState
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildProfileFieldLabel(label, required: required),
-        SizedBox(height: 6.h),
+        if (label.trim().isNotEmpty) ...[
+          _buildProfileFieldLabel(label, required: required),
+          SizedBox(height: 6.h),
+        ],
         TextFormField(
           controller: controller,
           keyboardType: keyboardType,
           decoration: _profileFieldDecoration(hint: hint),
-          style: GoogleFonts.manrope(
-            color: const Color(0xFF5B5054),
-            fontSize: 15.sp,
+          style: GoogleFonts.inter(
+            color: const Color(0xFF1E1F1F),
+            fontSize: 12.sp,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -1238,18 +1858,18 @@ class _NewProfileDigitizationScreenState
     return RichText(
       text: TextSpan(
         text: label,
-        style: GoogleFonts.manrope(
+        style: GoogleFonts.inter(
           color: const Color(0xFF40373B),
-          fontSize: 15.sp,
+          fontSize: 14.sp,
           fontWeight: FontWeight.w700,
         ),
         children: required
             ? [
                 TextSpan(
                   text: ' *',
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     color: const Color(0xFFD54C66),
-                    fontSize: 15.sp,
+                    fontSize: 14.sp,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
@@ -1262,24 +1882,24 @@ class _NewProfileDigitizationScreenState
   InputDecoration _profileFieldDecoration({String? hint}) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: GoogleFonts.manrope(
+      hintStyle: GoogleFonts.inter(
         color: const Color(0xFF9A8C91),
-        fontSize: 15.sp,
+        fontSize: 12.sp,
         fontWeight: FontWeight.w500,
       ),
       filled: true,
       fillColor: AppColors.white,
-      contentPadding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 12.h),
+      contentPadding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 11.h),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10.r),
-        borderSide: const BorderSide(color: Color(0xFFE9D3DB)),
+        borderRadius: BorderRadius.circular(7.r),
+        borderSide: const BorderSide(color: Color(0xFFDADADA)),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10.r),
-        borderSide: const BorderSide(color: Color(0xFFE9D3DB)),
+        borderRadius: BorderRadius.circular(7.r),
+        borderSide: const BorderSide(color: Color(0xFFDADADA)),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10.r),
+        borderRadius: BorderRadius.circular(7.r),
         borderSide: const BorderSide(color: AppColors.rmPrimary),
       ),
     );
@@ -1294,13 +1914,13 @@ class _NewProfileDigitizationScreenState
       padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 5.h),
       decoration: BoxDecoration(
         color: backgroundColor,
-        borderRadius: BorderRadius.circular(8.r),
+        borderRadius: BorderRadius.circular(5.r),
       ),
       child: Text(
         label,
-        style: GoogleFonts.manrope(
+        style: GoogleFonts.inter(
           color: textColor,
-          fontSize: 12.sp,
+          fontSize: 9.sp,
           fontWeight: FontWeight.w800,
         ),
       ),
@@ -1309,20 +1929,20 @@ class _NewProfileDigitizationScreenState
 
   Widget _buildClientMetaItem({required IconData icon, required String label}) {
     return SizedBox(
-      width: 122.w,
+      width: 130.w,
       child: Row(
         children: [
-          Icon(icon, color: const Color(0xFF5F8D77), size: 14.sp),
+          Icon(icon, color: const Color(0xFF1E1F1F), size: 13.sp),
           SizedBox(width: 5.w),
           Expanded(
             child: Text(
               label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.manrope(
+              style: GoogleFonts.inter(
                 color: const Color(0xFF5F6E66),
-                fontSize: 14.sp,
-                fontWeight: FontWeight.w600,
+                fontSize: 12.sp,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ),
@@ -1354,7 +1974,7 @@ class _NewProfileDigitizationScreenState
         children: [
           Text(
             'Manual Profile Details',
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: AppColors.rmPrimary,
               fontSize: 24.sp,
               fontWeight: FontWeight.w700,
@@ -1363,7 +1983,7 @@ class _NewProfileDigitizationScreenState
           SizedBox(height: 8.h),
           Text(
             'Use this when you want to digitize the profile directly without importing a resume PDF.',
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: const Color(0xFF7D7075),
               fontSize: 15.sp,
               height: 1.45,
@@ -1399,7 +2019,7 @@ class _NewProfileDigitizationScreenState
               ),
               child: Text(
                 isCreating ? 'Creating...' : 'Commit Digitization',
-                style: GoogleFonts.manrope(
+                style: GoogleFonts.inter(
                   fontSize: 17.sp,
                   fontWeight: FontWeight.w800,
                 ),
@@ -1419,10 +2039,10 @@ class _NewProfileDigitizationScreenState
     IconData? icon,
   }) {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 9.h),
+      padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 8.h),
       decoration: BoxDecoration(
         color: backgroundColor,
-        borderRadius: BorderRadius.circular(11.r),
+        borderRadius: BorderRadius.circular(7.r),
         border: Border.all(color: borderColor),
       ),
       child: Wrap(
@@ -1433,9 +2053,9 @@ class _NewProfileDigitizationScreenState
           if (icon != null) Icon(icon, color: textColor, size: 16.sp),
           Text(
             label,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: textColor,
-              fontSize: 15.sp,
+              fontSize: 13.sp,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -1465,7 +2085,7 @@ class _NewProfileDigitizationScreenState
       },
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: GoogleFonts.manrope(
+        labelStyle: GoogleFonts.inter(
           color: AppColors.rmMutedText,
           fontWeight: FontWeight.w600,
         ),
@@ -1507,7 +2127,7 @@ class _NewProfileDigitizationScreenState
       },
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: GoogleFonts.manrope(
+        labelStyle: GoogleFonts.inter(
           color: AppColors.rmMutedText,
           fontWeight: FontWeight.w600,
         ),
@@ -1538,11 +2158,11 @@ class _NewProfileDigitizationScreenState
   }
 
   Widget _buildDashedCard({required Widget child, VoidCallback? onTap}) {
-    final radius = 18.r;
+    final radius = 10.r;
 
     return CustomPaint(
       painter: _DashedCardPainter(
-        color: const Color(0xFFE9C7D2),
+        color: const Color(0xFFF4CDBE),
         strokeWidth: 1.2,
         radius: radius,
       ),
@@ -1554,7 +2174,7 @@ class _NewProfileDigitizationScreenState
           borderRadius: BorderRadius.circular(radius),
           child: Container(
             width: double.infinity,
-            padding: EdgeInsets.all(16.r),
+            padding: EdgeInsets.all(14.r),
             decoration: BoxDecoration(
               color: AppColors.transparent,
               borderRadius: BorderRadius.circular(radius),
@@ -1579,6 +2199,18 @@ class _NewProfileDigitizationScreenState
       _birthPlaceController.clear();
       _currentResidentialController.clear();
       _heightController.text = '0';
+      _educationSummaryController.clear();
+      _occupationRoleController.clear();
+      _fatherNameController.clear();
+      _fatherOccupationController.clear();
+      _fatherFirmController.clear();
+      _motherNameController.clear();
+      _motherOccupationController.clear();
+      _paternalRelativeNameController.text = 'Brother';
+      _paternalRelativeNotesController.text = 'Brother';
+      _siblingNameController.clear();
+      _siblingOccupationController.clear();
+      _siblingDetailsController.clear();
       _selectedPackageType = _normalizePackageType(
         widget.customer?.packageType,
       );
@@ -1590,6 +2222,15 @@ class _NewProfileDigitizationScreenState
       _selectedState = null;
       _selectedGotra = null;
       _selectedComplexion = 'Fair';
+      _selectedDietaryHabit = 'Vegetarian';
+      _selectedDrinking = 'Non Consumer';
+      _selectedSmoking = 'Non Smoker';
+      _isManglik = false;
+      _selectedFamilyType = null;
+      _selectedPaternalRelation = 'Brother';
+      _selectedSiblingRelation = 'Brother';
+      _selectedSiblingStatus = 'Married';
+      _selectedIncomeRange = null;
       _resumePdfPath = null;
       _resumePdfName = null;
       _photoPaths.clear();
@@ -1637,7 +2278,7 @@ class _NewProfileDigitizationScreenState
       SnackBar(
         content: Text(
           'Profile added for $_linkedClientName.',
-          style: GoogleFonts.manrope(fontWeight: FontWeight.w700),
+          style: GoogleFonts.inter(fontWeight: FontWeight.w700),
         ),
         backgroundColor: AppColors.rmPrimary,
       ),
@@ -1676,8 +2317,55 @@ class _NewProfileDigitizationScreenState
       'complexion': _enumValue(_selectedComplexion),
       'expectedBudget': _budgetValue(_selectedBudgetRange),
       'aboutMe': _biographyController.text.trim(),
+      'education': _educationSummaryController.text.trim(),
+      'occupation': _occupationRoleController.text.trim(),
+      'diet': _enumValue(_selectedDietaryHabit),
+      'manglik': _isManglik,
+      'fatherName': _fatherNameController.text.trim(),
+      'motherName': _motherNameController.text.trim(),
+      'paternalDetails': _familyPaternalDetails(),
+      'maternalDetails': _familyMaternalDetails(),
       'status': 'ACTIVE',
     });
+  }
+
+  String _familyPaternalDetails() {
+    return _compactDetails([
+      _detailLine('Father occupation', _fatherOccupationController.text),
+      _detailLine('Father firm', _fatherFirmController.text),
+      _detailLine('Family type', _selectedFamilyType),
+      _detailLine('Paternal relation', _selectedPaternalRelation),
+      _detailLine(
+        'Paternal relative name',
+        _paternalRelativeNameController.text,
+      ),
+      _detailLine('Paternal notes', _paternalRelativeNotesController.text),
+      _detailLine('Sibling relation', _selectedSiblingRelation),
+      _detailLine('Sibling status', _selectedSiblingStatus),
+      _detailLine('Sibling name', _siblingNameController.text),
+      _detailLine('Sibling occupation', _siblingOccupationController.text),
+      _detailLine('Sibling details', _siblingDetailsController.text),
+      _detailLine('Family income range', _selectedIncomeRange),
+    ]);
+  }
+
+  String _familyMaternalDetails() {
+    return _compactDetails([
+      _detailLine('Mother occupation', _motherOccupationController.text),
+      'Maternal relatives: No relatives added yet.',
+    ]);
+  }
+
+  String _detailLine(String label, String? value) {
+    final text = value?.trim() ?? '';
+    if (text.isEmpty) {
+      return '';
+    }
+    return '$label: $text';
+  }
+
+  String _compactDetails(List<String> lines) {
+    return lines.where((line) => line.trim().isNotEmpty).join('\n');
   }
 
   Map<String, dynamic> _withoutEmptyValues(Map<String, dynamic> values) {
@@ -1804,7 +2492,7 @@ class _NewProfileDigitizationScreenState
       SnackBar(
         content: Text(
           message,
-          style: GoogleFonts.manrope(fontWeight: FontWeight.w700),
+          style: GoogleFonts.inter(fontWeight: FontWeight.w700),
         ),
       ),
     );
@@ -1940,3 +2628,5 @@ class _DashedCardPainter extends CustomPainter {
         oldDelegate.radius != radius;
   }
 }
+
+enum _DigitizerMenuAction { saveDraft, discard }

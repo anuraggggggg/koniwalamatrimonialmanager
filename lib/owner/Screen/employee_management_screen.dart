@@ -10,7 +10,6 @@ import 'package:koniwalamatrimonial/owner/models/hr_employee_item.dart';
 import 'package:koniwalamatrimonial/owner/providers/hr_employees_provider.dart';
 import 'package:koniwalamatrimonial/providers/auth_provider.dart';
 import 'package:koniwalamatrimonial/routes/app_routes.dart';
-import 'package:koniwalamatrimonial/widgets/koniwala_primary_app_bar.dart';
 import 'package:provider/provider.dart';
 
 class EmployeeManagementScreen extends StatefulWidget {
@@ -24,6 +23,12 @@ class EmployeeManagementScreen extends StatefulWidget {
 class _EmployeeManagementScreenState extends State<EmployeeManagementScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
+  _StaffStageFilter _selectedStageFilter = _StaffStageFilter.all;
+  String? _selectedDepartment;
+  String? _selectedRoleFilter;
+  String? _selectedManager;
+  _StaffIncentiveFilter _selectedIncentiveFilter = _StaffIncentiveFilter.all;
+  _StaffSalaryFilter _selectedSalaryFilter = _StaffSalaryFilter.all;
   bool _hasRequestedEmployees = false;
   String? _requestedAccessToken;
   String? _requestedRole;
@@ -96,6 +101,158 @@ class _EmployeeManagementScreenState extends State<EmployeeManagementScreen> {
     return highest.round();
   }
 
+  String _employeeDepartment(HrEmployeeItem employee) {
+    return employee.department == '-'
+        ? employee.designation
+        : employee.department;
+  }
+
+  String _employeeManager(HrEmployeeItem employee) {
+    if (employee.reportingManagerName.trim().isEmpty ||
+        employee.reportingManagerName == '-') {
+      return 'Management';
+    }
+    return employee.reportingManagerName;
+  }
+
+  bool _matchesSearch(HrEmployeeItem employee) {
+    if (_searchQuery.isEmpty) return true;
+    final query = _searchQuery.toLowerCase();
+    return employee.name.toLowerCase().contains(query) ||
+        employee.email.toLowerCase().contains(query) ||
+        employee.id.toLowerCase().contains(query) ||
+        employee.phone.toLowerCase().contains(query) ||
+        _employeeDepartment(employee).toLowerCase().contains(query) ||
+        employee.designation.toLowerCase().contains(query) ||
+        _employeeManager(employee).toLowerCase().contains(query) ||
+        employee.displayRole.toLowerCase().contains(query);
+  }
+
+  bool _matchesStaffFilters(HrEmployeeItem employee) {
+    switch (_selectedStageFilter) {
+      case _StaffStageFilter.all:
+        break;
+      case _StaffStageFilter.present:
+        if (!employee.isPresentToday) return false;
+        break;
+      case _StaffStageFilter.absent:
+        if (employee.isPresentToday) return false;
+        break;
+      case _StaffStageFilter.active:
+        if (!employee.isActive) return false;
+        break;
+      case _StaffStageFilter.eligible:
+        if (!employee.isIncentiveEligible) return false;
+        break;
+    }
+
+    if (_selectedDepartment != null &&
+        _employeeDepartment(employee) != _selectedDepartment) {
+      return false;
+    }
+
+    if (_selectedRoleFilter != null &&
+        employee.displayRole != _selectedRoleFilter) {
+      return false;
+    }
+
+    if (_selectedManager != null &&
+        _employeeManager(employee) != _selectedManager) {
+      return false;
+    }
+
+    switch (_selectedIncentiveFilter) {
+      case _StaffIncentiveFilter.all:
+        break;
+      case _StaffIncentiveFilter.eligible:
+        if (!employee.isIncentiveEligible) return false;
+        break;
+      case _StaffIncentiveFilter.notEligible:
+        if (employee.isIncentiveEligible) return false;
+        break;
+    }
+
+    switch (_selectedSalaryFilter) {
+      case _StaffSalaryFilter.all:
+        return true;
+      case _StaffSalaryFilter.configured:
+        return _salaryAmount(employee.baseSalary) > 0;
+      case _StaffSalaryFilter.notConfigured:
+        return _salaryAmount(employee.baseSalary) <= 0;
+    }
+  }
+
+  num _salaryAmount(String value) {
+    final normalized = value.replaceAll(RegExp(r'[^0-9.]'), '');
+    return num.tryParse(normalized) ?? 0;
+  }
+
+  List<String> _filterOptions(
+    List<HrEmployeeItem> employees,
+    String Function(HrEmployeeItem employee) valueForEmployee,
+  ) {
+    final values = employees
+        .map(valueForEmployee)
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty && value != '-')
+        .toSet()
+        .toList();
+    values.sort(
+      (first, second) => first.toLowerCase().compareTo(second.toLowerCase()),
+    );
+    return values;
+  }
+
+  int get _activeStaffFilterCount {
+    var count = 0;
+    if (_selectedStageFilter != _StaffStageFilter.all) count++;
+    if (_selectedDepartment != null) count++;
+    if (_selectedRoleFilter != null) count++;
+    if (_selectedManager != null) count++;
+    if (_selectedIncentiveFilter != _StaffIncentiveFilter.all) count++;
+    if (_selectedSalaryFilter != _StaffSalaryFilter.all) count++;
+    return count;
+  }
+
+  Future<void> _showStaffFiltersSheet(List<HrEmployeeItem> employees) async {
+    final result = await showModalBottomSheet<_StaffFilterSelection>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.transparent,
+      builder: (sheetContext) {
+        return _StaffFiltersBottomSheet(
+          departmentOptions: _filterOptions(employees, _employeeDepartment),
+          roleOptions: _filterOptions(
+            employees,
+            (employee) => employee.displayRole,
+          ),
+          managerOptions: _filterOptions(employees, _employeeManager),
+          initialSelection: _StaffFilterSelection(
+            stageFilter: _selectedStageFilter,
+            department: _selectedDepartment,
+            role: _selectedRoleFilter,
+            manager: _selectedManager,
+            incentiveFilter: _selectedIncentiveFilter,
+            salaryFilter: _selectedSalaryFilter,
+          ),
+        );
+      },
+    );
+
+    if (result == null || !mounted) {
+      return;
+    }
+
+    setState(() {
+      _selectedStageFilter = result.stageFilter;
+      _selectedDepartment = result.department;
+      _selectedRoleFilter = result.role;
+      _selectedManager = result.manager;
+      _selectedIncentiveFilter = result.incentiveFilter;
+      _selectedSalaryFilter = result.salaryFilter;
+    });
+  }
+
   Future<void> _showEditEmployeeDialog({
     required String initialName,
     required String initialEmail,
@@ -133,7 +290,7 @@ class _EmployeeManagementScreenState extends State<EmployeeManagementScreen> {
             ),
             title: Text(
               'Edit Employee Details',
-              style: GoogleFonts.manrope(
+              style: GoogleFonts.inter(
                 color: AppColors.rmPrimary,
                 fontWeight: FontWeight.w800,
                 fontSize: 20.sp,
@@ -160,7 +317,7 @@ class _EmployeeManagementScreenState extends State<EmployeeManagementScreen> {
                         ),
                         child: Text(
                           saveError!,
-                          style: GoogleFonts.manrope(
+                          style: GoogleFonts.inter(
                             color: const Color(0xFFD94A4A),
                             fontWeight: FontWeight.w600,
                             fontSize: 13.sp,
@@ -239,7 +396,7 @@ class _EmployeeManagementScreenState extends State<EmployeeManagementScreen> {
                 onPressed: isSaving ? null : () => Navigator.pop(context),
                 child: Text(
                   'Cancel',
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     color: AppColors.rmBodyText,
                     fontWeight: FontWeight.w600,
                   ),
@@ -287,7 +444,7 @@ class _EmployeeManagementScreenState extends State<EmployeeManagementScreen> {
                 ),
                 child: Text(
                   isSaving ? 'Updating...' : 'Update Records',
-                  style: GoogleFonts.manrope(fontWeight: FontWeight.w700),
+                  style: GoogleFonts.inter(fontWeight: FontWeight.w700),
                 ),
               ),
             ],
@@ -300,14 +457,14 @@ class _EmployeeManagementScreenState extends State<EmployeeManagementScreen> {
   Widget _buildEditField(String label, TextEditingController controller) {
     return TextField(
       controller: controller,
-      style: GoogleFonts.manrope(
+      style: GoogleFonts.inter(
         fontWeight: FontWeight.w600,
         fontSize: 15.sp,
         color: AppColors.rmPrimary,
       ),
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: GoogleFonts.manrope(
+        labelStyle: GoogleFonts.inter(
           color: AppColors.rmBodyText,
           fontWeight: FontWeight.w500,
           fontSize: 14.sp,
@@ -346,7 +503,7 @@ class _EmployeeManagementScreenState extends State<EmployeeManagementScreen> {
             SizedBox(width: 10.w),
             Text(
               'Delete Record',
-              style: GoogleFonts.manrope(
+              style: GoogleFonts.inter(
                 color: const Color(0xFFD94A4A),
                 fontWeight: FontWeight.w800,
                 fontSize: 18.sp,
@@ -356,7 +513,7 @@ class _EmployeeManagementScreenState extends State<EmployeeManagementScreen> {
         ),
         content: Text(
           'Are you sure you want to delete the records for $employeeName? This action cannot be undone.',
-          style: GoogleFonts.manrope(
+          style: GoogleFonts.inter(
             color: AppColors.rmBodyText,
             fontSize: 15.sp,
             fontWeight: FontWeight.w500,
@@ -367,7 +524,7 @@ class _EmployeeManagementScreenState extends State<EmployeeManagementScreen> {
             onPressed: () => Navigator.pop(context),
             child: Text(
               'Cancel',
-              style: GoogleFonts.manrope(
+              style: GoogleFonts.inter(
                 color: AppColors.rmBodyText,
                 fontWeight: FontWeight.w600,
               ),
@@ -387,25 +544,12 @@ class _EmployeeManagementScreenState extends State<EmployeeManagementScreen> {
             ),
             child: Text(
               'Confirm Delete',
-              style: GoogleFonts.manrope(fontWeight: FontWeight.w700),
+              style: GoogleFonts.inter(fontWeight: FontWeight.w700),
             ),
           ),
         ],
       ),
     );
-  }
-
-  List<_EmployeeDirectoryEntry> _buildDirectoryEntries(
-    List<HrEmployeeItem> employees,
-  ) {
-    if (employees.isNotEmpty) {
-      return employees
-          .take(6)
-          .map(_EmployeeDirectoryEntry.fromEmployee)
-          .toList();
-    }
-
-    return _EmployeeDirectoryEntry.fallbackEntries;
   }
 
   @override
@@ -424,50 +568,37 @@ class _EmployeeManagementScreenState extends State<EmployeeManagementScreen> {
       0,
       (total, item) => total + item.closedLeads,
     );
-    final employeesWithClosures = employees
-        .where((item) => item.closedLeads > 0)
-        .length;
     final highestUnlockedPercent = _highestUnlockedPercent(employees);
 
-    final filteredEmployees = employees.where((employee) {
-      if (_searchQuery.isEmpty) return true;
-      final query = _searchQuery.toLowerCase();
-      return employee.name.toLowerCase().contains(query) ||
-          employee.email.toLowerCase().contains(query) ||
-          employee.id.toLowerCase().contains(query);
-    }).toList();
+    final filteredEmployees = employees
+        .where(
+          (employee) =>
+              _matchesSearch(employee) && _matchesStaffFilters(employee),
+        )
+        .toList();
 
-    final previewEmployees = _searchQuery.isEmpty
+    final previewEmployees =
+        _searchQuery.isEmpty && _activeStaffFilterCount == 0
         ? filteredEmployees.take(6).toList()
         : filteredEmployees;
 
-    final headerEmployee = employeesProvider.findEmployee(
-      userId: authProvider.userModel?.user?.id,
-      role: authProvider.userModel?.user?.role,
-    );
-    final directoryEntries = canAccessEmployeeManagement
-        ? _buildDirectoryEntries(employees)
-        : const <_EmployeeDirectoryEntry>[];
-    final registryTextScale = MediaQuery.textScalerOf(context).scale(1) * 1.1;
+    final registryTextScale = MediaQuery.textScalerOf(context).scale(1);
 
     return Scaffold(
-      backgroundColor: AppColors.rmSoftPink,
-      appBar: KoniwalaPrimaryAppBar(
-        showMenuButton: true,
-        showActions: false,
-        onMenuPressed: () {
+      backgroundColor: const Color(0xFFFFF9F6),
+      appBar: _StaffRegistryAppBar(
+        onBackPressed: () {
           final navigator = Navigator.of(context);
-          if (canAccessEmployeeManagement) {
-            navigator.pushNamed(AppRoutes.adminDrawer);
-            return;
-          }
-
           if (navigator.canPop()) {
             navigator.pop();
             return;
           }
 
-          navigator.pushReplacementNamed(AppRoutes.hrDashboard);
+          navigator.pushReplacementNamed(
+            canAccessEmployeeManagement
+                ? AppRoutes.ownerDashboard
+                : AppRoutes.hrDashboard,
+          );
         },
       ),
       body: MediaQuery(
@@ -485,46 +616,7 @@ class _EmployeeManagementScreenState extends State<EmployeeManagementScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _HeaderBlock(employee: headerEmployee),
-                  SizedBox(height: 20.h),
-                  GridView.count(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    crossAxisCount: 2,
-                    mainAxisSpacing: 12.h,
-                    crossAxisSpacing: 12.w,
-                    childAspectRatio: 0.92,
-                    children: [
-                      _SummaryCard(
-                        title: 'Active Registry',
-                        value: '$activeRegistry',
-                        subtitle: 'Institutional workforce',
-                        accentColor: const Color(0xFFE5358B),
-                      ),
-                      _SummaryCard(
-                        title: 'Eligible Employees',
-                        value: '$eligibleEmployees',
-                        subtitle: eligibleEmployees > 0
-                            ? 'Current cycle unlocked'
-                            : 'Awaiting cycle unlock',
-                        accentColor: const Color(0xFF2D79D7),
-                      ),
-                      _SummaryCard(
-                        title: 'Qualified Closures',
-                        value: '$qualifiedClosures',
-                        subtitle: employeesWithClosures > 0
-                            ? '$employeesWithClosures employees with closures'
-                            : 'No closures recorded',
-                        accentColor: const Color(0xFF1E9B74),
-                      ),
-                      _SummaryCard(
-                        title: 'Earned Percentage',
-                        value: '$highestUnlockedPercent',
-                        subtitle: 'Highest unlocked $highestUnlockedPercent%',
-                        accentColor: const Color(0xFFF2B82F),
-                      ),
-                    ],
-                  ),
+                  const _HeaderBlock(),
                   SizedBox(height: 16.h),
                   _SearchFilterRow(
                     controller: _searchController,
@@ -533,6 +625,52 @@ class _EmployeeManagementScreenState extends State<EmployeeManagementScreen> {
                         _searchQuery = value;
                       });
                     },
+                  ),
+                  SizedBox(height: 18.h),
+                  _FilterStageHeader(
+                    activeFilterCount: _activeStaffFilterCount,
+                    onFilterPressed: () => _showStaffFiltersSheet(employees),
+                  ),
+                  SizedBox(height: 18.h),
+                  GridView.count(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    crossAxisCount: 2,
+                    mainAxisSpacing: 8.h,
+                    crossAxisSpacing: 8.w,
+                    childAspectRatio: 1.52,
+                    children: [
+                      _SummaryCard(
+                        title: 'Active Registry',
+                        value: '$activeRegistry',
+                        subtitle: 'institutional\nworkforce',
+                        trailingIcon: Icons.trending_up_rounded,
+                        trailingColor: const Color(0xFF00A36A),
+                      ),
+                      _SummaryCard(
+                        title: 'Eligible Employees',
+                        value: '$eligibleEmployees',
+                        subtitle: eligibleEmployees > 0
+                            ? 'current cycle\nunlocked'
+                            : 'awaiting cycle\nunlock',
+                        trailingIcon: Icons.check_circle_outline_rounded,
+                        trailingColor: const Color(0xFF00A36A),
+                      ),
+                      _SummaryCard(
+                        title: 'Qualified Closures',
+                        value: '$qualifiedClosures',
+                        subtitle: '40% average\ntarget progress',
+                        trailingIcon: Icons.check_circle_outline_rounded,
+                        trailingColor: const Color(0xFF00A36A),
+                      ),
+                      _SummaryCard(
+                        title: 'Earned Percentage',
+                        value: '$highestUnlockedPercent%',
+                        subtitle: 'highest unlocked\n$highestUnlockedPercent%',
+                        trailingIcon: Icons.cancel_outlined,
+                        trailingColor: const Color(0xFFE1222E),
+                      ),
+                    ],
                   ),
                   if (employeesProvider.isLoading) ...[
                     SizedBox(height: 12.h),
@@ -544,7 +682,17 @@ class _EmployeeManagementScreenState extends State<EmployeeManagementScreen> {
                       ),
                     ),
                   ],
-                  SizedBox(height: 16.h),
+                  SizedBox(height: 20.h),
+                  Text(
+                    'FOLLOW-UP CONTROL',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFF1F1C19),
+                      fontSize: 20.sp,
+                      fontWeight: FontWeight.w800,
+                      height: 1,
+                    ),
+                  ),
+                  SizedBox(height: 12.h),
                   if (!canAccessEmployeeManagement)
                     const _MessageCard(
                       message:
@@ -645,94 +793,6 @@ class _EmployeeManagementScreenState extends State<EmployeeManagementScreen> {
                         ],
                       ],
                     ),
-                  if (canAccessEmployeeManagement) ...[
-                    SizedBox(height: 20.h),
-                    _TemplateDirectorySection(
-                      entries: directoryEntries,
-                      onEdit: (entry) {
-                        HrEmployeeItem? employee;
-                        for (final item in employeesProvider.employees) {
-                          if (item.id == entry.employeeId) {
-                            employee = item;
-                            break;
-                          }
-                        }
-
-                        if (employee == null) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Employee id is missing.'),
-                            ),
-                          );
-                          return;
-                        }
-
-                        final selectedEmployee = employee;
-                        final messenger = ScaffoldMessenger.of(context);
-                        _showEditEmployeeDialog(
-                          initialName: selectedEmployee.name,
-                          initialEmail: selectedEmployee.email,
-                          initialImage: selectedEmployee.image,
-                          initialDepartment: selectedEmployee.department,
-                          initialManager: selectedEmployee.reportingManagerName,
-                          initialIncentive:
-                              selectedEmployee.incentiveProgressLabel,
-                          initialSalary: selectedEmployee.baseSalary,
-                          onSave: (data) async {
-                            final error = await context
-                                .read<HrEmployeesProvider>()
-                                .updateEmployee(
-                                  employee: selectedEmployee,
-                                  accessToken:
-                                      authProvider.userModel?.accessToken,
-                                  name: data['name']?.toString() ?? '',
-                                  email: data['email']?.toString() ?? '',
-                                  department:
-                                      data['department']?.toString() ?? '',
-                                  reportingManagerName:
-                                      data['manager']?.toString() ?? '',
-                                  incentive:
-                                      data['incentive']?.toString() ?? '',
-                                  baseSalary: data['salary']?.toString() ?? '',
-                                  image: data['image'] is File
-                                      ? data['image'] as File
-                                      : null,
-                                );
-
-                            if (error != null) {
-                              return error;
-                            }
-
-                            if (!mounted) {
-                              return null;
-                            }
-
-                            messenger.showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  'Updated ${data['name']} records.',
-                                ),
-                              ),
-                            );
-                            return null;
-                          },
-                        );
-                      },
-                      onDelete: (entry) {
-                        _showDeleteConfirmationDialog(
-                          employeeName: entry.name,
-                          onConfirm: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Deleted ${entry.name} records.'),
-                                backgroundColor: const Color(0xFFD94A4A),
-                              ),
-                            );
-                          },
-                        );
-                      },
-                    ),
-                  ],
                 ],
               ),
             ),
@@ -743,61 +803,648 @@ class _EmployeeManagementScreenState extends State<EmployeeManagementScreen> {
   }
 }
 
-class _HeaderBlock extends StatelessWidget {
-  const _HeaderBlock({this.employee});
+class _StaffRegistryAppBar extends StatelessWidget
+    implements PreferredSizeWidget {
+  const _StaffRegistryAppBar({required this.onBackPressed});
 
-  final HrEmployeeItem? employee;
+  final VoidCallback onBackPressed;
+
+  @override
+  Size get preferredSize => Size.fromHeight(64.h);
 
   @override
   Widget build(BuildContext context) {
-    final hasImage = employee != null && employee!.image.isNotEmpty;
-    final imageProvider = employee == null
-        ? null
-        : _employeeImageProvider(employee!.image);
+    return AppBar(
+      toolbarHeight: 64.h,
+      backgroundColor: AppColors.white,
+      surfaceTintColor: AppColors.white,
+      elevation: 0,
+      shadowColor: AppColors.transparent,
+      leadingWidth: 54.w,
+      leading: IconButton(
+        tooltip: 'Back',
+        onPressed: onBackPressed,
+        icon: Icon(
+          Icons.arrow_back_rounded,
+          color: const Color(0xFF171412),
+          size: 24.sp,
+        ),
+      ),
+      titleSpacing: 0,
+      title: Text(
+        'Staff Management Registry',
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: GoogleFonts.inter(
+          color: const Color(0xFF171412),
+          fontSize: 20.sp,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+      bottom: PreferredSize(
+        preferredSize: Size.fromHeight(1.h),
+        child: Container(height: 1.h, color: const Color(0xFFE7DCD5)),
+      ),
+    );
+  }
+}
+
+class _HeaderBlock extends StatelessWidget {
+  const _HeaderBlock();
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      'Manage staff records, incentive eligibility, and\ncompensation readiness.',
+      style: GoogleFonts.inter(
+        color: const Color(0xFF23201E),
+        fontSize: 16.sp,
+        fontWeight: FontWeight.w500,
+        height: 1.55,
+      ),
+    );
+  }
+}
+
+class _FilterStageHeader extends StatelessWidget {
+  const _FilterStageHeader({
+    required this.activeFilterCount,
+    required this.onFilterPressed,
+  });
+
+  final int activeFilterCount;
+  final VoidCallback onFilterPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = activeFilterCount == 0
+        ? 'Filters'
+        : 'Filters ($activeFilterCount)';
 
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        CircleAvatar(
-          radius: 18.r,
-          backgroundColor: const Color(0xFFF2E7EA),
-          backgroundImage: imageProvider,
-          child: hasImage
-              ? null
-              : Icon(
-                  Icons.badge_outlined,
-                  color: AppColors.rmPrimary,
-                  size: 18.sp,
-                ),
-        ),
-        SizedBox(width: 12.w),
         Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Staff Management\nRegistry',
-                style: GoogleFonts.manrope(
-                  color: AppColors.rmPrimary,
-                  fontSize: 27.sp,
-                  fontWeight: FontWeight.w700,
-                  height: 1.1,
-                ),
+          child: Text(
+            'FILTER BY STAGE',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF1F1C19),
+              fontSize: 12.sp,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0.3,
+            ),
+          ),
+        ),
+        SizedBox(
+          height: 32.h,
+          child: OutlinedButton.icon(
+            onPressed: onFilterPressed,
+            icon: Icon(
+              Icons.tune_rounded,
+              color: const Color(0xFF1F1C19),
+              size: 18.sp,
+            ),
+            label: Text(
+              label,
+              style: GoogleFonts.inter(
+                color: const Color(0xFF1F1C19),
+                fontSize: 12.sp,
+                fontWeight: FontWeight.w800,
               ),
-              SizedBox(height: 8.h),
-              Text(
-                'Manage staff records, incentive eligibility, and compensation readiness.',
-                style: GoogleFonts.manrope(
-                  color: AppColors.rmBodyText,
-                  fontSize: 16.sp,
-                  fontWeight: FontWeight.w500,
-                  height: 1.35,
-                ),
+            ),
+            style: OutlinedButton.styleFrom(
+              side: const BorderSide(color: Color(0xFFD76322)),
+              padding: EdgeInsets.symmetric(horizontal: 12.w),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(9.r),
               ),
-            ],
+            ),
           ),
         ),
       ],
+    );
+  }
+}
+
+enum _StaffStageFilter { all, present, absent, active, eligible }
+
+enum _StaffIncentiveFilter { all, eligible, notEligible }
+
+enum _StaffSalaryFilter { all, configured, notConfigured }
+
+class _StaffFilterSelection {
+  const _StaffFilterSelection({
+    required this.stageFilter,
+    required this.department,
+    required this.role,
+    required this.manager,
+    required this.incentiveFilter,
+    required this.salaryFilter,
+  });
+
+  final _StaffStageFilter stageFilter;
+  final String? department;
+  final String? role;
+  final String? manager;
+  final _StaffIncentiveFilter incentiveFilter;
+  final _StaffSalaryFilter salaryFilter;
+}
+
+class _StaffFiltersBottomSheet extends StatefulWidget {
+  const _StaffFiltersBottomSheet({
+    required this.departmentOptions,
+    required this.roleOptions,
+    required this.managerOptions,
+    required this.initialSelection,
+  });
+
+  final List<String> departmentOptions;
+  final List<String> roleOptions;
+  final List<String> managerOptions;
+  final _StaffFilterSelection initialSelection;
+
+  @override
+  State<_StaffFiltersBottomSheet> createState() =>
+      _StaffFiltersBottomSheetState();
+}
+
+class _StaffFiltersBottomSheetState extends State<_StaffFiltersBottomSheet> {
+  late _StaffStageFilter _stageFilter;
+  String? _department;
+  String? _role;
+  String? _manager;
+  late _StaffIncentiveFilter _incentiveFilter;
+  late _StaffSalaryFilter _salaryFilter;
+
+  @override
+  void initState() {
+    super.initState();
+    final selection = widget.initialSelection;
+    _stageFilter = selection.stageFilter;
+    _department = selection.department;
+    _role = selection.role;
+    _manager = selection.manager;
+    _incentiveFilter = selection.incentiveFilter;
+    _salaryFilter = selection.salaryFilter;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.88,
+      minChildSize: 0.5,
+      maxChildSize: 0.94,
+      expand: false,
+      builder: (context, scrollController) {
+        return Container(
+          decoration: BoxDecoration(
+            color: AppColors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(22.r)),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x24000000),
+                blurRadius: 26,
+                offset: Offset(0, -10),
+              ),
+            ],
+          ),
+          child: SafeArea(
+            top: false,
+            child: Column(
+              children: [
+                Expanded(
+                  child: SingleChildScrollView(
+                    controller: scrollController,
+                    padding: EdgeInsets.fromLTRB(22.w, 18.h, 22.w, 18.h),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                'Filter',
+                                style: GoogleFonts.inter(
+                                  color: const Color(0xFF1F1C19),
+                                  fontSize: 24.sp,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                            IconButton(
+                              tooltip: 'Close',
+                              onPressed: () => Navigator.of(context).pop(),
+                              icon: Icon(
+                                Icons.close_rounded,
+                                color: const Color(0xFF5F5753),
+                                size: 24.sp,
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 26.h),
+                        const _StaffFilterSectionTitle(
+                          icon: Icons.flag_outlined,
+                          label: 'Stage',
+                        ),
+                        SizedBox(height: 14.h),
+                        Wrap(
+                          spacing: 8.w,
+                          runSpacing: 10.h,
+                          children: [
+                            _StaffFilterChip(
+                              label: 'All',
+                              selected: _stageFilter == _StaffStageFilter.all,
+                              onTap: () => setState(
+                                () => _stageFilter = _StaffStageFilter.all,
+                              ),
+                            ),
+                            _StaffFilterChip(
+                              label: 'Present',
+                              selected:
+                                  _stageFilter == _StaffStageFilter.present,
+                              onTap: () => setState(
+                                () => _stageFilter = _StaffStageFilter.present,
+                              ),
+                            ),
+                            _StaffFilterChip(
+                              label: 'Absent',
+                              selected:
+                                  _stageFilter == _StaffStageFilter.absent,
+                              onTap: () => setState(
+                                () => _stageFilter = _StaffStageFilter.absent,
+                              ),
+                            ),
+                            _StaffFilterChip(
+                              label: 'Active',
+                              selected:
+                                  _stageFilter == _StaffStageFilter.active,
+                              onTap: () => setState(
+                                () => _stageFilter = _StaffStageFilter.active,
+                              ),
+                            ),
+                            _StaffFilterChip(
+                              label: 'Eligible',
+                              selected:
+                                  _stageFilter == _StaffStageFilter.eligible,
+                              onTap: () => setState(
+                                () => _stageFilter = _StaffStageFilter.eligible,
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 30.h),
+                        const _StaffFilterSectionTitle(
+                          icon: Icons.business_center_outlined,
+                          label: 'Department',
+                        ),
+                        SizedBox(height: 12.h),
+                        _StaffFilterDropdown(
+                          value: _department,
+                          hintText: 'All Departments',
+                          options: widget.departmentOptions,
+                          onChanged: (value) =>
+                              setState(() => _department = value),
+                        ),
+                        SizedBox(height: 28.h),
+                        const _StaffFilterSectionTitle(
+                          icon: Icons.badge_outlined,
+                          label: 'Role',
+                        ),
+                        SizedBox(height: 12.h),
+                        _StaffFilterDropdown(
+                          value: _role,
+                          hintText: 'All Roles',
+                          options: widget.roleOptions,
+                          onChanged: (value) => setState(() => _role = value),
+                        ),
+                        SizedBox(height: 28.h),
+                        const _StaffFilterSectionTitle(
+                          icon: Icons.manage_accounts_outlined,
+                          label: 'Manager',
+                        ),
+                        SizedBox(height: 12.h),
+                        _StaffFilterDropdown(
+                          value: _manager,
+                          hintText: 'All Managers',
+                          options: widget.managerOptions,
+                          onChanged: (value) =>
+                              setState(() => _manager = value),
+                        ),
+                        SizedBox(height: 30.h),
+                        const _StaffFilterSectionTitle(
+                          icon: Icons.verified_outlined,
+                          label: 'Incentive',
+                        ),
+                        SizedBox(height: 14.h),
+                        Wrap(
+                          spacing: 8.w,
+                          runSpacing: 10.h,
+                          children: [
+                            _StaffFilterChip(
+                              label: 'All',
+                              selected:
+                                  _incentiveFilter == _StaffIncentiveFilter.all,
+                              onTap: () => setState(
+                                () => _incentiveFilter =
+                                    _StaffIncentiveFilter.all,
+                              ),
+                            ),
+                            _StaffFilterChip(
+                              label: 'Eligible',
+                              selected:
+                                  _incentiveFilter ==
+                                  _StaffIncentiveFilter.eligible,
+                              onTap: () => setState(
+                                () => _incentiveFilter =
+                                    _StaffIncentiveFilter.eligible,
+                              ),
+                            ),
+                            _StaffFilterChip(
+                              label: 'Not Eligible',
+                              selected:
+                                  _incentiveFilter ==
+                                  _StaffIncentiveFilter.notEligible,
+                              onTap: () => setState(
+                                () => _incentiveFilter =
+                                    _StaffIncentiveFilter.notEligible,
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 30.h),
+                        const _StaffFilterSectionTitle(
+                          icon: Icons.payments_outlined,
+                          label: 'Salary',
+                        ),
+                        SizedBox(height: 14.h),
+                        Wrap(
+                          spacing: 8.w,
+                          runSpacing: 10.h,
+                          children: [
+                            _StaffFilterChip(
+                              label: 'All',
+                              selected: _salaryFilter == _StaffSalaryFilter.all,
+                              onTap: () => setState(
+                                () => _salaryFilter = _StaffSalaryFilter.all,
+                              ),
+                            ),
+                            _StaffFilterChip(
+                              label: 'Configured',
+                              selected:
+                                  _salaryFilter ==
+                                  _StaffSalaryFilter.configured,
+                              onTap: () => setState(
+                                () => _salaryFilter =
+                                    _StaffSalaryFilter.configured,
+                              ),
+                            ),
+                            _StaffFilterChip(
+                              label: 'Not Configured',
+                              selected:
+                                  _salaryFilter ==
+                                  _StaffSalaryFilter.notConfigured,
+                              onTap: () => setState(
+                                () => _salaryFilter =
+                                    _StaffSalaryFilter.notConfigured,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                Container(
+                  padding: EdgeInsets.fromLTRB(22.w, 14.h, 22.w, 16.h),
+                  decoration: const BoxDecoration(
+                    color: AppColors.white,
+                    border: Border(top: BorderSide(color: Color(0xFFF0E2DA))),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: _clearFilters,
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFFD76322),
+                            side: const BorderSide(color: Color(0xFFD76322)),
+                            minimumSize: Size.fromHeight(54.h),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12.r),
+                            ),
+                          ),
+                          child: Text(
+                            'Clear All',
+                            style: GoogleFonts.inter(
+                              fontSize: 12.sp,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: 16.w),
+                      Expanded(
+                        flex: 2,
+                        child: ElevatedButton(
+                          onPressed: _applyFilters,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFD76322),
+                            foregroundColor: AppColors.white,
+                            elevation: 0,
+                            minimumSize: Size.fromHeight(54.h),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12.r),
+                            ),
+                          ),
+                          child: Text(
+                            'Apply Filters',
+                            style: GoogleFonts.inter(
+                              fontSize: 12.sp,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _clearFilters() {
+    Navigator.of(context).pop(
+      const _StaffFilterSelection(
+        stageFilter: _StaffStageFilter.all,
+        department: null,
+        role: null,
+        manager: null,
+        incentiveFilter: _StaffIncentiveFilter.all,
+        salaryFilter: _StaffSalaryFilter.all,
+      ),
+    );
+  }
+
+  void _applyFilters() {
+    Navigator.of(context).pop(
+      _StaffFilterSelection(
+        stageFilter: _stageFilter,
+        department: _department,
+        role: _role,
+        manager: _manager,
+        incentiveFilter: _incentiveFilter,
+        salaryFilter: _salaryFilter,
+      ),
+    );
+  }
+}
+
+class _StaffFilterSectionTitle extends StatelessWidget {
+  const _StaffFilterSectionTitle({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 16.sp, color: const Color(0xFF1F1C19)),
+        SizedBox(width: 8.w),
+        Text(
+          label,
+          style: GoogleFonts.inter(
+            color: const Color(0xFF1F1C19),
+            fontSize: 16.sp,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _StaffFilterChip extends StatelessWidget {
+  const _StaffFilterChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18.r),
+        child: Container(
+          height: 38.h,
+          padding: EdgeInsets.symmetric(horizontal: 16.w),
+          decoration: BoxDecoration(
+            color: selected ? const Color(0xFFD76322) : AppColors.white,
+            borderRadius: BorderRadius.circular(18.r),
+            border: Border.all(color: const Color(0xFFD76322)),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            label,
+            style: GoogleFonts.inter(
+              color: selected ? AppColors.white : const Color(0xFF1F1C19),
+              fontSize: 14.sp,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _StaffFilterDropdown extends StatelessWidget {
+  const _StaffFilterDropdown({
+    required this.value,
+    required this.hintText,
+    required this.options,
+    required this.onChanged,
+  });
+
+  final String? value;
+  final String hintText;
+  final List<String> options;
+  final ValueChanged<String?> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final currentValue = options.contains(value) ? value : null;
+
+    return DropdownButtonFormField<String>(
+      initialValue: currentValue,
+      isExpanded: true,
+      icon: Icon(
+        Icons.keyboard_arrow_down_rounded,
+        color: const Color(0xFF71757F),
+        size: 24.sp,
+      ),
+      decoration: InputDecoration(
+        filled: true,
+        fillColor: AppColors.white,
+        contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 13.h),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8.r),
+          borderSide: const BorderSide(color: Color(0xFFD3D3D3)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8.r),
+          borderSide: const BorderSide(color: Color(0xFFD76322)),
+        ),
+      ),
+      hint: Text(
+        hintText,
+        style: GoogleFonts.inter(
+          color: const Color(0xFF1F1C19),
+          fontSize: 14.sp,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      items: [
+        DropdownMenuItem<String>(
+          value: '',
+          child: Text(
+            hintText,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF1F1C19),
+              fontSize: 14.sp,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        ...options.map(
+          (option) => DropdownMenuItem<String>(
+            value: option,
+            child: Text(
+              option,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.inter(
+                color: const Color(0xFF1F1C19),
+                fontSize: 14.sp,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ),
+      ],
+      onChanged: (value) =>
+          onChanged(value == null || value.isEmpty ? null : value),
     );
   }
 }
@@ -807,83 +1454,77 @@ class _SummaryCard extends StatelessWidget {
     required this.title,
     required this.value,
     required this.subtitle,
-    required this.accentColor,
+    required this.trailingIcon,
+    required this.trailingColor,
   });
 
   final String title;
   final String value;
   final String subtitle;
-  final Color accentColor;
+  final IconData trailingIcon;
+  final Color trailingColor;
 
   @override
   Widget build(BuildContext context) {
     return Container(
+      padding: EdgeInsets.fromLTRB(14.w, 13.h, 12.w, 11.h),
       decoration: BoxDecoration(
         color: AppColors.white,
-        borderRadius: BorderRadius.circular(14.r),
-        border: Border.all(color: AppColors.rmPaleRoseBorder),
+        borderRadius: BorderRadius.circular(8.r),
+        border: Border.all(color: const Color(0xFFF0DFD7)),
         boxShadow: const [
           BoxShadow(
-            color: AppColors.rmCardShadow,
-            blurRadius: 14,
-            offset: Offset(0, 6),
+            color: Color(0x14000000),
+            blurRadius: 12,
+            offset: Offset(0, 5),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            height: 4.h,
-            decoration: BoxDecoration(
-              color: accentColor,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(14.r)),
+          Text(
+            title.toUpperCase(),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF33302D),
+              fontSize: 12.sp,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0.2,
             ),
           ),
-          Expanded(
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(12.w, 12.h, 12.w, 12.h),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.manrope(
-                      color: AppColors.rmBodyText,
-                      fontSize: 15.sp,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const Spacer(),
-                  FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      value,
-                      style: GoogleFonts.manrope(
-                        color: AppColors.rmHeading,
-                        fontSize: 33.sp,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                  SizedBox(height: 6.h),
-                  Text(
-                    subtitle,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.manrope(
-                      color: accentColor,
-                      fontSize: 13.sp,
-                      fontWeight: FontWeight.w500,
-                      height: 1.25,
-                    ),
-                  ),
-                ],
-              ),
+          SizedBox(height: 6.h),
+          Text(
+            value,
+            maxLines: 1,
+            style: GoogleFonts.inter(
+              color: const Color(0xFFD76322),
+              fontSize: 24.sp,
+              fontWeight: FontWeight.w900,
+              height: 1,
             ),
+          ),
+          const Spacer(),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: Text(
+                  subtitle,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF35302D),
+                    fontSize: 12.sp,
+                    fontWeight: FontWeight.w900,
+                    height: 1.12,
+                  ),
+                ),
+              ),
+              SizedBox(width: 8.w),
+              Icon(trailingIcon, color: trailingColor, size: 19.sp),
+            ],
           ),
         ],
       ),
@@ -899,94 +1540,50 @@ class _SearchFilterRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isCompact = constraints.maxWidth < 340.w;
-
-        final searchField = Container(
-          height: 44.h,
-          padding: EdgeInsets.symmetric(horizontal: 12.w),
-          decoration: BoxDecoration(
-            color: AppColors.white,
-            borderRadius: BorderRadius.circular(12.r),
-            border: Border.all(color: const Color(0xFFD5CCD1)),
+    return Container(
+      height: 51.h,
+      padding: EdgeInsets.symmetric(horizontal: 12.w),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(8.r),
+        border: Border.all(color: const Color(0xFFE4DDD8)),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.search_rounded,
+            size: 22.sp,
+            color: const Color(0xFF555D6B),
           ),
-          child: Row(
-            children: [
-              Icon(Icons.search, size: 22.sp, color: AppColors.rmMutedText),
-              SizedBox(width: 10.w),
-              Expanded(
-                child: TextField(
-                  controller: controller,
-                  onChanged: onChanged,
-                  onSubmitted: onChanged,
-                  textInputAction: TextInputAction.search,
-                  style: GoogleFonts.manrope(
-                    color: AppColors.rmPrimary,
-                    fontSize: 16.sp,
-                    fontWeight: FontWeight.w500,
-                  ),
-                  decoration: InputDecoration(
-                    hintText: 'Search by name, email or ID...',
-                    hintStyle: GoogleFonts.manrope(
-                      color: AppColors.rmMutedText,
-                      fontSize: 16.sp,
-                      fontWeight: FontWeight.w500,
-                    ),
-                    border: InputBorder.none,
-                    isDense: true,
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                ),
+          SizedBox(width: 10.w),
+          Expanded(
+            child: TextField(
+              controller: controller,
+              onChanged: onChanged,
+              onSubmitted: onChanged,
+              textInputAction: TextInputAction.search,
+              style: GoogleFonts.inter(
+                color: const Color(0xFF1F1C19),
+                fontSize: 14.sp,
+                fontWeight: FontWeight.w500,
               ),
-            ],
-          ),
-        );
-
-        final filterButton = Container(
-          height: 44.h,
-          padding: EdgeInsets.symmetric(horizontal: 14.w),
-          decoration: BoxDecoration(
-            color: AppColors.white,
-            borderRadius: BorderRadius.circular(12.r),
-            border: Border.all(color: const Color(0xFFD5CCD1)),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.filter_list, size: 18.sp, color: AppColors.rmPrimary),
-              SizedBox(width: 6.w),
-              Text(
-                'Filters',
-                style: GoogleFonts.manrope(
-                  color: AppColors.rmPrimary,
-                  fontSize: 15.sp,
-                  fontWeight: FontWeight.w700,
+              decoration: InputDecoration(
+                hintText:
+                    'Search by name, phone, email, city, note, or\nexecutive',
+                hintStyle: GoogleFonts.inter(
+                  color: const Color(0xFF555D6B),
+                  fontSize: 14.sp,
+                  fontWeight: FontWeight.w500,
+                  height: 1.15,
                 ),
+                border: InputBorder.none,
+                isDense: true,
+                contentPadding: EdgeInsets.zero,
               ),
-            ],
+            ),
           ),
-        );
-
-        if (isCompact) {
-          return Column(
-            children: [
-              searchField,
-              SizedBox(height: 8.h),
-              Align(alignment: Alignment.centerRight, child: filterButton),
-            ],
-          );
-        }
-
-        return Row(
-          children: [
-            Expanded(child: searchField),
-            SizedBox(width: 8.w),
-            filterButton,
-          ],
-        );
-      },
+        ],
+      ),
     );
   }
 }
@@ -1012,32 +1609,34 @@ class _EmployeeRegistryCard extends StatelessWidget {
 
   String get _statusLabel {
     if (employee.isPresentToday) {
-      return 'Active Today';
+      return 'PRESENT';
     }
-    if (employee.isActive) {
-      return 'Available';
-    }
-    return 'Offline Today';
+    return 'ABSENT';
   }
 
   @override
   Widget build(BuildContext context) {
     final hasImage = employee.image.isNotEmpty;
     final imageProvider = _employeeImageProvider(employee.image);
-    final actionButtonSize = 32.w;
+    final statusBackground = employee.isPresentToday
+        ? const Color(0xFFD8F8E3)
+        : const Color(0xFFFFDFE4);
+    final statusForeground = employee.isPresentToday
+        ? const Color(0xFF188748)
+        : const Color(0xFFD1213E);
 
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.all(14.w),
+      padding: EdgeInsets.fromLTRB(8.w, 10.h, 8.w, 10.h),
       decoration: BoxDecoration(
         color: AppColors.white,
-        borderRadius: BorderRadius.circular(16.r),
-        border: Border.all(color: AppColors.rmPaleRoseBorder),
+        borderRadius: BorderRadius.circular(12.r),
+        border: Border.all(color: const Color(0xFFE5D8D0)),
         boxShadow: const [
           BoxShadow(
-            color: AppColors.rmCardShadow,
-            blurRadius: 14,
-            offset: Offset(0, 6),
+            color: Color(0x12000000),
+            blurRadius: 10,
+            offset: Offset(0, 4),
           ),
         ],
       ),
@@ -1050,15 +1649,15 @@ class _EmployeeRegistryCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(20.r),
                 child: CircleAvatar(
                   radius: 20.r,
-                  backgroundColor: const Color(0xFFF2E7EA),
+                  backgroundColor: const Color(0xFFDDF4E7),
                   backgroundImage: imageProvider,
                   child: hasImage
                       ? null
                       : Text(
                           employee.initials,
-                          style: GoogleFonts.manrope(
-                            color: AppColors.rmPrimary,
-                            fontSize: 16.sp,
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFF1E5D47),
+                            fontSize: 13.sp,
                             fontWeight: FontWeight.w800,
                           ),
                         ),
@@ -1069,104 +1668,120 @@ class _EmployeeRegistryCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      employee.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.manrope(
-                        color: AppColors.rmPrimary,
-                        fontSize: 18.sp,
-                        fontWeight: FontWeight.w800,
-                      ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            employee.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFF1F1C19),
+                              fontSize: 18.sp,
+                              fontWeight: FontWeight.w900,
+                              height: 1.05,
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: 8.w),
+                        Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 9.w,
+                            vertical: 3.h,
+                          ),
+                          decoration: BoxDecoration(
+                            color: statusBackground,
+                            borderRadius: BorderRadius.circular(12.r),
+                          ),
+                          child: Text(
+                            _statusLabel,
+                            style: GoogleFonts.inter(
+                              color: statusForeground,
+                              fontSize: 9.sp,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 0.35,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                     SizedBox(height: 2.h),
                     Text(
-                      employee.displayRole.toUpperCase(),
+                      employee.email == '-'
+                          ? 'employee@koniwala.in'
+                          : employee.email,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.manrope(
-                        color: AppColors.rmBodyText,
-                        fontSize: 15.sp,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.4,
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF1F1C19),
+                        fontSize: 13.sp,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ],
                 ),
               ),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  InkWell(
-                    onTap: onEdit,
-                    borderRadius: BorderRadius.circular(8.r),
-                    child: Container(
-                      width: actionButtonSize,
-                      height: actionButtonSize,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF2E7EA),
-                        borderRadius: BorderRadius.circular(8.r),
-                      ),
-                      child: Icon(
-                        Icons.edit_outlined,
-                        size: 18.sp,
-                        color: AppColors.rmPrimary,
-                      ),
-                    ),
-                  ),
-                  SizedBox(width: 8.w),
-                  InkWell(
-                    onTap: onDelete,
-                    borderRadius: BorderRadius.circular(8.r),
-                    child: Container(
-                      width: actionButtonSize,
-                      height: actionButtonSize,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFF1F4),
-                        borderRadius: BorderRadius.circular(8.r),
-                      ),
-                      child: Icon(
-                        Icons.delete_outline_rounded,
-                        size: 18.sp,
-                        color: const Color(0xFFD94A4A),
-                      ),
-                    ),
-                  ),
-                ],
+              IconButton(
+                tooltip: 'Edit',
+                onPressed: onEdit,
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                constraints: BoxConstraints.tight(Size(28.w, 28.w)),
+                icon: Icon(
+                  Icons.edit_outlined,
+                  color: const Color(0xFF5B3531),
+                  size: 18.sp,
+                ),
+              ),
+              IconButton(
+                tooltip: 'Delete',
+                onPressed: onDelete,
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                constraints: BoxConstraints.tight(Size(28.w, 28.w)),
+                icon: Icon(
+                  Icons.delete_outline_rounded,
+                  color: const Color(0xFF5B3531),
+                  size: 18.sp,
+                ),
               ),
             ],
           ),
-          SizedBox(height: 12.h),
+          SizedBox(height: 10.h),
+          Divider(height: 1.h, color: const Color(0xFFF0E5DF)),
+          SizedBox(height: 10.h),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: _EmployeeInfoBox(
-                  title: 'Reporting To',
-                  value: _reportingLabel,
+                child: _EmployeeInfoBlock(
+                  title: 'Dept & Role',
+                  value:
+                      '${employee.department == '-' ? employee.designation : employee.department} • ${employee.displayRole}',
                 ),
               ),
-              SizedBox(width: 10.w),
+              SizedBox(width: 14.w),
               Expanded(
-                child: _EmployeeInfoBox(title: 'Status', value: _statusLabel),
+                child: _EmployeeInfoBlock(
+                  title: 'Manager',
+                  value: _reportingLabel,
+                ),
               ),
             ],
           ),
           SizedBox(height: 10.h),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: _EmployeeInfoBox(
-                  title: 'Department',
-                  value: employee.department == '-'
-                      ? employee.designation
-                      : employee.department,
+                child: _EmployeeInfoBlock(
+                  title: 'Incentive',
+                  value: employee.incentiveProgressLabel,
                 ),
               ),
-              SizedBox(width: 10.w),
+              SizedBox(width: 14.w),
               Expanded(
-                child: _EmployeeInfoBox(
+                child: _EmployeeInfoBlock(
                   title: 'Base Salary',
                   value: _formatDirectorySalary(employee.baseSalary),
                 ),
@@ -1179,174 +1794,64 @@ class _EmployeeRegistryCard extends StatelessWidget {
   }
 }
 
-class _EmployeeInfoBox extends StatelessWidget {
-  const _EmployeeInfoBox({required this.title, required this.value});
+class _EmployeeInfoBlock extends StatelessWidget {
+  const _EmployeeInfoBlock({required this.title, required this.value});
 
   final String title;
   final String value;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      constraints: BoxConstraints(minHeight: 72.h),
-      padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 10.h),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFF8FA),
-        borderRadius: BorderRadius.circular(10.r),
-        border: Border.all(color: AppColors.rmPaleRoseBorder),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.manrope(
-              color: AppColors.rmBodyText,
-              fontSize: 12.sp,
-              fontWeight: FontWeight.w600,
-            ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: GoogleFonts.inter(
+            color: const Color(0xFF5E5A63),
+            fontSize: 12.sp,
+            fontWeight: FontWeight.w700,
+            height: 1,
           ),
-          SizedBox(height: 6.h),
-          Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.manrope(
-              color: AppColors.rmPrimary,
-              fontSize: 15.sp,
-              fontWeight: FontWeight.w700,
-            ),
+        ),
+        SizedBox(height: 4.h),
+        Text(
+          value,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: GoogleFonts.inter(
+            color: const Color(0xFF1F1C19),
+            fontSize: 14.sp,
+            fontWeight: FontWeight.w900,
+            height: 1.08,
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
-}
-
-class _EmployeeDirectoryEntry {
-  const _EmployeeDirectoryEntry({
-    required this.employeeId,
-    required this.name,
-    required this.email,
-    required this.statusLabel,
-    required this.isPresent,
-    required this.departmentRole,
-    required this.manager,
-    required this.incentive,
-    required this.baseSalary,
-    required this.initials,
-    this.image = '',
-  });
-
-  final String employeeId;
-  final String name;
-  final String email;
-  final String statusLabel;
-  final bool isPresent;
-  final String departmentRole;
-  final String manager;
-  final String incentive;
-  final String baseSalary;
-  final String initials;
-  final String image;
-
-  bool get hasImage => image.isNotEmpty;
-
-  factory _EmployeeDirectoryEntry.fromEmployee(HrEmployeeItem employee) {
-    return _EmployeeDirectoryEntry(
-      employeeId: employee.id,
-      name: employee.name,
-      email: employee.email == '-' ? 'employee@koniwala.in' : employee.email,
-      statusLabel: employee.isPresentToday ? 'PRESENT' : 'ABSENT',
-      isPresent: employee.isPresentToday,
-      departmentRole: _buildDepartmentRole(employee),
-      manager: employee.reportingManagerName == '-'
-          ? 'Management'
-          : employee.reportingManagerName,
-      incentive: employee.incentiveProgressLabel,
-      baseSalary: _formatDirectorySalary(employee.baseSalary),
-      initials: employee.initials,
-      image: employee.image,
-    );
-  }
-
-  static String _buildDepartmentRole(HrEmployeeItem employee) {
-    final department = employee.department == '-'
-        ? employee.designation
-        : employee.department;
-    return '$department - ${employee.displayRole}';
-  }
-
-  static const fallbackEntries = [
-    _EmployeeDirectoryEntry(
-      employeeId: '',
-      name: 'Alok Agrawal',
-      email: 'admin@koniwala.in',
-      statusLabel: 'PRESENT',
-      isPresent: true,
-      departmentRole: 'Executive - Admin',
-      manager: 'Management',
-      incentive: 'N/A',
-      baseSalary: 'Rs 0',
-      initials: 'AA',
-    ),
-    _EmployeeDirectoryEntry(
-      employeeId: '',
-      name: 'Amit Singh',
-      email: 'data@koniwala.in',
-      statusLabel: 'PRESENT',
-      isPresent: true,
-      departmentRole: 'Data Systems - Data Entry',
-      manager: 'Sanjay Sharma',
-      incentive: 'N/A',
-      baseSalary: 'Rs 33,000',
-      initials: 'AS',
-    ),
-    _EmployeeDirectoryEntry(
-      employeeId: '',
-      name: 'Ishika Bafna',
-      email: 'payroll.support@koniwala.in',
-      statusLabel: 'ABSENT',
-      isPresent: false,
-      departmentRole: 'Member Support - Data Entry',
-      manager: 'Megha Jain',
-      incentive: 'N/A',
-      baseSalary: 'Rs 31,000',
-      initials: 'IB',
-    ),
-    _EmployeeDirectoryEntry(
-      employeeId: '',
-      name: 'Jane Sharma',
-      email: 'jane@koniwala.in',
-      statusLabel: 'ABSENT',
-      isPresent: false,
-      departmentRole: 'Sales - Relationship Manager',
-      manager: 'Management',
-      incentive: '0/5',
-      baseSalary: 'Rs 0',
-      initials: 'JS',
-    ),
-  ];
 }
 
 String _formatDirectorySalary(String value) {
   var text = value.trim();
   if (text.isEmpty || text == '-') {
-    return 'Rs 0';
+    return '₹0';
   }
 
-  if (text.startsWith('Rs ')) {
+  if (text.startsWith('₹')) {
     return text;
   }
 
-  final withoutPrefix = text.replaceFirst(RegExp(r'^[^0-9-]+'), '').trim();
+  final withoutPrefix = text
+      .replaceFirst(RegExp(r'^(Rs\.?|INR)\s*', caseSensitive: false), '')
+      .replaceFirst(RegExp(r'^[^0-9-]+'), '')
+      .trim();
   if (withoutPrefix.isNotEmpty) {
     text = withoutPrefix;
   }
 
-  return 'Rs $text';
+  return '₹$text';
 }
 
 ImageProvider? _employeeImageProvider(String image) {
@@ -1376,305 +1881,6 @@ ImageProvider? _employeeImageProvider(String image) {
   return null;
 }
 
-class _TemplateDirectorySection extends StatelessWidget {
-  const _TemplateDirectorySection({
-    required this.entries,
-    this.onEdit,
-    this.onDelete,
-  });
-
-  final List<_EmployeeDirectoryEntry> entries;
-  final Function(_EmployeeDirectoryEntry)? onEdit;
-  final Function(_EmployeeDirectoryEntry)? onDelete;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Expanded(
-              child: Text(
-                'Template Directory',
-                style: GoogleFonts.manrope(
-                  color: AppColors.rmPrimary,
-                  fontSize: 19.sp,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ),
-            Text(
-              'Showing ${entries.length} entries',
-              style: GoogleFonts.manrope(
-                color: AppColors.rmBodyText,
-                fontSize: 13.sp,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-        SizedBox(height: 12.h),
-        Column(
-          children: [
-            for (var index = 0; index < entries.length; index++) ...[
-              if (index > 0) SizedBox(height: 12.h),
-              _TemplateDirectoryCard(
-                entry: entries[index],
-                onEdit: onEdit != null ? () => onEdit!(entries[index]) : null,
-                onDelete: onDelete != null
-                    ? () => onDelete!(entries[index])
-                    : null,
-              ),
-            ],
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-class _TemplateDirectoryCard extends StatelessWidget {
-  const _TemplateDirectoryCard({
-    required this.entry,
-    this.onEdit,
-    this.onDelete,
-  });
-
-  final _EmployeeDirectoryEntry entry;
-  final VoidCallback? onEdit;
-  final VoidCallback? onDelete;
-
-  @override
-  Widget build(BuildContext context) {
-    final imageProvider = _employeeImageProvider(entry.image);
-    final statusBackground = entry.isPresent
-        ? const Color(0xFFE8F7EA)
-        : const Color(0xFFFFE5E5);
-    final statusForeground = entry.isPresent
-        ? const Color(0xFF2E8B57)
-        : const Color(0xFFD94A4A);
-
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.all(14.w),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(16.r),
-        border: Border.all(color: AppColors.rmPaleRoseBorder),
-        boxShadow: const [
-          BoxShadow(
-            color: AppColors.rmCardShadow,
-            blurRadius: 14,
-            offset: Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              InkWell(
-                onTap: onEdit,
-                borderRadius: BorderRadius.circular(20.r),
-                child: CircleAvatar(
-                  radius: 20.r,
-                  backgroundColor: const Color(0xFFF2E7EA),
-                  backgroundImage: imageProvider,
-                  child: entry.hasImage
-                      ? null
-                      : Text(
-                          entry.initials,
-                          style: GoogleFonts.manrope(
-                            color: AppColors.rmPrimary,
-                            fontSize: 15.sp,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                ),
-              ),
-              SizedBox(width: 10.w),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            entry.name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.manrope(
-                              color: AppColors.rmHeading,
-                              fontSize: 19.sp,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                        SizedBox(width: 8.w),
-                        Container(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 8.w,
-                            vertical: 3.h,
-                          ),
-                          decoration: BoxDecoration(
-                            color: statusBackground,
-                            borderRadius: BorderRadius.circular(999.r),
-                          ),
-                          child: Text(
-                            entry.statusLabel,
-                            style: GoogleFonts.manrope(
-                              color: statusForeground,
-                              fontSize: 12.sp,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 2.h),
-                    Text(
-                      entry.email,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.manrope(
-                        color: AppColors.rmBodyText,
-                        fontSize: 13.sp,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              SizedBox(width: 8.w),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  InkWell(
-                    onTap: onEdit,
-                    borderRadius: BorderRadius.circular(7.r),
-                    child: Container(
-                      width: 28.w,
-                      height: 28.w,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF6EEF2),
-                        borderRadius: BorderRadius.circular(7.r),
-                      ),
-                      child: Icon(
-                        Icons.edit_outlined,
-                        size: 15.sp,
-                        color: AppColors.rmBodyText,
-                      ),
-                    ),
-                  ),
-                  SizedBox(width: 10.w),
-                  InkWell(
-                    onTap: onDelete,
-                    borderRadius: BorderRadius.circular(7.r),
-                    child: Container(
-                      width: 28.w,
-                      height: 28.w,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFF1F4),
-                        borderRadius: BorderRadius.circular(7.r),
-                      ),
-                      child: Icon(
-                        Icons.delete_outline,
-                        size: 15.sp,
-                        color: const Color(0xFFD94A4A),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          SizedBox(height: 12.h),
-          Divider(color: const Color(0xFFF0E5E8), height: 1.h),
-          SizedBox(height: 12.h),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: _DirectoryInfoItem(
-                  title: 'Department & Role',
-                  value: entry.departmentRole,
-                ),
-              ),
-              SizedBox(width: 14.w),
-              Expanded(
-                child: _DirectoryInfoItem(
-                  title: 'Manager',
-                  value: entry.manager,
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: 12.h),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: _DirectoryInfoItem(
-                  title: 'Incentive',
-                  value: entry.incentive,
-                ),
-              ),
-              SizedBox(width: 14.w),
-              Expanded(
-                child: _DirectoryInfoItem(
-                  title: 'Base Salary',
-                  value: entry.baseSalary,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _DirectoryInfoItem extends StatelessWidget {
-  const _DirectoryInfoItem({required this.title, required this.value});
-
-  final String title;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: GoogleFonts.manrope(
-            color: AppColors.rmBodyText,
-            fontSize: 12.sp,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        SizedBox(height: 3.h),
-        Text(
-          value,
-          style: GoogleFonts.manrope(
-            color: AppColors.rmHeading,
-            fontSize: 15.sp,
-            fontWeight: FontWeight.w500,
-            height: 1.25,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 class _MessageCard extends StatelessWidget {
   const _MessageCard({required this.message, this.actionLabel, this.onPressed});
 
@@ -1697,7 +1903,7 @@ class _MessageCard extends StatelessWidget {
         children: [
           Text(
             message,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: AppColors.rmBodyText,
               fontSize: 16.sp,
               fontWeight: FontWeight.w600,
@@ -1720,7 +1926,7 @@ class _MessageCard extends StatelessWidget {
                 ),
                 child: Text(
                   actionLabel!,
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     fontSize: 15.sp,
                     fontWeight: FontWeight.w700,
                   ),

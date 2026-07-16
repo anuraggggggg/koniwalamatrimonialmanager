@@ -65,10 +65,10 @@ class _AttendanceArchivesScreenState extends State<AttendanceArchivesScreen> {
       }
 
       context.read<HrAttendanceCalendarProvider>().fetchCalendar(
-            accessToken: accessToken,
-            month: now.month,
-            year: now.year,
-          );
+        accessToken: accessToken,
+        month: now.month,
+        year: now.year,
+      );
     });
 
     if (!_hasRequestedLeaves && accessToken != null && accessToken.isNotEmpty) {
@@ -142,7 +142,9 @@ class _AttendanceArchivesScreenState extends State<AttendanceArchivesScreen> {
         .where((leave) => leave.status.trim().toUpperCase().contains('PENDING'))
         .length;
     final approvedLeaveCount = myLeaves
-        .where((leave) => leave.status.trim().toUpperCase().contains('APPROVED'))
+        .where(
+          (leave) => leave.status.trim().toUpperCase().contains('APPROVED'),
+        )
         .length;
     final deniedLeaveCount = myLeaves.where((leave) {
       final status = leave.status.trim().toUpperCase();
@@ -188,7 +190,7 @@ class _AttendanceArchivesScreenState extends State<AttendanceArchivesScreen> {
                           Icon(
                             Icons.search,
                             size: 20.sp,
-                            color: Colors.grey.shade600,
+                            color: const Color(0xFF1E1F1F),
                           ),
                         ],
                       ),
@@ -219,7 +221,7 @@ class _AttendanceArchivesScreenState extends State<AttendanceArchivesScreen> {
               SizedBox(height: 16.h),
               Text(
                 'Personnel Attendance\nArchives',
-                style: GoogleFonts.manrope(
+                style: GoogleFonts.inter(
                   fontSize: 28.sp,
                   fontWeight: FontWeight.w900,
                   color: AppColors.primary,
@@ -229,10 +231,10 @@ class _AttendanceArchivesScreenState extends State<AttendanceArchivesScreen> {
               SizedBox(height: 8.h),
               Text(
                 'Review your historical leave requests and current ledger balances.',
-                style: GoogleFonts.manrope(
+                style: GoogleFonts.inter(
                   fontSize: 15.sp,
                   fontWeight: FontWeight.w500,
-                  color: Colors.grey.shade700,
+                  color: const Color(0xFF1E1F1F),
                   height: 1.35,
                 ),
               ),
@@ -244,7 +246,7 @@ class _AttendanceArchivesScreenState extends State<AttendanceArchivesScreen> {
                   icon: Icon(Icons.add, size: 21.sp),
                   label: Text(
                     'Request New Leave',
-                    style: GoogleFonts.manrope(
+                    style: GoogleFonts.inter(
                       fontWeight: FontWeight.w800,
                       fontSize: 17.sp,
                     ),
@@ -316,11 +318,7 @@ class _AttendanceArchivesScreenState extends State<AttendanceArchivesScreen> {
                 ),
               ),
               SizedBox(height: 6.h),
-              Container(
-                height: 3.h,
-                width: 126.w,
-                color: AppColors.primary,
-              ),
+              Container(height: 3.h, width: 126.w, color: AppColors.primary),
               SizedBox(height: 18.h),
               if (leaveProvider.isLoading && myLeaves.isEmpty)
                 Center(
@@ -339,7 +337,9 @@ class _AttendanceArchivesScreenState extends State<AttendanceArchivesScreen> {
                     status: leave.status.toUpperCase(),
                     statusBg: _leaveStatusBackground(leave.status),
                     statusFg: _leaveStatusForeground(leave.status),
-                    reason: leave.reason.isEmpty ? 'No reason added' : leave.reason,
+                    reason: leave.reason.isEmpty
+                        ? 'No reason added'
+                        : leave.reason,
                   ),
                   SizedBox(height: 14.h),
                 ],
@@ -358,7 +358,7 @@ class _AttendanceArchivesScreenState extends State<AttendanceArchivesScreen> {
       child: Text(
         'No leave requests found for your account.',
         textAlign: TextAlign.center,
-        style: GoogleFonts.manrope(
+        style: GoogleFonts.inter(
           fontSize: 15.sp,
           fontWeight: FontWeight.w700,
           color: const Color(0xFF5F4B53),
@@ -409,7 +409,7 @@ class _AttendanceArchivesScreenState extends State<AttendanceArchivesScreen> {
                 SizedBox(height: 11.h),
                 Text(
                   count,
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     fontSize: 29.sp,
                     fontWeight: FontWeight.w900,
                     color: const Color(0xFF181C1F),
@@ -420,7 +420,7 @@ class _AttendanceArchivesScreenState extends State<AttendanceArchivesScreen> {
                   title,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     fontSize: 14.sp,
                     fontWeight: FontWeight.w500,
                     color: const Color(0xFF5F4B53),
@@ -471,7 +471,7 @@ class _LeaveCard extends StatelessWidget {
                     children: [
                       Text(
                         title,
-                        style: GoogleFonts.manrope(
+                        style: GoogleFonts.inter(
                           fontSize: 18.sp,
                           fontWeight: FontWeight.w800,
                           color: const Color(0xFF1D1B20),
@@ -483,7 +483,7 @@ class _LeaveCard extends StatelessWidget {
                           Icon(
                             Icons.schedule,
                             size: 16.sp,
-                            color: Colors.grey.shade700,
+                            color: const Color(0xFF1E1F1F),
                           ),
                           SizedBox(width: 6.w),
                           Text(
@@ -491,7 +491,7 @@ class _LeaveCard extends StatelessWidget {
                             style: TextStyle(
                               fontSize: 15.sp,
                               fontWeight: FontWeight.w600,
-                              color: Colors.grey.shade700,
+                              color: const Color(0xFF1E1F1F),
                             ),
                           ),
                         ],
@@ -528,7 +528,7 @@ class _LeaveCard extends StatelessWidget {
               children: [
                 Text(
                   'Reason:',
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     fontSize: 14.sp,
                     fontWeight: FontWeight.w900,
                     color: AppColors.primary,

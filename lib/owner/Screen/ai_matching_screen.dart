@@ -14,10 +14,12 @@ import 'package:koniwalamatrimonial/providers/auth_provider.dart';
 import 'package:koniwalamatrimonial/routes/app_routes.dart';
 import 'package:provider/provider.dart';
 
+import 'admin_drawer_screen.dart';
+
 class GoogleFonts {
   const GoogleFonts._();
 
-  static TextStyle manrope({
+  static TextStyle inter({
     Color? color,
     Color? backgroundColor,
     double? fontSize,
@@ -37,7 +39,7 @@ class GoogleFonts {
     TextDecorationStyle? decorationStyle,
     double? decorationThickness,
   }) {
-    return google_fonts.GoogleFonts.poppins(
+    return google_fonts.GoogleFonts.inter(
       color: color,
       backgroundColor: backgroundColor,
       fontSize: fontSize,
@@ -70,9 +72,19 @@ class AiMatchingScreen extends StatefulWidget {
 }
 
 class _AiMatchingScreenState extends State<AiMatchingScreen> {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   bool _manualMatchSelected = false;
   final Set<String> _approvingSuggestionIds = {};
   final Set<String> _approvedSuggestionIds = {};
+
+  void _openMenu() {
+    if (widget.onMenuPressed != null) {
+      widget.onMenuPressed!();
+      return;
+    }
+
+    _scaffoldKey.currentState?.openDrawer();
+  }
 
   @override
   void initState() {
@@ -100,7 +112,17 @@ class _AiMatchingScreenState extends State<AiMatchingScreen> {
         : suggestions.skip(1).take(2).toList();
 
     return Scaffold(
+      key: _scaffoldKey,
       backgroundColor: AppColors.white,
+      drawerScrimColor: Colors.black.withValues(alpha: 0.1),
+      drawer: Drawer(
+        width: MediaQuery.sizeOf(context).width * 0.68,
+        backgroundColor: AppColors.rmSoftPink,
+        child: AdminDrawerContent(
+          activeRoute: AppRoutes.aiMatching,
+          onClose: () => Navigator.of(context).maybePop(),
+        ),
+      ),
       body: MediaQuery(
         data: MediaQuery.of(
           context,
@@ -112,17 +134,7 @@ class _AiMatchingScreenState extends State<AiMatchingScreen> {
               child: CustomScrollView(
                 slivers: [
                   SliverToBoxAdapter(
-                    child: _AiMatchingTopBar(
-                      onBackTap:
-                          widget.onMenuPressed ??
-                          () => Navigator.of(context).maybePop(),
-                      manualSelected: _manualMatchSelected,
-                      onModeSelected: (isManual) =>
-                          setState(() => _manualMatchSelected = isManual),
-                      onNotificationsTap: () => Navigator.of(
-                        context,
-                      ).pushNamed(AppRoutes.notifications),
-                    ),
+                    child: _AiMatchingTopBar(onMenuTap: _openMenu),
                   ),
                   SliverToBoxAdapter(
                     child: Padding(
@@ -132,11 +144,11 @@ class _AiMatchingScreenState extends State<AiMatchingScreen> {
                         children: [
                           Text(
                             'Generate, review, and manage matches for your clients in one place.',
-                            style: GoogleFonts.manrope(
+                            style: GoogleFonts.inter(
                               color: AppColors.rmComparisonStrong,
                               fontSize: 14.sp,
-                              fontWeight: FontWeight.w500,
-                              height: 1.5,
+
+                              height: 1,
                             ),
                           ),
                           SizedBox(height: 16.h),
@@ -155,9 +167,10 @@ class _AiMatchingScreenState extends State<AiMatchingScreen> {
                                 backgroundColor: AppColors.rmPrimary,
                                 foregroundColor: AppColors.white,
                                 elevation: 0,
-                                textStyle: GoogleFonts.manrope(
-                                  fontSize: 13.sp,
-                                  fontWeight: FontWeight.w900,
+                                textStyle: GoogleFonts.inter(
+                                  fontSize: 14.sp,
+                                  fontWeight: FontWeight.w500,
+
                                   letterSpacing: 0.4,
                                 ),
                                 shape: RoundedRectangleBorder(
@@ -179,7 +192,7 @@ class _AiMatchingScreenState extends State<AiMatchingScreen> {
                           SizedBox(height: 26.h),
                           Text(
                             'Auto Match Queue Preview',
-                            style: GoogleFonts.manrope(
+                            style: GoogleFonts.inter(
                               color: AppColors.rmHeading,
                               fontSize: 22.sp,
                               fontWeight: FontWeight.w700,
@@ -189,7 +202,7 @@ class _AiMatchingScreenState extends State<AiMatchingScreen> {
                           SizedBox(height: 4.h),
                           Text(
                             'Intelligent synergy suggestions',
-                            style: GoogleFonts.manrope(
+                            style: GoogleFonts.inter(
                               color: AppColors.rmComparisonStrong,
                               fontSize: 13.sp,
                               fontWeight: FontWeight.w500,
@@ -563,17 +576,9 @@ class _AiMatchingScreenState extends State<AiMatchingScreen> {
 }
 
 class _AiMatchingTopBar extends StatelessWidget {
-  const _AiMatchingTopBar({
-    required this.onBackTap,
-    required this.manualSelected,
-    required this.onModeSelected,
-    required this.onNotificationsTap,
-  });
+  const _AiMatchingTopBar({required this.onMenuTap});
 
-  final VoidCallback onBackTap;
-  final bool manualSelected;
-  final ValueChanged<bool> onModeSelected;
-  final VoidCallback onNotificationsTap;
+  final VoidCallback onMenuTap;
 
   @override
   Widget build(BuildContext context) {
@@ -584,66 +589,26 @@ class _AiMatchingTopBar extends StatelessWidget {
       ),
       child: Row(
         children: [
-          _RoundIconButton(icon: Icons.arrow_back, onTap: onBackTap),
+          _RoundIconButton(icon: Icons.menu_rounded, onTap: onMenuTap),
           Expanded(
             child: Text(
               'AI Matchmaking',
               textAlign: TextAlign.center,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: google_fonts.GoogleFonts.playfairDisplay(
+              style: google_fonts.GoogleFonts.inter(
                 color: const Color(0xFF2C2626),
                 fontSize: 18.sp,
                 fontWeight: FontWeight.w700,
               ),
             ),
           ),
-          PopupMenuButton<_AiTopMenuAction>(
-            tooltip: 'More',
-            onSelected: (action) {
-              switch (action) {
-                case _AiTopMenuAction.ai:
-                  onModeSelected(false);
-                  break;
-                case _AiTopMenuAction.manual:
-                  onModeSelected(true);
-                  break;
-                case _AiTopMenuAction.notifications:
-                  onNotificationsTap();
-                  break;
-              }
-            },
-            icon: Icon(
-              Icons.more_vert,
-              color: const Color(0xFF2C2626),
-              size: 22.sp,
-            ),
-            itemBuilder: (context) => [
-              PopupMenuItem(
-                value: manualSelected
-                    ? _AiTopMenuAction.ai
-                    : _AiTopMenuAction.manual,
-                child: Text(
-                  manualSelected ? 'AI Matchmaking' : 'Manual Match',
-                  style: GoogleFonts.manrope(fontWeight: FontWeight.w700),
-                ),
-              ),
-              PopupMenuItem(
-                value: _AiTopMenuAction.notifications,
-                child: Text(
-                  'Notifications',
-                  style: GoogleFonts.manrope(fontWeight: FontWeight.w700),
-                ),
-              ),
-            ],
-          ),
+          SizedBox(width: 40.w),
         ],
       ),
     );
   }
 }
-
-enum _AiTopMenuAction { ai, manual, notifications }
 
 class _RoundIconButton extends StatelessWidget {
   const _RoundIconButton({required this.icon, required this.onTap});
@@ -731,7 +696,7 @@ class _MetricCard extends StatelessWidget {
             metric.title,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: const Color(0xFF3B3535),
               fontSize: 11.sp,
               fontWeight: FontWeight.w800,
@@ -741,10 +706,10 @@ class _MetricCard extends StatelessWidget {
           SizedBox(height: 8.h),
           Text(
             metric.value,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: AppColors.rmPrimary,
               fontSize: 24.sp,
-              fontWeight: FontWeight.w900,
+              fontWeight: FontWeight.w700,
               height: 1,
             ),
           ),
@@ -757,7 +722,7 @@ class _MetricCard extends StatelessWidget {
                   metric.caption,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     color: const Color(0xFF3B3535),
                     fontSize: 10.sp,
                     fontWeight: FontWeight.w600,
@@ -766,7 +731,7 @@ class _MetricCard extends StatelessWidget {
                 ),
               ),
               SizedBox(width: 8.w),
-              Icon(metric.icon, color: metric.color, size: 18.sp),
+              Icon(metric.icon, color: metric.color, size: 22.sp),
             ],
           ),
         ],
@@ -799,7 +764,7 @@ class _ManualMatchPanel extends StatelessWidget {
           SizedBox(height: 8.h),
           Text(
             'Manual Match Workspace',
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: AppColors.rmPrimary,
               fontSize: 16.sp,
               fontWeight: FontWeight.w800,
@@ -808,7 +773,7 @@ class _ManualMatchPanel extends StatelessWidget {
           SizedBox(height: 4.h),
           Text(
             'Profiles loaded from /profiles. Review the registry and open profiles for manual pairing.',
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: AppColors.rmComparisonMuted,
               fontSize: 13.sp,
               height: 1.35,
@@ -818,7 +783,7 @@ class _ManualMatchPanel extends StatelessWidget {
           if (profiles.isEmpty)
             Text(
               'No profiles available yet.',
-              style: GoogleFonts.manrope(
+              style: GoogleFonts.inter(
                 color: AppColors.rmComparisonMuted,
                 fontSize: 12.sp,
                 fontWeight: FontWeight.w700,
@@ -886,7 +851,7 @@ class _MatchSuggestionCard extends StatelessWidget {
                 SizedBox(width: 6.w),
                 Text(
                   'AI GENERATED BY MATCHMAKING AI',
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     color: const Color(0xFF2E2929),
                     fontSize: 10.sp,
                     fontWeight: FontWeight.w800,
@@ -927,7 +892,7 @@ class _MatchSuggestionCard extends StatelessWidget {
           SizedBox(height: 16.h),
           Text(
             'Reason for Match',
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: const Color(0xFF2E2929),
               fontSize: 13.sp,
               fontWeight: FontWeight.w700,
@@ -936,7 +901,7 @@ class _MatchSuggestionCard extends StatelessWidget {
           SizedBox(height: 6.h),
           Text(
             '"${suggestion.reason}"',
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: AppColors.rmComparisonBody,
               fontSize: 13.sp,
               fontWeight: FontWeight.w500,
@@ -964,7 +929,7 @@ class _MatchSuggestionCard extends StatelessWidget {
             SizedBox(height: 12.h),
             Text(
               'Pending Info',
-              style: GoogleFonts.manrope(
+              style: GoogleFonts.inter(
                 color: const Color(0xFF2E2929),
                 fontSize: 13.sp,
                 fontWeight: FontWeight.w700,
@@ -978,7 +943,7 @@ class _MatchSuggestionCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     _pendingInfoLabel(suggestion.pendingInfo!),
-                    style: GoogleFonts.manrope(
+                    style: GoogleFonts.inter(
                       color: AppColors.danger,
                       fontSize: 12.sp,
                       fontWeight: FontWeight.w700,
@@ -1004,7 +969,7 @@ class _MatchSuggestionCard extends StatelessWidget {
                 backgroundColor: AppColors.rmPrimary,
                 foregroundColor: AppColors.white,
                 elevation: 0,
-                textStyle: GoogleFonts.manrope(
+                textStyle: GoogleFonts.inter(
                   fontSize: 13.sp,
                   fontWeight: FontWeight.w800,
                 ),
@@ -1065,7 +1030,7 @@ class _ScoreBadge extends StatelessWidget {
       children: [
         Text(
           score,
-          style: GoogleFonts.manrope(
+          style: GoogleFonts.inter(
             color: AppColors.rmPrimary,
             fontSize: 20.sp,
             fontWeight: FontWeight.w800,
@@ -1076,7 +1041,7 @@ class _ScoreBadge extends StatelessWidget {
         Text(
           'MATCH\nSCORE',
           textAlign: TextAlign.center,
-          style: GoogleFonts.manrope(
+          style: GoogleFonts.inter(
             color: const Color(0xFF2E2929),
             fontSize: 8.sp,
             fontWeight: FontWeight.w700,
@@ -1111,7 +1076,7 @@ class _FeaturedProfileDetails extends StatelessWidget {
           child: _profileImageProvider(profile.image) == null
               ? Text(
                   _initialsFor(profile.name),
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     color: AppColors.rmPrimary,
                     fontSize: 12.sp,
                     fontWeight: FontWeight.w800,
@@ -1127,7 +1092,7 @@ class _FeaturedProfileDetails extends StatelessWidget {
             textAlign: alignEnd ? TextAlign.right : TextAlign.left,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: const Color(0xFF111111),
               fontSize: 14.sp,
               fontWeight: FontWeight.w700,
@@ -1143,7 +1108,7 @@ class _FeaturedProfileDetails extends StatelessWidget {
             textAlign: alignEnd ? TextAlign.right : TextAlign.left,
             maxLines: 4,
             overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: const Color(0xFF111111),
               fontSize: 10.5.sp,
               fontWeight: FontWeight.w500,
@@ -1193,9 +1158,9 @@ class _QueueActionButton extends StatelessWidget {
                 ? BorderSide(color: tone.withValues(alpha: 0.7))
                 : BorderSide.none,
           ),
-          textStyle: GoogleFonts.manrope(
-            fontSize: 13.sp,
-            fontWeight: FontWeight.w700,
+          textStyle: GoogleFonts.inter(
+            fontSize: 14.sp,
+            fontWeight: FontWeight.w500,
           ),
         ),
         child: Row(
@@ -1240,14 +1205,14 @@ class _ConfidencePill extends StatelessWidget {
         children: [
           Icon(
             Icons.settings_suggest_outlined,
-            color: const Color(0xFF17B26A),
+            color: const Color(0xFF097C35),
             size: 13.sp,
           ),
           SizedBox(width: 6.w),
           Text(
             label,
-            style: GoogleFonts.manrope(
-              color: const Color(0xFF17B26A),
+            style: GoogleFonts.inter(
+              color: const Color(0xFF097C35),
               fontSize: 11.sp,
               fontWeight: FontWeight.w800,
             ),
@@ -1282,7 +1247,7 @@ class _ReasonChip extends StatelessWidget {
             SizedBox(width: 6.w),
             Text(
               label,
-              style: GoogleFonts.manrope(
+              style: GoogleFonts.inter(
                 color: const Color(0xFF2E2929),
                 fontSize: 11.sp,
                 fontWeight: FontWeight.w600,
@@ -1336,10 +1301,10 @@ class _QuickInsightsCard extends StatelessWidget {
                   'Quick Insights',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     color: const Color(0xFF232323),
                     fontSize: 18.sp,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ),
@@ -1360,7 +1325,7 @@ class _QuickInsightsCard extends StatelessWidget {
                   'Needs Review',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     color: const Color(0xFF232323),
                     fontSize: 13.sp,
                     fontWeight: FontWeight.w700,
@@ -1375,7 +1340,7 @@ class _QuickInsightsCard extends StatelessWidget {
                 ),
                 child: Text(
                   '$pendingCount pending',
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     color: AppColors.white,
                     fontSize: 10.sp,
                     fontWeight: FontWeight.w800,
@@ -1390,7 +1355,7 @@ class _QuickInsightsCard extends StatelessWidget {
               padding: EdgeInsets.only(left: 18.w),
               child: Text(
                 'Load profiles to generate AI pairing insights.',
-                style: GoogleFonts.manrope(
+                style: GoogleFonts.inter(
                   color: AppColors.rmComparisonMuted,
                   fontSize: 12.sp,
                   fontWeight: FontWeight.w600,
@@ -1423,7 +1388,7 @@ class _QuickInsightsCard extends StatelessWidget {
                   'Recent Rejections',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     color: const Color(0xFF232323),
                     fontSize: 13.sp,
                     fontWeight: FontWeight.w700,
@@ -1439,7 +1404,7 @@ class _QuickInsightsCard extends StatelessWidget {
               pendingCount > 0
                   ? '$pendingCount suggestion${pendingCount == 1 ? '' : 's'} need manual review out of $profileCount profiles.'
                   : 'No rejections yet',
-              style: GoogleFonts.manrope(
+              style: GoogleFonts.inter(
                 color: AppColors.rmComparisonMuted,
                 fontSize: 12.sp,
                 fontWeight: FontWeight.w600,
@@ -1481,7 +1446,7 @@ class _QuickInsightSuggestionTile extends StatelessWidget {
             suggestion.names,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: const Color(0xFF232323),
               fontSize: 14.sp,
               fontWeight: FontWeight.w700,
@@ -1492,7 +1457,7 @@ class _QuickInsightSuggestionTile extends StatelessWidget {
             suggestion.reason,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: AppColors.rmComparisonMuted,
               fontSize: 12.sp,
               fontWeight: FontWeight.w500,
@@ -1665,7 +1630,7 @@ class _ManualProfileTile extends StatelessWidget {
                   profile.name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     color: AppColors.rmPrimary,
                     fontSize: 14.sp,
                     fontWeight: FontWeight.w800,
@@ -1676,7 +1641,7 @@ class _ManualProfileTile extends StatelessWidget {
                   '${profile.type} • ${profile.age} yrs • ${profile.city}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     color: AppColors.rmComparisonMuted,
                     fontSize: 12.sp,
                     fontWeight: FontWeight.w700,
@@ -1718,7 +1683,7 @@ class _AiLoadingCard extends StatelessWidget {
           Expanded(
             child: Text(
               'Loading profiles from /profiles...',
-              style: GoogleFonts.manrope(
+              style: GoogleFonts.inter(
                 color: AppColors.rmPrimary,
                 fontSize: 14.sp,
                 fontWeight: FontWeight.w700,
@@ -1747,7 +1712,7 @@ class _AiErrorCard extends StatelessWidget {
         children: [
           Text(
             'Unable to load live profiles.',
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: AppColors.danger,
               fontSize: 14.sp,
               fontWeight: FontWeight.w800,
@@ -1756,7 +1721,7 @@ class _AiErrorCard extends StatelessWidget {
           SizedBox(height: 8.h),
           Text(
             'Retry the /profiles request to rebuild AI suggestions.',
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: AppColors.rmComparisonMuted,
               fontSize: 13.sp,
               fontWeight: FontWeight.w600,
@@ -1783,7 +1748,7 @@ class _AiEmptyState extends StatelessWidget {
       decoration: _cardDecoration(),
       child: Text(
         message,
-        style: GoogleFonts.manrope(
+        style: GoogleFonts.inter(
           color: AppColors.rmComparisonMuted,
           fontSize: 13.sp,
           fontWeight: FontWeight.w700,

@@ -45,7 +45,7 @@ class InstitutionalOfferManagementScreen extends StatelessWidget {
                     SizedBox(height: 28.h),
                     Text(
                       'Institutional Offer\nManagement',
-                      style: GoogleFonts.manrope(
+                      style: GoogleFonts.inter(
                         color: AppColors.rmPrimary,
                         fontSize: 27.sp,
                         fontWeight: FontWeight.w800,
@@ -55,7 +55,7 @@ class InstitutionalOfferManagementScreen extends StatelessWidget {
                     SizedBox(height: 10.h),
                     Text(
                       'Design and standardize the documents used for offer letter delivery.',
-                      style: GoogleFonts.manrope(
+                      style: GoogleFonts.inter(
                         color: AppColors.rmComparisonMuted,
                         fontSize: 15.sp,
                         fontWeight: FontWeight.w700,
@@ -74,7 +74,7 @@ class InstitutionalOfferManagementScreen extends StatelessWidget {
                           'Create Template',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.manrope(
+                          style: GoogleFonts.inter(
                             fontSize: 15.sp,
                             fontWeight: FontWeight.w900,
                           ),
@@ -95,7 +95,7 @@ class InstitutionalOfferManagementScreen extends StatelessWidget {
                     SizedBox(height: 28.h),
                     Text(
                       'Template Directory',
-                      style: GoogleFonts.manrope(
+                      style: GoogleFonts.inter(
                         color: AppColors.rmPrimary,
                         fontSize: 26.sp,
                         fontWeight: FontWeight.w800,
@@ -105,7 +105,7 @@ class InstitutionalOfferManagementScreen extends StatelessWidget {
                     SizedBox(height: 7.h),
                     Text(
                       'Manage the available offer letter templates.',
-                      style: GoogleFonts.manrope(
+                      style: GoogleFonts.inter(
                         color: AppColors.rmComparisonMuted,
                         fontSize: 15.sp,
                         fontWeight: FontWeight.w700,
@@ -154,7 +154,7 @@ class _OfferTopBar extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
-              style: GoogleFonts.manrope(
+              style: GoogleFonts.inter(
                 color: AppColors.rmPrimary,
                 fontSize: 15.sp,
                 fontWeight: FontWeight.w800,
@@ -228,7 +228,7 @@ class _OfferStatCard extends StatelessWidget {
             stat.eyebrow,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: AppColors.rmComparisonMuted,
               fontSize: 11.sp,
               fontWeight: FontWeight.w800,
@@ -241,13 +241,13 @@ class _OfferStatCard extends StatelessWidget {
             maxLines: stat.valueIsTitle ? 3 : 1,
             overflow: TextOverflow.ellipsis,
             style: stat.valueIsTitle
-                ? GoogleFonts.manrope(
+                ? GoogleFonts.inter(
                     color: AppColors.rmPrimary,
                     fontSize: 15.sp,
                     fontWeight: FontWeight.w900,
                     height: 1.02,
                   )
-                : GoogleFonts.manrope(
+                : GoogleFonts.inter(
                     color: AppColors.rmPrimary,
                     fontSize: 34.sp,
                     fontWeight: FontWeight.w900,
@@ -259,7 +259,7 @@ class _OfferStatCard extends StatelessWidget {
             stat.label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: AppColors.rmComparisonMuted,
               fontSize: 14.sp,
               fontWeight: FontWeight.w700,
@@ -302,7 +302,7 @@ class _TemplateDirectoryCard extends StatelessWidget {
                   'Payroll walkthrough template',
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     color: AppColors.rmPrimary,
                     fontSize: 16.sp,
                     fontWeight: FontWeight.w900,
@@ -317,7 +317,7 @@ class _TemplateDirectoryCard extends StatelessWidget {
           SizedBox(height: 8.h),
           Text(
             'Offer of employment',
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: AppColors.rmComparisonStrong,
               fontSize: 14.sp,
               fontWeight: FontWeight.w700,
@@ -332,7 +332,7 @@ class _TemplateDirectoryCard extends StatelessWidget {
             'People and operations lead',
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: AppColors.rmPrimary,
               fontSize: 12.sp,
               fontWeight: FontWeight.w800,
@@ -382,7 +382,7 @@ class _TemplateBadge extends StatelessWidget {
       ),
       child: Text(
         'Default',
-        style: GoogleFonts.manrope(
+        style: GoogleFonts.inter(
           color: AppColors.rmPrimary,
           fontSize: 11.sp,
           fontWeight: FontWeight.w900,
@@ -405,7 +405,7 @@ class _InfoLine extends StatelessWidget {
       children: [
         Text(
           label,
-          style: GoogleFonts.manrope(
+          style: GoogleFonts.inter(
             color: AppColors.rmComparisonMuted,
             fontSize: 12.sp,
             fontWeight: FontWeight.w800,
@@ -416,7 +416,7 @@ class _InfoLine extends StatelessWidget {
           value,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: GoogleFonts.manrope(
+          style: GoogleFonts.inter(
             color: AppColors.rmComparisonStrong,
             fontSize: 14.sp,
             fontWeight: FontWeight.w800,
@@ -453,7 +453,7 @@ class _TemplateActionButton extends StatelessWidget {
                 ? BorderSide.none
                 : const BorderSide(color: AppColors.rmPrimary),
           ),
-          textStyle: GoogleFonts.manrope(
+          textStyle: GoogleFonts.inter(
             fontSize: 14.sp,
             fontWeight: FontWeight.w900,
           ),

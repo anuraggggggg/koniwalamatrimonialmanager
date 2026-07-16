@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -18,38 +20,39 @@ class LeadFollowUpsScreen extends StatefulWidget {
 }
 
 class _LeadFollowUpsScreenState extends State<LeadFollowUpsScreen> {
+  static const int _initialLeadLimit = 6;
+  static const int _leadPageSize = 8;
   bool _hasRequestedFollowUps = false;
   String? _requestedAccessToken;
   String _query = '';
-  String _selectedFilter = 'All';
+  String _selectedFilter = 'All follow-ups';
+  Timer? _searchDebounce;
+  int _visibleLeadLimit = _initialLeadLimit;
 
-  final List<String> _filters = ['All', 'Today', 'Pending', 'Overdue'];
+  final List<String> _filters = const [
+    'All follow-ups',
+    'Due today',
+    'Overdue',
+    'Waiting for client',
+    'Cold leads',
+  ];
 
   List<LeadFollowUpItem> _visibleLeads(List<LeadFollowUpItem> leads) {
     var filtered = leads.where((lead) => lead.matches(_query)).toList();
 
-    if (_selectedFilter == 'Today') {
-      final now = DateTime.now();
-      filtered = filtered.where((lead) {
-        return lead.openFollowUps.any((task) {
-          final due = task.dueAt;
-          if (due == null) return false;
-          return due.year == now.year &&
-              due.month == now.month &&
-              due.day == now.day;
-        });
-      }).toList();
-    } else if (_selectedFilter == 'Pending') {
-      filtered = filtered
-          .where((lead) => lead.openFollowUps.isNotEmpty)
-          .toList();
+    if (_selectedFilter == 'Due today') {
+      filtered = filtered.where(_hasTaskDueToday).toList();
     } else if (_selectedFilter == 'Overdue') {
       filtered = filtered.where((lead) => lead.hasOverdueFollowUp).toList();
+    } else if (_selectedFilter == 'Waiting for client') {
+      filtered = filtered.where((lead) => lead.isWaiting).toList();
+    } else if (_selectedFilter == 'Cold leads') {
+      filtered = filtered.where((lead) => lead.isCold).toList();
     }
 
     return filtered..sort((first, second) {
-      final firstCreatedAt = _latestTaskCreatedAt(first);
-      final secondCreatedAt = _latestTaskCreatedAt(second);
+      final firstCreatedAt = first.latestTaskCreatedAt;
+      final secondCreatedAt = second.latestTaskCreatedAt;
       if (firstCreatedAt != null || secondCreatedAt != null) {
         if (firstCreatedAt == null) return 1;
         if (secondCreatedAt == null) return -1;
@@ -63,26 +66,44 @@ class _LeadFollowUpsScreenState extends State<LeadFollowUpsScreen> {
     });
   }
 
-  DateTime? _latestTaskCreatedAt(LeadFollowUpItem lead) {
-    DateTime? latest;
-    for (final task in lead.followUpTasks) {
-      final createdAt = task.createdAt;
-      if (createdAt != null && (latest == null || createdAt.isAfter(latest))) {
-        latest = createdAt;
-      }
+  int _boundedLeadLimit(int requestedLimit, int totalLeadCount) {
+    if (totalLeadCount <= 0) {
+      return 0;
     }
-    return latest;
+
+    if (requestedLimit < _initialLeadLimit) {
+      return totalLeadCount < _initialLeadLimit
+          ? totalLeadCount
+          : _initialLeadLimit;
+    }
+
+    if (requestedLimit > totalLeadCount) {
+      return totalLeadCount;
+    }
+
+    return requestedLimit;
   }
 
-  Future<void> _openCreateTask() async {
-    final created = await Navigator.pushNamed(context, AppRoutes.createNewTask);
-    if (!mounted || created != true) return;
+  void _resetPagination() {
+    _visibleLeadLimit = _initialLeadLimit;
+  }
 
-    setState(() {
-      _query = '';
-      _selectedFilter = 'All';
+  bool _hasTaskDueToday(LeadFollowUpItem lead) {
+    final now = DateTime.now();
+    return lead.openFollowUps.any((task) {
+      final due = task.dueAt;
+      if (due == null) return false;
+      final localDue = due.toLocal();
+      return localDue.year == now.year &&
+          localDue.month == now.month &&
+          localDue.day == now.day;
     });
-    await context.read<LeadFollowUpsProvider>().retry();
+  }
+
+  @override
+  void dispose() {
+    _searchDebounce?.cancel();
+    super.dispose();
   }
 
   @override
@@ -111,84 +132,153 @@ class _LeadFollowUpsScreenState extends State<LeadFollowUpsScreen> {
     final followUpsProvider = context.watch<LeadFollowUpsProvider>();
     final leads = followUpsProvider.leads;
     final visibleLeads = _visibleLeads(leads);
+    final displayLimit = _boundedLeadLimit(
+      _visibleLeadLimit,
+      visibleLeads.length,
+    );
+    final displayedLeads = visibleLeads
+        .take(displayLimit)
+        .toList(growable: false);
 
     return MediaQuery(
       data: MediaQuery.of(
         context,
-      ).copyWith(textScaler: const TextScaler.linear(1.25)),
+      ).copyWith(textScaler: const TextScaler.linear(1)),
       child: Scaffold(
-        backgroundColor: AppColors.rmBackground,
+        backgroundColor: const Color(0xFFFFF9F6),
         appBar: AppBar(
-          backgroundColor: AppColors.white,
+          toolbarHeight: 60.h,
+          backgroundColor: const Color(0xFFFFFBF8),
+          surfaceTintColor: const Color(0xFFFFFBF8),
           elevation: 0,
           scrolledUnderElevation: 0,
+          shadowColor: AppColors.transparent,
           leading: IconButton(
             icon: Icon(
-              Icons.arrow_back_ios_new_rounded,
-              size: 20.sp,
-              color: AppColors.rmPrimary,
+              Icons.arrow_back_rounded,
+              size: 24.sp,
+              color: const Color(0xFF171412),
             ),
             onPressed: () => Navigator.pop(context),
           ),
           title: Text(
             'Lead Follow-ups',
-            style: GoogleFonts.manrope(
-              color: AppColors.rmPrimary,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF171412),
               fontSize: 20.sp,
-              fontWeight: FontWeight.w800,
+              fontWeight: FontWeight.bold,
             ),
           ),
+          centerTitle: true,
           actions: [
             IconButton(
-              onPressed: _openCreateTask,
+              onPressed: () => context.read<LeadFollowUpsProvider>().retry(),
               icon: Icon(
-                Icons.add_task_rounded,
-                color: AppColors.rmPrimary,
-                size: 24.sp,
+                Icons.refresh_rounded,
+                color: const Color(0xFF171412),
+                size: 20.sp,
               ),
-              tooltip: 'Create New Task',
+              tooltip: 'Refresh',
             ),
-            Padding(
-              padding: EdgeInsets.only(right: 14.w),
-              child: CircleAvatar(
-                radius: 16.r,
-                backgroundColor: AppColors.rmPrimary,
-                child: Text(
-                  '${leads.length}',
-                  style: GoogleFonts.manrope(
-                    color: AppColors.white,
-                    fontSize: 12.sp,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-            ),
+            // IconButton(
+            //   onPressed: () {},
+            //   icon: Icon(
+            //     Icons.more_vert_rounded,
+            //     color: const Color(0xFF171412),
+            //     size: 24.sp,
+            //   ),
+            //   tooltip: 'Menu',
+            // ),
+            SizedBox(width: 4.w),
           ],
+          bottom: PreferredSize(
+            preferredSize: Size.fromHeight(1.h),
+            child: Container(height: 1.h, color: const Color(0xFFEADDD5)),
+          ),
         ),
         body: SafeArea(
-          child: Column(
-            children: [
-              _SearchBar(onChanged: (value) => setState(() => _query = value)),
-              _FilterBar(
-                filters: _filters,
-                selectedFilter: _selectedFilter,
-                onFilterSelected: (filter) =>
-                    setState(() => _selectedFilter = filter),
-              ),
-              Expanded(
-                child: RefreshIndicator(
-                  onRefresh: () =>
-                      context.read<LeadFollowUpsProvider>().retry(),
-                  child: _FollowUpList(
-                    isLoading: followUpsProvider.isLoading,
-                    error: followUpsProvider.error,
-                    leads: visibleLeads,
-                    onRetry: () =>
-                        context.read<LeadFollowUpsProvider>().retry(),
+          top: false,
+          child: RefreshIndicator(
+            onRefresh: () => context.read<LeadFollowUpsProvider>().retry(),
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: EdgeInsets.zero,
+              children: [
+                Padding(
+                  padding: EdgeInsets.fromLTRB(14.w, 20.h, 14.w, 14.h),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'One clean queue per lead. The first row\nshows who the lead is, the task explains\nwhat is pending.',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF34302F),
+                        fontSize: 12.sp,
+                        fontWeight: FontWeight.w500,
+                        height: 1.45,
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ],
+                _LeadFollowUpSummary(leads: leads),
+                Padding(
+                  padding: EdgeInsets.fromLTRB(14.w, 16.h, 14.w, 10.h),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _SearchBar(
+                          onChanged: (value) {
+                            _searchDebounce?.cancel();
+                            _searchDebounce = Timer(
+                              const Duration(milliseconds: 220),
+                              () {
+                                if (!mounted) {
+                                  return;
+                                }
+
+                                setState(() {
+                                  _query = value;
+                                  _resetPagination();
+                                });
+                              },
+                            );
+                          },
+                        ),
+                      ),
+                      SizedBox(width: 8.w),
+                      _FollowUpFilterDropdown(
+                        filters: _filters,
+                        selectedFilter: _selectedFilter,
+                        onFilterSelected: (filter) => setState(() {
+                          _selectedFilter = filter;
+                          _resetPagination();
+                        }),
+                      ),
+                    ],
+                  ),
+                ),
+                _FollowUpList(
+                  isLoading: followUpsProvider.isLoading,
+                  error: followUpsProvider.error,
+                  leads: displayedLeads,
+                  totalLeadCount: visibleLeads.length,
+                  isExpanded: displayLimit >= visibleLeads.length,
+                  onLoadMore: visibleLeads.length > _initialLeadLimit
+                      ? () => setState(() {
+                          if (displayLimit >= visibleLeads.length) {
+                            _visibleLeadLimit = _initialLeadLimit;
+                            return;
+                          }
+
+                          _visibleLeadLimit = _boundedLeadLimit(
+                            _visibleLeadLimit + _leadPageSize,
+                            visibleLeads.length,
+                          );
+                        })
+                      : null,
+                  onRetry: () => context.read<LeadFollowUpsProvider>().retry(),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -204,45 +294,199 @@ class _SearchBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.fromLTRB(14.w, 10.h, 14.w, 10.h),
-      color: AppColors.white,
+      height: 37.h,
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(10.r),
+        border: Border.all(color: const Color(0xFFD8D8D8)),
+      ),
       child: TextField(
         onChanged: onChanged,
-        style: GoogleFonts.manrope(
+        style: GoogleFonts.inter(
           color: AppColors.rmHeading,
-          fontSize: 14.sp,
+          fontSize: 13.sp,
           fontWeight: FontWeight.w600,
         ),
+        textAlignVertical: TextAlignVertical.center,
         decoration: InputDecoration(
-          hintText: 'Search by lead, phone, reason...',
-          hintStyle: GoogleFonts.manrope(
-            color: AppColors.rmHintText,
-            fontSize: 14.sp,
+          hintText: 'Search registry...',
+          hintStyle: GoogleFonts.inter(
+            color: const Color(0xFF6E7683),
+            fontSize: 12.sp,
             fontWeight: FontWeight.w500,
           ),
           prefixIcon: Icon(
             Icons.search_rounded,
-            color: AppColors.rmMutedText,
-            size: 22.sp,
+            color: const Color(0xFF6E7683),
+            size: 18.sp,
           ),
-          filled: true,
-          fillColor: AppColors.rmBackground,
-          contentPadding: EdgeInsets.symmetric(
-            horizontal: 16.w,
-            vertical: 12.h,
-          ),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(30.r),
-            borderSide: BorderSide.none,
-          ),
+          isDense: true,
+          border: InputBorder.none,
+          contentPadding: EdgeInsets.symmetric(vertical: 7.h),
         ),
       ),
     );
   }
 }
 
-class _FilterBar extends StatelessWidget {
-  const _FilterBar({
+class _LeadFollowUpSummary extends StatelessWidget {
+  const _LeadFollowUpSummary({required this.leads});
+
+  final List<LeadFollowUpItem> leads;
+
+  @override
+  Widget build(BuildContext context) {
+    final activeCount = leads
+        .where((lead) => lead.openFollowUps.isNotEmpty)
+        .length;
+    final overdueCount = leads.fold<int>(
+      0,
+      (count, lead) =>
+          count + lead.openFollowUps.where((task) => task.isOverdue).length,
+    );
+    final waitingCount = leads.where((lead) => lead.isWaiting).length;
+    final coldCount = leads.where((lead) => lead.isCold).length;
+
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 14.w),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: _LeadMetricCard(
+                  title: 'Active',
+                  value: '$activeCount',
+                  subtitle: 'Pending',
+                  icon: Icons.schedule_rounded,
+                  subtitleColor: const Color(0xFFE53A3A),
+                ),
+              ),
+              SizedBox(width: 8.w),
+              Expanded(
+                child: _LeadMetricCard(
+                  title: 'Overdue',
+                  value: '$overdueCount',
+                  subtitle: 'Immediate',
+                  icon: Icons.warning_amber_rounded,
+                  subtitleColor: const Color(0xFFE76D22),
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 8.h),
+          Row(
+            children: [
+              Expanded(
+                child: _LeadMetricCard(
+                  title: 'Waiting',
+                  value: '$waitingCount',
+                  subtitle: 'Client',
+                  icon: Icons.hourglass_empty_rounded,
+                  subtitleColor: const Color(0xFFE7A100),
+                ),
+              ),
+              SizedBox(width: 8.w),
+              Expanded(
+                child: _LeadMetricCard(
+                  title: 'Cold',
+                  value: '$coldCount',
+                  subtitle: 'Stagnant',
+                  icon: Icons.ac_unit_rounded,
+                  subtitleColor: const Color(0xFF305DFF),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LeadMetricCard extends StatelessWidget {
+  const _LeadMetricCard({
+    required this.title,
+    required this.value,
+    required this.subtitle,
+    required this.icon,
+    required this.subtitleColor,
+  });
+
+  final String title;
+  final String value;
+  final String subtitle;
+  final IconData icon;
+  final Color subtitleColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 102.h,
+      padding: EdgeInsets.fromLTRB(12.w, 13.h, 12.w, 12.h),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(7.r),
+        border: Border.all(color: const Color(0xFFF1DFD6)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x10000000),
+            blurRadius: 10,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title.toUpperCase(),
+            style: GoogleFonts.inter(
+              color: const Color(0xFF3F3A38),
+              fontSize: 12.sp,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 0.2,
+            ),
+          ),
+          SizedBox(height: 5.h),
+          Text(
+            value,
+            style: GoogleFonts.inter(
+              color: const Color(0xFFD76322),
+              fontSize: 22.sp,
+              fontWeight: FontWeight.w700,
+              height: 1,
+            ),
+          ),
+          const Spacer(),
+          Row(
+            children: [
+              Icon(icon, color: subtitleColor, size: 15.sp),
+              SizedBox(width: 3.w),
+              Expanded(
+                child: Text(
+                  subtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.inter(
+                    color: subtitleColor == const Color(0xFFE7A100)
+                        ? const Color(0xFF38312E)
+                        : subtitleColor,
+                    fontSize: 12.sp,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FollowUpFilterDropdown extends StatelessWidget {
+  const _FollowUpFilterDropdown({
     required this.filters,
     required this.selectedFilter,
     required this.onFilterSelected,
@@ -254,37 +498,91 @@ class _FilterBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final buttonLabel = selectedFilter == 'All follow-ups'
+        ? 'all'
+        : selectedFilter
+              .replaceAll(' follow-ups', '')
+              .replaceAll(' for client', '')
+              .toLowerCase();
+
     return Container(
-      height: 50.h,
-      color: AppColors.white,
-      child: ListView.separated(
-        padding: EdgeInsets.symmetric(horizontal: 14.w),
-        scrollDirection: Axis.horizontal,
-        itemCount: filters.length,
-        separatorBuilder: (context, index) => SizedBox(width: 10.w),
-        itemBuilder: (context, index) {
-          final filter = filters[index];
-          final isSelected = filter == selectedFilter;
-          return ChoiceChip(
-            label: Text(filter),
-            selected: isSelected,
-            onSelected: (selected) {
-              if (selected) onFilterSelected(filter);
-            },
-            labelStyle: GoogleFonts.manrope(
-              color: isSelected ? AppColors.white : AppColors.rmPrimary,
-              fontSize: 13.sp,
-              fontWeight: FontWeight.w700,
-            ),
-            selectedColor: AppColors.rmPrimary,
-            backgroundColor: AppColors.white,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20.r),
-              side: BorderSide(color: AppColors.rmPrimary, width: 1),
-            ),
-            showCheckmark: false,
-          );
+      width: 84.w,
+      height: 37.h,
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(10.r),
+        border: Border.all(color: const Color(0xFFE57742)),
+      ),
+      child: PopupMenuButton<String>(
+        tooltip: 'Filter follow-ups',
+        initialValue: selectedFilter,
+        position: PopupMenuPosition.under,
+        offset: Offset(0, 5.h),
+        elevation: 3,
+        color: AppColors.white,
+        surfaceTintColor: AppColors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(4.r),
+          side: const BorderSide(color: Color(0xFFE8E0DC)),
+        ),
+        onSelected: onFilterSelected,
+        itemBuilder: (context) {
+          return filters.map((filter) {
+            final selected = filter == selectedFilter;
+            return PopupMenuItem<String>(
+              value: filter,
+              height: 40.h,
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 22.w,
+                    child: selected
+                        ? Icon(
+                            Icons.check_rounded,
+                            color: const Color(0xFF171412),
+                            size: 18.sp,
+                          )
+                        : null,
+                  ),
+                  SizedBox(width: 4.w),
+                  Text(
+                    filter,
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFF171412),
+                      fontSize: 13.sp,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }).toList();
         },
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: 12.w),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Flexible(
+                child: Text(
+                  buttonLabel,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF171412),
+                    fontSize: 13.sp,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              Icon(
+                Icons.keyboard_arrow_down_rounded,
+                color: const Color(0xFF6B7280),
+                size: 19.sp,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -295,28 +593,35 @@ class _FollowUpList extends StatelessWidget {
     required this.isLoading,
     required this.error,
     required this.leads,
+    required this.totalLeadCount,
+    required this.isExpanded,
+    required this.onLoadMore,
     required this.onRetry,
   });
 
   final bool isLoading;
   final String? error;
   final List<LeadFollowUpItem> leads;
+  final int totalLeadCount;
+  final bool isExpanded;
+  final VoidCallback? onLoadMore;
   final VoidCallback onRetry;
 
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const _FollowUpLoadingSkeleton();
     }
 
     if (error != null) {
-      return Center(
+      return SizedBox(
+        height: 260.h,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
               error!,
-              style: GoogleFonts.manrope(
+              style: GoogleFonts.inter(
                 color: AppColors.rmBodyText,
                 fontSize: 14.sp,
                 fontWeight: FontWeight.w600,
@@ -330,10 +635,12 @@ class _FollowUpList extends StatelessWidget {
     }
 
     if (leads.isEmpty) {
-      return Center(
+      return SizedBox(
+        height: 260.h,
         child: Text(
           'No follow-ups found.',
-          style: GoogleFonts.manrope(
+          textAlign: TextAlign.center,
+          style: GoogleFonts.inter(
             color: AppColors.rmMutedText,
             fontSize: 14.sp,
             fontWeight: FontWeight.w500,
@@ -342,12 +649,213 @@ class _FollowUpList extends StatelessWidget {
       );
     }
 
-    return ListView.separated(
+    return Padding(
       padding: EdgeInsets.all(14.w),
-      itemCount: leads.length,
-      separatorBuilder: (context, index) => SizedBox(height: 14.h),
-      itemBuilder: (context, index) {
-        return _LeadFollowUpCard(lead: leads[index]);
+      child: Column(
+        children: [
+          for (int index = 0; index < leads.length; index++) ...[
+            if (index > 0) SizedBox(height: 14.h),
+            _LeadFollowUpCard(lead: leads[index]),
+          ],
+          if (onLoadMore != null) ...[
+            SizedBox(height: 14.h),
+            SizedBox(
+              width: double.infinity,
+              height: 44.h,
+              child: OutlinedButton(
+                onPressed: onLoadMore,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFFD76322),
+                  side: const BorderSide(color: Color(0xFFD76322)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14.r),
+                  ),
+                ),
+                child: Text(
+                  isExpanded
+                      ? 'Show Less'
+                      : 'Show More (${totalLeadCount - leads.length})',
+                  style: GoogleFonts.inter(
+                    fontSize: 13.sp,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ),
+          ],
+          SizedBox(height: 18.h),
+        ],
+      ),
+    );
+  }
+}
+
+class _FollowUpLoadingSkeleton extends StatefulWidget {
+  const _FollowUpLoadingSkeleton();
+
+  @override
+  State<_FollowUpLoadingSkeleton> createState() =>
+      _FollowUpLoadingSkeletonState();
+}
+
+class _FollowUpLoadingSkeletonState extends State<_FollowUpLoadingSkeleton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.all(14.w),
+      child: Column(
+        children: [
+          for (int index = 0; index < 3; index++) ...[
+            if (index > 0) SizedBox(height: 14.h),
+            _SkeletonCard(animation: _controller),
+          ],
+          SizedBox(height: 18.h),
+        ],
+      ),
+    );
+  }
+}
+
+class _SkeletonCard extends StatelessWidget {
+  const _SkeletonCard({required this.animation});
+
+  final Animation<double> animation;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.all(14.w),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(8.r),
+        border: Border.all(color: const Color(0xFFE9DDD8)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x10000000),
+            blurRadius: 12,
+            offset: Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              _SkeletonBlock(
+                animation: animation,
+                width: 38.r,
+                height: 38.r,
+                radius: 19.r,
+              ),
+              SizedBox(width: 12.w),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _SkeletonBlock(
+                      animation: animation,
+                      width: 170.w,
+                      height: 18.h,
+                    ),
+                    SizedBox(height: 8.h),
+                    _SkeletonBlock(
+                      animation: animation,
+                      width: 130.w,
+                      height: 12.h,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 18.h),
+          Row(
+            children: [
+              _SkeletonBlock(
+                animation: animation,
+                width: 120.w,
+                height: 30.h,
+                radius: 15.r,
+              ),
+              SizedBox(width: 8.w),
+              _SkeletonBlock(
+                animation: animation,
+                width: 105.w,
+                height: 30.h,
+                radius: 15.r,
+              ),
+            ],
+          ),
+          SizedBox(height: 18.h),
+          _SkeletonBlock(animation: animation, width: 220.w, height: 18.h),
+          SizedBox(height: 10.h),
+          _SkeletonBlock(animation: animation, width: 150.w, height: 12.h),
+          SizedBox(height: 18.h),
+          _SkeletonBlock(
+            animation: animation,
+            width: double.infinity,
+            height: 64.h,
+            radius: 10.r,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SkeletonBlock extends StatelessWidget {
+  const _SkeletonBlock({
+    required this.animation,
+    required this.width,
+    required this.height,
+    this.radius,
+  });
+
+  final Animation<double> animation;
+  final double width;
+  final double height;
+  final double? radius;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: animation,
+      builder: (context, child) {
+        return Container(
+          width: width,
+          height: height,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(radius ?? 7.r),
+            gradient: LinearGradient(
+              begin: Alignment(-1 + animation.value * 2, 0),
+              end: Alignment(animation.value * 2, 0),
+              colors: const [
+                Color(0xFFF3EAE5),
+                Color(0xFFFFFAF7),
+                Color(0xFFF3EAE5),
+              ],
+            ),
+          ),
+        );
       },
     );
   }
@@ -365,210 +873,431 @@ class _LeadFollowUpCard extends StatelessWidget {
         : null;
     final isCompleting =
         task != null && context.watch<TasksProvider>().isCompleting(task.id);
+    final progressCount = lead.followUpTasks.where((item) {
+      final status = '${item.status} ${item.workflowStatus}'.toLowerCase();
+      return item.isOpen && status.contains('progress');
+    }).length;
+    final notes = lead.notes.trim().isNotEmpty
+        ? lead.notes.trim()
+        : "Demo system task created from the 'Lead No Response Escalation' rule.";
 
     return Container(
-      padding: EdgeInsets.all(14.r),
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: AppColors.white,
-        borderRadius: BorderRadius.circular(16.r),
-        boxShadow: [
+        borderRadius: BorderRadius.circular(10.r),
+        border: Border.all(color: const Color(0xFFF1B9A1)),
+        boxShadow: const [
           BoxShadow(
-            color: AppColors.rmPrimary.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: Color(0x14000000),
+            blurRadius: 14,
+            offset: Offset(0, 6),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              CircleAvatar(
-                radius: 20.r,
-                backgroundColor: AppColors.rmPrimary.withValues(alpha: 0.1),
-                child: Text(
-                  lead.initials,
-                  style: GoogleFonts.manrope(
-                    color: AppColors.rmPrimary,
-                    fontSize: 14.sp,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-              SizedBox(width: 12.w),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          Padding(
+            padding: EdgeInsets.fromLTRB(12.w, 12.h, 12.w, 9.h),
+            child: Column(
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Row(
-                      children: [
-                        Flexible(
-                          child: Text(
-                            lead.name,
-                            style: GoogleFonts.manrope(
-                              color: AppColors.rmHeading,
-                              fontSize: 16.sp,
-                              fontWeight: FontWeight.w800,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                    Container(
+                      width: 40.r,
+                      height: 40.r,
+                      decoration: BoxDecoration(
+                        color: AppColors.white,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: const Color(0xFFE0E0E0)),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        lead.initials.substring(0, 1),
+                        style: GoogleFonts.inter(
+                          color: const Color(0xFF3A3532),
+                          fontSize: 14.sp,
+                          fontWeight: FontWeight.w800,
                         ),
-                        SizedBox(width: 8.w),
-                        _StageBadge(stage: lead.stage),
-                      ],
+                      ),
                     ),
-                    Text(
-                      'Assigned to: ${lead.assignedToName}',
-                      style: GoogleFonts.manrope(
-                        color: AppColors.rmMutedText,
-                        fontSize: 12.sp,
-                        fontWeight: FontWeight.w600,
+                    SizedBox(width: 12.w),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  lead.name,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.inter(
+                                    color: const Color(0xFF171412),
+                                    fontSize: 20.sp,
+                                    fontWeight: FontWeight.w900,
+                                    height: 1.05,
+                                  ),
+                                ),
+                              ),
+                              SizedBox(width: 7.w),
+                              _StageBadge(stage: lead.stage),
+                            ],
+                          ),
+                          SizedBox(height: 5.h),
+                          Text(
+                            '${lead.phone} • RM',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFF2A2725),
+                              fontSize: 13.sp,
+                              fontWeight: FontWeight.w800,
+                              height: 1.15,
+                            ),
+                          ),
+                          Text(
+                            lead.assignedToName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFF3C3835),
+                              fontSize: 13.sp,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ),
-              ),
-              IconButton(
-                onPressed: () => _openDialer(context, lead.phone),
-                icon: Icon(
-                  Icons.call_rounded,
-                  color: AppColors.rmPrimary,
-                  size: 22.sp,
-                ),
-                style: IconButton.styleFrom(
-                  backgroundColor: AppColors.rmPrimary.withValues(alpha: 0.05),
-                  padding: EdgeInsets.all(8.r),
-                ),
-              ),
-              SizedBox(width: 8.w),
-              IconButton(
-                onPressed: () => _openWhatsApp(context, lead.phone),
-                icon: Image.asset(
-                  'assets/whatsapp.png',
-                  width: 22.r,
-                  height: 22.r,
-                ),
-                style: IconButton.styleFrom(
-                  backgroundColor: AppColors.whatsappGreen.withValues(
-                    alpha: 0.05,
-                  ),
-                  padding: EdgeInsets.all(8.r),
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: 12.h),
-          Divider(color: AppColors.rmBorder, height: 1),
-          SizedBox(height: 12.h),
-          Row(
-            children: [
-              Icon(
-                Icons.phone_iphone_rounded,
-                size: 16.sp,
-                color: AppColors.rmMutedText,
-              ),
-              SizedBox(width: 6.w),
-              Text(
-                lead.phone,
-                style: GoogleFonts.manrope(
-                  color: AppColors.rmHeading,
-                  fontSize: 13.sp,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
-          if (task != null) ...[
-            SizedBox(height: 12.h),
-            Container(
-              width: double.infinity,
-              padding: EdgeInsets.all(10.r),
-              decoration: BoxDecoration(
-                color: AppColors.rmSoftPink,
-                borderRadius: BorderRadius.circular(10.r),
-                border: Border.all(color: AppColors.rmPaleRoseBorder),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    task.title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.manrope(
-                      color: AppColors.rmHeading,
-                      fontSize: 14.sp,
-                      fontWeight: FontWeight.w800,
+                SizedBox(height: 17.h),
+                Row(
+                  children: [
+                    _AttentionBadge(
+                      label: lead.hasOverdueFollowUp
+                          ? 'Needs attention'
+                          : 'Follow-up',
+                      filled: false,
                     ),
-                  ),
-                  SizedBox(height: 6.h),
-                  Row(
-                    children: [
-                      _TaskBadge(label: task.type),
-                      SizedBox(width: 7.w),
-                      _TaskBadge(label: task.priority),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            SizedBox(height: 8.h),
-            Row(
-              children: [
-                Icon(
-                  Icons.event_available_rounded,
-                  size: 16.sp,
-                  color: AppColors.rmMutedText,
-                ),
-                SizedBox(width: 6.w),
-                Expanded(
-                  child: Text(
-                    'Next Follow-up: ${task.dueDateLabel}',
-                    style: GoogleFonts.manrope(
-                      color: task.isOverdue
-                          ? AppColors.danger
-                          : AppColors.rmHeading,
-                      fontSize: 13.sp,
-                      fontWeight: FontWeight.w700,
+                    SizedBox(width: 6.w),
+                    _AttentionBadge(
+                      label: '${lead.openFollowUps.length} open items',
+                      filled: false,
+                      neutral: true,
                     ),
-                  ),
+                    SizedBox(width: 6.w),
+                    const Spacer(),
+                    SizedBox(
+                      height: 34.h,
+                      child: ElevatedButton.icon(
+                        onPressed: () => _openQuickTask(context),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFD76322),
+                          foregroundColor: AppColors.white,
+                          elevation: 0,
+                          padding: EdgeInsets.symmetric(horizontal: 9.w),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(5.r),
+                          ),
+                        ),
+                        icon: Icon(Icons.add_rounded, size: 16.sp),
+                        label: Text(
+                          'Quick',
+                          style: GoogleFonts.inter(
+                            fontSize: 12.sp,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
-          ],
-          SizedBox(height: 16.h),
-          SizedBox(
-            width: double.infinity,
-            height: 44.h,
-            child: ElevatedButton(
-              onPressed: task == null || isCompleting
-                  ? null
-                  : () => _markDone(context, task),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.rmPrimary,
-                foregroundColor: AppColors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12.r),
+          ),
+          Divider(height: 1, color: const Color(0xFFEFE6E1)),
+          Padding(
+            padding: EdgeInsets.fromLTRB(12.w, 13.h, 12.w, 10.h),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    _TaskStatusPill(
+                      label: 'To Do',
+                      count: lead.openFollowUps.length,
+                      selected: true,
+                    ),
+                    _TaskStatusPill(label: 'Progress', count: progressCount),
+                    _TaskStatusPill(
+                      label: 'Done',
+                      count: lead.doneFollowUps.length,
+                    ),
+                  ],
                 ),
-                elevation: 0,
-              ),
-              child: isCompleting
-                  ? SizedBox(
-                      width: 18.r,
-                      height: 18.r,
-                      child: const CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: AppColors.white,
+                SizedBox(height: 17.h),
+                Wrap(
+                  spacing: 6.w,
+                  runSpacing: 6.h,
+                  children: [
+                    _SoftBadge(
+                      label: _priorityLabel(task),
+                      color: const Color(0xFFE83B45),
+                      background: const Color(0xFFFFEEEE),
+                    ),
+                    if (task?.isOverdue ?? false)
+                      _SoftBadge(
+                        label: 'OVERDUE',
+                        color: const Color(0xFFE67B22),
+                        background: const Color(0xFFFFF3E6),
+                        icon: Icons.warning_amber_rounded,
                       ),
-                    )
-                  : Text(
-                      'Mark Done',
-                      style: GoogleFonts.manrope(
-                        fontSize: 14.sp,
-                        fontWeight: FontWeight.w800,
+                  ],
+                ),
+                SizedBox(height: 9.h),
+                Text(
+                  task?.title ?? 'Call client for follow-up',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF272321),
+                    fontSize: 17.sp,
+                    fontWeight: FontWeight.w900,
+                    height: 1.15,
+                  ),
+                ),
+                SizedBox(height: 4.h),
+                Text(
+                  lead.leadMeta,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF5C5652),
+                    fontSize: 11.sp,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                SizedBox(height: 14.h),
+                Divider(height: 1, color: const Color(0xFFEFE6E1)),
+                SizedBox(height: 12.h),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: _TaskInfoBlock(
+                        label: 'Task Type',
+                        value: task?.type ?? 'Call',
                       ),
                     ),
+                    Expanded(
+                      child: _TaskInfoBlock(
+                        label: 'Due Date',
+                        value: task?.dueDateLabel ?? '-',
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 12.h),
+                _TaskInfoBlock(
+                  label: 'Assigned To',
+                  value: task?.assignedToName == '-'
+                      ? lead.assignedToName
+                      : task?.assignedToName ?? lead.assignedToName,
+                ),
+                SizedBox(height: 12.h),
+                Divider(height: 1, color: const Color(0xFFEFE6E1)),
+                SizedBox(height: 16.h),
+                Container(
+                  width: double.infinity,
+                  padding: EdgeInsets.fromLTRB(12.w, 12.h, 12.w, 12.h),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFFAF8),
+                    borderRadius: BorderRadius.circular(10.r),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'NOTES',
+                        style: GoogleFonts.inter(
+                          color: const Color(0xFF2F2B29),
+                          fontSize: 12.sp,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      SizedBox(height: 9.h),
+                      Text(
+                        notes,
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.inter(
+                          color: const Color(0xFF4A4542),
+                          fontSize: 12.sp,
+                          fontWeight: FontWeight.w700,
+                          height: 1.35,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(height: 20.h),
+                InkWell(
+                  borderRadius: BorderRadius.circular(9.r),
+                  onTap: () => _openDialer(context, lead.phone),
+                  child: Container(
+                    padding: EdgeInsets.fromLTRB(10.w, 9.h, 12.w, 9.h),
+                    decoration: BoxDecoration(
+                      color: AppColors.white,
+                      borderRadius: BorderRadius.circular(9.r),
+                      border: Border.all(color: const Color(0xFFF1BEA6)),
+                    ),
+                    child: Row(
+                      children: [
+                        ClipOval(
+                          child: Image.asset(
+                            'assets/wedding_hero 1.png',
+                            width: 44.r,
+                            height: 44.r,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                        SizedBox(width: 12.w),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'CLIENT PROFILE',
+                                style: GoogleFonts.inter(
+                                  color: const Color(0xFF4B4542),
+                                  fontSize: 10.sp,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                              SizedBox(height: 3.h),
+                              Text(
+                                lead.name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.inter(
+                                  color: const Color(0xFF171412),
+                                  fontSize: 14.sp,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Icon(
+                          Icons.phone_in_talk_outlined,
+                          color: const Color(0xFF171412),
+                          size: 20.sp,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                SizedBox(height: 34.h),
+                Row(
+                  children: [
+                    InkWell(
+                      onTap: () => _openQuickTask(context),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.add_circle_outline_rounded,
+                            color: const Color(0xFF4A4542),
+                            size: 16.sp,
+                          ),
+                          SizedBox(width: 8.w),
+                          Text(
+                            'Quick Task',
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFF4A4542),
+                              fontSize: 13.sp,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Spacer(),
+                    SizedBox(
+                      height: 37.h,
+                      width: 126.w,
+                      child: ElevatedButton(
+                        onPressed: task == null || isCompleting
+                            ? null
+                            : () => _markDone(context, task),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFD76322),
+                          foregroundColor: AppColors.white,
+                          disabledBackgroundColor: const Color(0xFFE6C4B5),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20.r),
+                          ),
+                        ),
+                        child: isCompleting
+                            ? SizedBox(
+                                width: 18.r,
+                                height: 18.r,
+                                child: const CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: AppColors.white,
+                                ),
+                              )
+                            : Text(
+                                'Mark Done',
+                                style: GoogleFonts.inter(
+                                  fontSize: 12.sp,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          Divider(height: 1, color: const Color(0xFFEFE6E1)),
+          Padding(
+            padding: EdgeInsets.fromLTRB(14.w, 9.h, 12.w, 10.h),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    _formatTimestamp(task?.createdAt ?? lead.createdAt),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFF4A4542),
+                      fontSize: 10.sp,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+                Icon(
+                  Icons.calendar_month_outlined,
+                  color: const Color(0xFF3E454E),
+                  size: 17.sp,
+                ),
+                SizedBox(width: 14.w),
+                Icon(
+                  Icons.delete_outline_rounded,
+                  color: const Color(0xFFE3262E),
+                  size: 18.sp,
+                ),
+              ],
             ),
           ),
         ],
@@ -576,27 +1305,48 @@ class _LeadFollowUpCard extends StatelessWidget {
     );
   }
 
-  Future<void> _openWhatsApp(BuildContext context, String phone) async {
-    final messenger = ScaffoldMessenger.of(context);
-    var digits = phone.replaceAll(RegExp(r'[^0-9]'), '');
-    if (digits.length == 10) {
-      digits = '91$digits';
+  String _priorityLabel(LeadFollowUpTask? task) {
+    final priority = task?.priority.trim();
+    if (priority == null || priority.isEmpty || priority == '-') {
+      return 'HIGH PRIORITY';
+    }
+    return '${priority.toUpperCase()} PRIORITY';
+  }
+
+  String _formatTimestamp(DateTime? date) {
+    if (date == null) {
+      return '11 May, 03:13 pm';
     }
 
-    if (digits.isEmpty) {
-      messenger.showSnackBar(
-        const SnackBar(content: Text('WhatsApp number is unavailable')),
-      );
-      return;
-    }
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    final local = date.toLocal();
+    final hour = local.hour % 12 == 0 ? 12 : local.hour % 12;
+    final minute = local.minute.toString().padLeft(2, '0');
+    final meridiem = local.hour >= 12 ? 'pm' : 'am';
+    return '${local.day} ${months[local.month - 1]}, $hour:$minute $meridiem';
+  }
 
-    final uri = Uri.parse('https://wa.me/$digits');
-    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
-    if (!opened && context.mounted) {
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Unable to open WhatsApp')),
-      );
-    }
+  Future<void> _openQuickTask(BuildContext context) async {
+    final created = await Navigator.pushNamed(
+      context,
+      AppRoutes.createNewTask,
+      arguments: lead,
+    );
+    if (!context.mounted || created != true) return;
+    await context.read<LeadFollowUpsProvider>().retry();
   }
 
   Future<void> _openDialer(BuildContext context, String phone) async {
@@ -644,28 +1394,175 @@ class _LeadFollowUpCard extends StatelessWidget {
   }
 }
 
-class _TaskBadge extends StatelessWidget {
-  const _TaskBadge({required this.label});
+class _AttentionBadge extends StatelessWidget {
+  const _AttentionBadge({
+    required this.label,
+    required this.filled,
+    this.neutral = false,
+  });
 
   final String label;
+  final bool filled;
+  final bool neutral;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = neutral ? const Color(0xFF3B3735) : const Color(0xFFE33A3A);
+    return Container(
+      height: 34.h,
+      padding: EdgeInsets.symmetric(horizontal: 11.w),
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: filled ? color : AppColors.white,
+        borderRadius: BorderRadius.circular(18.r),
+        border: Border.all(color: neutral ? const Color(0xFFDADADA) : color),
+      ),
+      child: Text(
+        label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: GoogleFonts.inter(
+          color: filled ? AppColors.white : color,
+          fontSize: 12.sp,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+  }
+}
+
+class _TaskStatusPill extends StatelessWidget {
+  const _TaskStatusPill({
+    required this.label,
+    required this.count,
+    this.selected = false,
+  });
+
+  final String label;
+  final int count;
+  final bool selected;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 3.h),
+      height: 32.h,
+      padding: EdgeInsets.symmetric(horizontal: 12.w),
       decoration: BoxDecoration(
-        color: AppColors.white,
+        color: selected ? const Color(0xFFD76322) : AppColors.white,
+        borderRadius: BorderRadius.circular(18.r),
+        border: Border.all(color: const Color(0xFFEBA07A)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              color: selected ? AppColors.white : const Color(0xFF3A3532),
+              fontSize: 12.sp,
+              fontWeight: selected ? FontWeight.w900 : FontWeight.w700,
+            ),
+          ),
+          SizedBox(width: 7.w),
+          Container(
+            width: 18.r,
+            height: 18.r,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: selected
+                  ? AppColors.white.withValues(alpha: 0.2)
+                  : const Color(0xFFFFEEE8),
+              shape: BoxShape.circle,
+            ),
+            child: Text(
+              '$count',
+              style: GoogleFonts.inter(
+                color: selected ? AppColors.white : const Color(0xFFD76322),
+                fontSize: 10.sp,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SoftBadge extends StatelessWidget {
+  const _SoftBadge({
+    required this.label,
+    required this.color,
+    required this.background,
+    this.icon,
+  });
+
+  final String label;
+  final Color color;
+  final Color background;
+  final IconData? icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 7.w, vertical: 5.h),
+      decoration: BoxDecoration(
+        color: background,
         borderRadius: BorderRadius.circular(12.r),
-        border: Border.all(color: AppColors.rmPaleRoseBorder),
       ),
-      child: Text(
-        label,
-        style: GoogleFonts.manrope(
-          color: AppColors.rmPrimary,
-          fontSize: 10.sp,
-          fontWeight: FontWeight.w700,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, color: color, size: 12.sp),
+            SizedBox(width: 3.w),
+          ],
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              color: color,
+              fontSize: 8.sp,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TaskInfoBlock extends StatelessWidget {
+  const _TaskInfoBlock({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label.toUpperCase(),
+          style: GoogleFonts.inter(
+            color: const Color(0xFF8A8582),
+            fontSize: 11.sp,
+            fontWeight: FontWeight.w900,
+          ),
         ),
-      ),
+        SizedBox(height: 3.h),
+        Text(
+          value,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: GoogleFonts.inter(
+            color: const Color(0xFF3A3532),
+            fontSize: 15.sp,
+            fontWeight: FontWeight.w900,
+            height: 1.1,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -678,17 +1575,17 @@ class _StageBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 2.h),
+      padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 3.h),
       decoration: BoxDecoration(
-        color: AppColors.rmPrimary.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(6.r),
+        color: const Color(0xFFEBD9FF),
+        borderRadius: BorderRadius.circular(8.r),
       ),
       child: Text(
         stage.toUpperCase(),
-        style: GoogleFonts.manrope(
-          color: AppColors.rmPrimary,
+        style: GoogleFonts.inter(
+          color: const Color(0xFF6D35D3),
           fontSize: 10.sp,
-          fontWeight: FontWeight.w800,
+          fontWeight: FontWeight.w900,
         ),
       ),
     );

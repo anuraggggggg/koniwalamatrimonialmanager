@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:koniwalamatrimonial/constants/app_colors.dart';
+import 'package:koniwalamatrimonial/models/payroll_run.dart';
 import 'package:koniwalamatrimonial/providers/auth_provider.dart';
-import 'package:koniwalamatrimonial/routes/app_routes.dart';
 import 'package:koniwalamatrimonial/widgets/run_payroll_dialog.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -18,18 +18,31 @@ class PayrollManagementScreen extends StatefulWidget {
 
 class _PayrollManagementScreenState extends State<PayrollManagementScreen> {
   final NumberFormat _currencyFormat = NumberFormat.currency(
-    symbol: 'Rs. ',
+    symbol: '₹',
     locale: 'en_IN',
     decimalDigits: 0,
   );
+  final TextEditingController _searchController = TextEditingController();
   late int _selectedMonth;
   late int _selectedYear;
   final Set<String> _downloadingPayslipIds = <String>{};
+  String _searchQuery = '';
+  _PayrollStatusFilter _selectedStatusFilter = _PayrollStatusFilter.all;
+  String? _selectedDepartment;
+  String? _selectedRole;
+  String? _selectedManager;
+  _PayrollPayoutFilter _selectedPayoutFilter = _PayrollPayoutFilter.all;
 
   bool _isPayrollBlockedForRole(String? role) {
     final normalizedRole = role?.toUpperCase();
     return normalizedRole == 'MANAGER' ||
         normalizedRole == 'RELATIONSHIP_MANAGER';
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   @override
@@ -60,94 +73,205 @@ class _PayrollManagementScreenState extends State<PayrollManagementScreen> {
     );
   }
 
-  Future<void> _showRecalculateDialog() async {
-    final payroll = context.read<AuthProvider>().payrollPreview;
-    if (payroll == null) {
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(
-          SnackBar(
-            content: const Text('Payroll preview is not available.'),
-            backgroundColor: Colors.red.shade600,
-          ),
-        );
-      return;
-    }
-
-    final selectedPeriod = await showDialog<_PayrollPeriod>(
-      context: context,
-      builder: (context) => _RecalculatePayrollDialog(
-        initialMonth: _selectedMonth,
-        initialYear: _selectedYear,
-      ),
-    );
-
-    if (selectedPeriod == null || !mounted) {
-      return;
-    }
-
-    final result = await context.read<AuthProvider>().recalculatePayroll(
-      id: payroll.id,
-      month: selectedPeriod.month,
-      year: selectedPeriod.year,
-      status: payroll.status.trim().isEmpty
-          ? 'DRAFT'
-          : payroll.status.trim().toUpperCase(),
-    );
-    final success = result.success;
-
-    if (!mounted) {
-      return;
-    }
-
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(
-            success
-                ? 'Payroll recalculated successfully.'
-                : result.message ?? 'Failed to recalculate payroll.',
-          ),
-          backgroundColor: success ? Colors.green.shade600 : Colors.red.shade600,
-        ),
-      );
-
-    if (!success) {
-      return;
-    }
-
-    setState(() {
-      _selectedMonth = selectedPeriod.month;
-      _selectedYear = selectedPeriod.year;
-    });
-    await _fetchPayrollPreview();
-  }
-
   String _formatCurrency(String value) {
     try {
       final double amount = double.parse(value);
       return _currencyFormat.format(amount);
     } catch (e) {
-      return 'Rs. $value';
+      return '₹$value';
     }
   }
 
-  String _formatStatus(String status) {
-    final normalizedStatus = status.trim();
-    if (normalizedStatus.isEmpty) {
-      return 'Pending';
+  String _entryStatusLabel(PayrollEntry entry) {
+    switch (_entryStatusFilter(entry)) {
+      case _PayrollStatusFilter.all:
+        return 'All';
+      case _PayrollStatusFilter.draft:
+        return 'Draft';
+      case _PayrollStatusFilter.ready:
+        return 'Ready';
+      case _PayrollStatusFilter.failed:
+        return 'Failed';
+      case _PayrollStatusFilter.paid:
+        return 'Paid';
+    }
+  }
+
+  _PayrollStatusFilter _entryStatusFilter(PayrollEntry entry) {
+    final raw = entry.payslipDeliveryStatus.trim().toUpperCase();
+    if (raw == 'PAID' || raw == 'SENT' || entry.payslipSentAt != null) {
+      return _PayrollStatusFilter.paid;
+    }
+    if (raw == 'FAILED' || raw == 'ERROR') {
+      return _PayrollStatusFilter.failed;
+    }
+    if (raw == 'READY' ||
+        raw == 'GENERATED' ||
+        entry.payslipGeneratedAt != null) {
+      return _PayrollStatusFilter.ready;
+    }
+    return _PayrollStatusFilter.draft;
+  }
+
+  String _entryRole(PayrollEntry entry) {
+    final role = entry.user.role.replaceAll('_', ' ').trim();
+    if (role.isEmpty) {
+      return 'Employee';
+    }
+    return role
+        .split(RegExp(r'\s+'))
+        .map((word) {
+          final lower = word.toLowerCase();
+          return '${lower[0].toUpperCase()}${lower.substring(1)}';
+        })
+        .join(' ');
+  }
+
+  String _entryDepartment(PayrollEntry entry) {
+    final department = entry.user.department?.trim();
+    if (department != null && department.isNotEmpty && department != '-') {
+      return department;
+    }
+    return entry.user.employeeProfile?.designation ?? 'General';
+  }
+
+  String _entryManager(PayrollEntry entry) {
+    final manager = entry.user.employeeProfile?.reportingManager?.name.trim();
+    if (manager == null || manager.isEmpty || manager == 'N/A') {
+      return 'Management';
+    }
+    return manager;
+  }
+
+  String _entryDesignation(PayrollEntry entry) {
+    final designation = entry.user.employeeProfile?.designation.trim();
+    if (designation == null || designation.isEmpty || designation == 'N/A') {
+      return 'Employee';
+    }
+    return designation;
+  }
+
+  double _readAmount(String value) {
+    return double.tryParse(value.replaceAll(RegExp(r'[^0-9.-]'), '')) ?? 0;
+  }
+
+  bool _matchesSearch(PayrollEntry entry) {
+    if (_searchQuery.trim().isEmpty) {
+      return true;
     }
 
-    return normalizedStatus[0].toUpperCase() +
-        normalizedStatus.substring(1).toLowerCase();
+    final query = _searchQuery.trim().toLowerCase();
+    final haystack = <String>[
+      entry.user.name,
+      entry.user.email,
+      entry.user.id,
+      _entryRole(entry),
+      _entryDepartment(entry),
+      _entryManager(entry),
+      _entryDesignation(entry),
+      _entryStatusLabel(entry),
+    ].join(' ').toLowerCase();
+
+    return haystack.contains(query);
+  }
+
+  bool _matchesPayrollFilters(PayrollEntry entry) {
+    if (_selectedStatusFilter != _PayrollStatusFilter.all &&
+        _entryStatusFilter(entry) != _selectedStatusFilter) {
+      return false;
+    }
+
+    if (_selectedDepartment != null &&
+        _entryDepartment(entry) != _selectedDepartment) {
+      return false;
+    }
+
+    if (_selectedRole != null && _entryRole(entry) != _selectedRole) {
+      return false;
+    }
+
+    if (_selectedManager != null && _entryManager(entry) != _selectedManager) {
+      return false;
+    }
+
+    switch (_selectedPayoutFilter) {
+      case _PayrollPayoutFilter.all:
+        return true;
+      case _PayrollPayoutFilter.withIncentive:
+        return _readAmount(entry.incentiveAmount) > 0;
+      case _PayrollPayoutFilter.withDeductions:
+        return _readAmount(entry.deductionAmount) > 0;
+      case _PayrollPayoutFilter.editedNet:
+        return entry.netSalaryEdited;
+    }
+  }
+
+  List<String> _filterOptions(
+    List<PayrollEntry> entries,
+    String Function(PayrollEntry entry) valueForEntry,
+  ) {
+    final values = entries
+        .map(valueForEntry)
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty && value != '-')
+        .toSet()
+        .toList();
+    values.sort(
+      (first, second) => first.toLowerCase().compareTo(second.toLowerCase()),
+    );
+    return values;
+  }
+
+  int get _activeFilterCount {
+    var count = 0;
+    if (_selectedStatusFilter != _PayrollStatusFilter.all) count++;
+    if (_selectedDepartment != null) count++;
+    if (_selectedRole != null) count++;
+    if (_selectedManager != null) count++;
+    if (_selectedPayoutFilter != _PayrollPayoutFilter.all) count++;
+    return count;
+  }
+
+  Future<void> _showPayrollFiltersSheet(List<PayrollEntry> entries) async {
+    final result = await showModalBottomSheet<_PayrollFilterSelection>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.transparent,
+      builder: (sheetContext) {
+        return _PayrollFiltersBottomSheet(
+          departmentOptions: _filterOptions(entries, _entryDepartment),
+          roleOptions: _filterOptions(entries, _entryRole),
+          managerOptions: _filterOptions(entries, _entryManager),
+          initialSelection: _PayrollFilterSelection(
+            statusFilter: _selectedStatusFilter,
+            department: _selectedDepartment,
+            role: _selectedRole,
+            manager: _selectedManager,
+            payoutFilter: _selectedPayoutFilter,
+          ),
+        );
+      },
+    );
+
+    if (result == null || !mounted) {
+      return;
+    }
+
+    setState(() {
+      _selectedStatusFilter = result.statusFilter;
+      _selectedDepartment = result.department;
+      _selectedRole = result.role;
+      _selectedManager = result.manager;
+      _selectedPayoutFilter = result.payoutFilter;
+    });
   }
 
   Future<void> _downloadPayslip({
     required String payslipId,
     String? fileName,
   }) async {
-    if (payslipId.trim().isEmpty || _downloadingPayslipIds.contains(payslipId)) {
+    if (payslipId.trim().isEmpty ||
+        _downloadingPayslipIds.contains(payslipId)) {
       return;
     }
 
@@ -171,7 +295,9 @@ class _PayrollManagementScreenState extends State<PayrollManagementScreen> {
                 ? 'Payroll slip downloaded successfully.'
                 : 'Unable to download payroll slip.',
           ),
-          backgroundColor: success ? Colors.green.shade600 : Colors.red.shade600,
+          backgroundColor: success
+              ? Colors.green.shade600
+              : Colors.red.shade600,
         ),
       );
   }
@@ -223,7 +349,7 @@ class _PayrollManagementScreenState extends State<PayrollManagementScreen> {
             child: Text(
               'Payroll Management is not available for this role.',
               textAlign: TextAlign.center,
-              style: GoogleFonts.manrope(
+              style: GoogleFonts.inter(
                 fontSize: 16.sp,
                 fontWeight: FontWeight.w700,
                 color: AppColors.primary,
@@ -251,20 +377,32 @@ class _PayrollManagementScreenState extends State<PayrollManagementScreen> {
       }
     }
 
+    final entries = payroll?.entries ?? const <PayrollEntry>[];
+    final filteredEntries = entries
+        .where(
+          (entry) => _matchesSearch(entry) && _matchesPayrollFilters(entry),
+        )
+        .toList();
+    final readyCount = entries
+        .where(
+          (entry) => _entryStatusFilter(entry) == _PayrollStatusFilter.ready,
+        )
+        .length;
+
     final statCards = <Widget>[
       _buildStatCard(
         title: 'TOTAL NET PAYOUT',
         value: _formatCurrency(totalNetPayout.toString()),
-        trend: '+2.4% Trend',
+        trend: '+2.4% trend',
         trendIcon: Icons.trending_up,
         color: const Color(0xFF2E7D32),
       ),
       _buildStatCard(
         title: 'INCENTIVES',
         value: _formatCurrency(totalIncentives.toString()),
-        trend: '5.1% Growth',
-        trendIcon: Icons.show_chart,
-        color: const Color(0xFF9C27B0),
+        trend: '5.1% growth',
+        trendIcon: Icons.check_circle_outline_rounded,
+        color: const Color(0xFF00A36A),
       ),
       _buildStatCard(
         title: 'DEDUCTIONS',
@@ -275,34 +413,17 @@ class _PayrollManagementScreenState extends State<PayrollManagementScreen> {
       ),
       _buildStatCard(
         title: 'PROGRESS',
-        value: '0/$totalEntries',
-        trend: 'Pending rows',
-        trendIcon: Icons.assignment_outlined,
-        color: const Color(0xFF1976D2),
+        value: '$readyCount/$totalEntries',
+        trend: 'pending rows',
+        trendIcon: Icons.pending_actions_outlined,
+        color: const Color(0xFF6F5F64),
       ),
     ];
 
     return Scaffold(
-      backgroundColor: AppColors.rmSoftPink,
-      appBar: AppBar(
-        toolbarHeight: 44.h,
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.primary),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(
-              Icons.notifications_none_outlined,
-              color: AppColors.primary,
-            ),
-            onPressed: () {
-              Navigator.of(context).pushNamed(AppRoutes.notifications);
-            },
-          ),
-        ],
+      backgroundColor: const Color(0xFFFFF9F6),
+      appBar: _PayrollAppBar(
+        onBackPressed: () => Navigator.of(context).maybePop(),
       ),
       body: isLoading && payroll == null
           ? const Center(
@@ -318,124 +439,18 @@ class _PayrollManagementScreenState extends State<PayrollManagementScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Payroll Management',
-                      style: GoogleFonts.manrope(
-                        fontSize: 28.sp,
-                        fontWeight: FontWeight.w900,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                    SizedBox(height: 4.h),
-                    Text(
-                      'Institutional salary disbursement, incentives, and net payouts.',
-                      style: GoogleFonts.manrope(
-                        fontSize: 14.sp,
-                        color: Colors.grey[600],
+                      'Manage staff records, incentive eligibility, and\ncompensation readiness.',
+                      style: GoogleFonts.inter(
+                        fontSize: 16.sp,
+                        color: const Color(0xFF23201E),
                         fontWeight: FontWeight.w500,
-                        height: 1.3,
+                        height: 1.55,
                       ),
                     ),
-                    SizedBox(height: 12.h),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: SizedBox(
-                            height: 42.h,
-                            child: OutlinedButton(
-                              onPressed: _showRecalculateDialog,
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: AppColors.primary,
-                                side: const BorderSide(
-                                  color: AppColors.primary,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12.r),
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(Icons.refresh, size: 20),
-                                  SizedBox(width: 8.w),
-                                  Flexible(
-                                    child: Text(
-                                      'Recalculate',
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: GoogleFonts.manrope(
-                                        fontSize: 14.sp,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                        SizedBox(width: 12.w),
-                        Flexible(
-                          child: Container(
-                            height: 42.h,
-                            padding: EdgeInsets.symmetric(horizontal: 12.w),
-                            decoration: BoxDecoration(
-                              border: Border.all(color: Colors.grey[300]!),
-                              borderRadius: BorderRadius.circular(12.r),
-                              color: Colors.white,
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(
-                                  Icons.calendar_today_outlined,
-                                  size: 20,
-                                  color: Colors.grey,
-                                ),
-                                SizedBox(width: 8.w),
-                                Flexible(
-                                  child: Text(
-                                    _getMonthName(
-                                      payroll?.month ?? _selectedMonth,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: GoogleFonts.manrope(
-                                      fontSize: 14.sp,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                ),
-                                SizedBox(width: 8.w),
-                                const Text(
-                                  '|',
-                                  style: TextStyle(
-                                    color: Colors.grey,
-                                    fontSize: 18,
-                                  ),
-                                ),
-                                SizedBox(width: 8.w),
-                                Flexible(
-                                  child: Text(
-                                    '${payroll?.year ?? _selectedYear}',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: GoogleFonts.manrope(
-                                      fontSize: 14.sp,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 8.h),
+                    SizedBox(height: 16.h),
                     SizedBox(
                       width: double.infinity,
-                      height: 46.h,
+                      height: 36.h,
                       child: ElevatedButton(
                         onPressed: () => showDialog(
                           context: context,
@@ -452,10 +467,10 @@ class _PayrollManagementScreenState extends State<PayrollManagementScreen> {
                           ),
                         ),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
+                          backgroundColor: const Color(0xFFD76322),
                           foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12.r),
+                            borderRadius: BorderRadius.circular(10.r),
                           ),
                           elevation: 0,
                         ),
@@ -464,19 +479,20 @@ class _PayrollManagementScreenState extends State<PayrollManagementScreen> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             const Icon(
-                              Icons.account_balance_wallet_outlined,
+                              Icons.add_rounded,
                               color: Colors.white,
                               size: 20,
                             ),
                             SizedBox(width: 8.w),
                             Flexible(
                               child: Text(
-                                'Run Payroll',
+                                'PROVISION STAFF',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: GoogleFonts.manrope(
-                                  fontSize: 16.sp,
+                                style: GoogleFonts.inter(
+                                  fontSize: 14.sp,
                                   fontWeight: FontWeight.w800,
+                                  letterSpacing: 0.2,
                                 ),
                               ),
                             ),
@@ -484,50 +500,59 @@ class _PayrollManagementScreenState extends State<PayrollManagementScreen> {
                         ),
                       ),
                     ),
-                    SizedBox(height: 12.h),
+                    SizedBox(height: 24.h),
                     GridView.builder(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
                       itemCount: statCards.length,
                       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                         crossAxisCount: 2,
-                        mainAxisSpacing: 10.h,
-                        crossAxisSpacing: 10.w,
-                        mainAxisExtent: 124,
+                        mainAxisSpacing: 8.h,
+                        crossAxisSpacing: 8.w,
+                        mainAxisExtent: 102.h,
                       ),
                       itemBuilder: (context, index) => statCards[index],
                     ),
-                    SizedBox(height: 12.h),
+                    SizedBox(height: 22.h),
                     Row(
                       children: [
                         Expanded(
                           child: Container(
-                            height: 42.h,
+                            height: 45.h,
                             padding: EdgeInsets.symmetric(horizontal: 12.w),
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(12.r),
-                              border: Border.all(color: Colors.grey[300]!),
+                              border: Border.all(
+                                color: const Color(0xFFBCC1C8),
+                              ),
                             ),
                             child: Row(
                               children: [
-                                const Icon(
-                                  Icons.search,
-                                  color: Colors.grey,
-                                  size: 22,
+                                Icon(
+                                  Icons.search_rounded,
+                                  color: const Color(0xFF69717F),
+                                  size: 22.sp,
                                 ),
                                 SizedBox(width: 10.w),
                                 Expanded(
                                   child: TextField(
+                                    controller: _searchController,
+                                    onChanged: (value) =>
+                                        setState(() => _searchQuery = value),
+                                    onSubmitted: (value) =>
+                                        setState(() => _searchQuery = value),
+                                    textInputAction: TextInputAction.search,
                                     decoration: InputDecoration(
                                       hintText:
                                           'Search by name, email or ID...',
-                                      hintStyle: GoogleFonts.manrope(
-                                        color: Colors.grey,
-                                        fontSize: 13.sp,
+                                      hintStyle: GoogleFonts.inter(
+                                        color: const Color(0xFF69717F),
+                                        fontSize: 15.sp,
                                       ),
                                       border: InputBorder.none,
                                       isDense: true,
+                                      contentPadding: EdgeInsets.zero,
                                     ),
                                   ),
                                 ),
@@ -536,74 +561,75 @@ class _PayrollManagementScreenState extends State<PayrollManagementScreen> {
                           ),
                         ),
                         SizedBox(width: 12.w),
-                        Container(
-                          height: 42.h,
-                          padding: EdgeInsets.symmetric(horizontal: 12.w),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(12.r),
-                            border: Border.all(color: Colors.grey[300]!),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(
-                                Icons.filter_list,
-                                color: AppColors.primary,
-                                size: 20,
+                        SizedBox(
+                          height: 45.h,
+                          child: OutlinedButton.icon(
+                            onPressed: () => _showPayrollFiltersSheet(entries),
+                            icon: Icon(
+                              Icons.tune_rounded,
+                              color: const Color(0xFF1F1C19),
+                              size: 18.sp,
+                            ),
+                            label: Text(
+                              _activeFilterCount == 0
+                                  ? 'Filters'
+                                  : 'Filters ($_activeFilterCount)',
+                              style: GoogleFonts.inter(
+                                fontSize: 13.sp,
+                                color: const Color(0xFF1F1C19),
+                                fontWeight: FontWeight.w800,
                               ),
-                              SizedBox(width: 6.w),
-                              Flexible(
-                                child: Text(
-                                  'Filters',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: GoogleFonts.manrope(
-                                    fontSize: 14.sp,
-                                    color: AppColors.primary,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              backgroundColor: Colors.white,
+                              side: const BorderSide(color: Color(0xFFD76322)),
+                              padding: EdgeInsets.symmetric(horizontal: 12.w),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(9.r),
                               ),
-                            ],
+                            ),
                           ),
                         ),
                       ],
                     ),
-                    SizedBox(height: 12.h),
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
+                    SizedBox(height: 22.h),
+                    Container(
+                      height: 36.h,
+                      padding: EdgeInsets.all(2.w),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(18.r),
+                        border: Border.all(color: const Color(0xFFD76322)),
+                      ),
                       child: Row(
                         children: [
-                          _buildTab('All', true),
-                          SizedBox(width: 8.w),
-                          _buildTab('Draft', false),
-                          SizedBox(width: 8.w),
-                          _buildTab('Ready', false),
-                          SizedBox(width: 8.w),
-                          _buildTab('Failed', false),
-                          SizedBox(width: 8.w),
-                          _buildTab('Paid', false),
+                          _buildTab('All', _PayrollStatusFilter.all),
+                          _buildTab('Draft', _PayrollStatusFilter.draft),
+                          _buildTab('Ready', _PayrollStatusFilter.ready),
+                          _buildTab('Failed', _PayrollStatusFilter.failed),
+                          _buildTab('Paid', _PayrollStatusFilter.paid),
                         ],
                       ),
                     ),
-                    SizedBox(height: 12.h),
-                    if (payroll != null)
+                    SizedBox(height: 22.h),
+                    if (payroll != null && filteredEntries.isEmpty)
+                      const _PayrollMessageCard(
+                        message: 'No payroll rows match the selected filters.',
+                      )
+                    else if (payroll != null)
                       ListView.separated(
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
-                        itemCount: payroll.entries.length,
+                        itemCount: filteredEntries.length,
                         separatorBuilder: (context, index) =>
                             SizedBox(height: 12.h),
                         itemBuilder: (context, index) {
-                          final entry = payroll.entries[index];
+                          final entry = filteredEntries[index];
                           return _buildPayrollCard(
                             payslipId: entry.id,
                             name: entry.user.name,
-                            role: entry.user.role.replaceAll('_', ' '),
-                            title:
-                                entry.user.employeeProfile?.designation ??
-                                'Employee',
+                            role: _entryRole(entry),
+                            title: _entryDesignation(entry),
                             baseSalary: _formatCurrency(entry.baseSalary),
                             attendance: '${entry.presentDays}d',
                             incentive:
@@ -611,7 +637,8 @@ class _PayrollManagementScreenState extends State<PayrollManagementScreen> {
                             deductions:
                                 '-${_formatCurrency(entry.deductionAmount)}',
                             netPayable: _formatCurrency(entry.netSalary),
-                            status: entry.payslipDeliveryStatus,
+                            status: _entryStatusLabel(entry),
+                            image: entry.user.image,
                             payslipFileName: entry.payslipFileName,
                             isDownloading: _downloadingPayslipIds.contains(
                               entry.id,
@@ -627,27 +654,6 @@ class _PayrollManagementScreenState extends State<PayrollManagementScreen> {
     );
   }
 
-  String _getMonthName(int month) {
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
-    if (month >= 1 && month <= 12) {
-      return months[month - 1];
-    }
-    return 'Month';
-  }
-
   Widget _buildStatCard({
     required String title,
     required String value,
@@ -656,69 +662,61 @@ class _PayrollManagementScreenState extends State<PayrollManagementScreen> {
     required Color color,
   }) {
     return Container(
-      padding: EdgeInsets.all(10.w),
+      padding: EdgeInsets.fromLTRB(14.w, 13.h, 12.w, 11.h),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16.r),
-        boxShadow: [
+        borderRadius: BorderRadius.circular(8.r),
+        border: Border.all(color: const Color(0xFFF0DFD7)),
+        boxShadow: const [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
+            color: Color(0x14000000),
             blurRadius: 12,
-            offset: const Offset(0, 4),
+            offset: Offset(0, 5),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            height: 3.h,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.circular(2.r),
-            ),
-          ),
-          SizedBox(height: 6.h),
           Text(
             title,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.manrope(
-              fontSize: 10.sp,
-              fontWeight: FontWeight.w800,
-              color: Colors.grey[500],
-              letterSpacing: 0.4,
+            style: GoogleFonts.inter(
+              fontSize: 12.sp,
+              fontWeight: FontWeight.w900,
+              color: const Color(0xFF33302D),
+              letterSpacing: 0.2,
             ),
           ),
-          SizedBox(height: 2.h),
+          SizedBox(height: 7.h),
           Text(
             value,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.manrope(
-              fontSize: 18.sp,
+            style: GoogleFonts.inter(
+              fontSize: 23.sp,
               fontWeight: FontWeight.w900,
-              color: const Color(0xFF1D1B20),
+              color: const Color(0xFFD76322),
+              height: 1,
             ),
           ),
-          SizedBox(height: 8.h),
+          const Spacer(),
           Row(
             children: [
-              Icon(trendIcon, size: 12.sp, color: color),
-              SizedBox(width: 4.w),
               Expanded(
                 child: Text(
                   trend,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.manrope(
-                    fontSize: 10.sp,
-                    fontWeight: FontWeight.w700,
-                    color: color,
+                  style: GoogleFonts.inter(
+                    fontSize: 12.sp,
+                    fontWeight: FontWeight.w900,
+                    color: const Color(0xFF35302D),
                   ),
                 ),
               ),
+              Icon(trendIcon, size: 18.sp, color: color),
             ],
           ),
         ],
@@ -726,19 +724,30 @@ class _PayrollManagementScreenState extends State<PayrollManagementScreen> {
     );
   }
 
-  Widget _buildTab(String label, bool isSelected) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 8.h),
-      decoration: BoxDecoration(
-        color: isSelected ? const Color(0xFFF7E6EB) : Colors.transparent,
-        borderRadius: BorderRadius.circular(24.r),
-      ),
-      child: Text(
-        label,
-        style: GoogleFonts.manrope(
-          fontSize: 13.sp,
-          fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-          color: isSelected ? AppColors.primary : Colors.grey[600],
+  Widget _buildTab(String label, _PayrollStatusFilter filter) {
+    final isSelected = _selectedStatusFilter == filter;
+    return Expanded(
+      child: InkWell(
+        onTap: () => setState(() => _selectedStatusFilter = filter),
+        borderRadius: BorderRadius.circular(16.r),
+        child: Container(
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: isSelected ? const Color(0xFFFFE8DE) : Colors.transparent,
+            borderRadius: BorderRadius.circular(16.r),
+          ),
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.inter(
+              fontSize: 12.sp,
+              fontWeight: FontWeight.w800,
+              color: isSelected
+                  ? const Color(0xFFD76322)
+                  : const Color(0xFF6A5D59),
+            ),
+          ),
         ),
       ),
     );
@@ -755,19 +764,20 @@ class _PayrollManagementScreenState extends State<PayrollManagementScreen> {
     required String deductions,
     required String netPayable,
     required String status,
+    String? image,
     String? payslipFileName,
     bool isDownloading = false,
   }) {
     return Container(
-      padding: EdgeInsets.all(14.w),
+      padding: EdgeInsets.fromLTRB(12.w, 14.h, 12.w, 14.h),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16.r),
-        boxShadow: [
+        borderRadius: BorderRadius.circular(18.r),
+        boxShadow: const [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
+            color: Color(0x12000000),
             blurRadius: 10,
-            offset: const Offset(0, 4),
+            offset: Offset(0, 4),
           ),
         ],
       ),
@@ -782,8 +792,9 @@ class _PayrollManagementScreenState extends State<PayrollManagementScreen> {
                 height: 40.r,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  image: const DecorationImage(
-                    image: AssetImage('assets/wedding_hero 1.png'),
+                  border: Border.all(color: const Color(0xFFD76322), width: 2),
+                  image: DecorationImage(
+                    image: _payrollImageProvider(image),
                     fit: BoxFit.cover,
                   ),
                 ),
@@ -799,10 +810,11 @@ class _PayrollManagementScreenState extends State<PayrollManagementScreen> {
                         Expanded(
                           child: Text(
                             name,
-                            style: GoogleFonts.manrope(
+                            style: GoogleFonts.inter(
                               fontSize: 20.sp,
                               fontWeight: FontWeight.w900,
                               color: const Color(0xFF1D1B20),
+                              height: 1.05,
                             ),
                           ),
                         ),
@@ -816,16 +828,18 @@ class _PayrollManagementScreenState extends State<PayrollManagementScreen> {
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(12.r),
-                              border: Border.all(color: Colors.grey[200]!),
+                              border: Border.all(
+                                color: const Color(0xFFEFA882),
+                              ),
                             ),
                             child: Text(
-                              _formatStatus(status),
+                              status,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: GoogleFonts.manrope(
+                              style: GoogleFonts.inter(
                                 fontSize: 10.sp,
                                 fontWeight: FontWeight.w800,
-                                color: Colors.grey[500],
+                                color: const Color(0xFF6F4C42),
                               ),
                             ),
                           ),
@@ -844,10 +858,10 @@ class _PayrollManagementScreenState extends State<PayrollManagementScreen> {
                       ),
                       child: Text(
                         role,
-                        style: GoogleFonts.manrope(
+                        style: GoogleFonts.inter(
                           fontSize: 10.sp,
                           fontWeight: FontWeight.w900,
-                          color: AppColors.primary,
+                          color: const Color(0xFFD76322),
                         ),
                       ),
                     ),
@@ -859,9 +873,9 @@ class _PayrollManagementScreenState extends State<PayrollManagementScreen> {
           SizedBox(height: 10.h),
           Text(
             title,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               fontSize: 14.sp,
-              color: Colors.grey[600],
+              color: const Color(0xFF1F1C19),
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -871,7 +885,6 @@ class _PayrollManagementScreenState extends State<PayrollManagementScreen> {
             decoration: BoxDecoration(
               color: const Color(0xFFFDF7F9),
               borderRadius: BorderRadius.circular(12.r),
-              border: Border.all(color: const Color(0xFFF7E6EB)),
             ),
             child: Column(
               children: [
@@ -914,7 +927,7 @@ class _PayrollManagementScreenState extends State<PayrollManagementScreen> {
             ),
           ),
           SizedBox(height: 12.h),
-          const Divider(height: 1, color: Color(0xFFEEEEEE)),
+          const Divider(height: 1, color: Color(0xFFEACDC5)),
           SizedBox(height: 10.h),
           Wrap(
             spacing: 12.w,
@@ -929,10 +942,10 @@ class _PayrollManagementScreenState extends State<PayrollManagementScreen> {
                   children: [
                     Text(
                       'NET PAYABLE',
-                      style: GoogleFonts.manrope(
+                      style: GoogleFonts.inter(
                         fontSize: 10.sp,
                         fontWeight: FontWeight.w800,
-                        color: Colors.grey[500],
+                        color: const Color(0xFF1E1F1F),
                       ),
                     ),
                     SizedBox(height: 2.h),
@@ -940,10 +953,10 @@ class _PayrollManagementScreenState extends State<PayrollManagementScreen> {
                       netPayable,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.manrope(
+                      style: GoogleFonts.inter(
                         fontSize: 24.sp,
                         fontWeight: FontWeight.w900,
-                        color: AppColors.primary,
+                        color: const Color(0xFF1D1B20),
                       ),
                     ),
                   ],
@@ -979,6 +992,11 @@ class _PayrollManagementScreenState extends State<PayrollManagementScreen> {
     bool isAttendance = false,
     Color? valueColor,
   }) {
+    final resolvedValueColor = valueColor ?? const Color(0xFF1D1B20);
+    final labelColor = isAttendance
+        ? const Color(0xFF43A047)
+        : const Color(0xFF2F2B29);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -986,11 +1004,11 @@ class _PayrollManagementScreenState extends State<PayrollManagementScreen> {
           label,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: GoogleFonts.manrope(
-            fontSize: 9.sp,
-            fontWeight: FontWeight.w800,
-            color: Colors.grey[500],
-            letterSpacing: 0.4,
+          style: GoogleFonts.inter(
+            fontSize: 10.sp,
+            fontWeight: FontWeight.w900,
+            color: labelColor,
+            letterSpacing: 0.2,
           ),
         ),
         SizedBox(height: 4.h),
@@ -999,22 +1017,23 @@ class _PayrollManagementScreenState extends State<PayrollManagementScreen> {
             children: [
               Container(
                 width: 32.w,
-                height: 3.h,
+                height: 4.h,
                 decoration: BoxDecoration(
-                  color: Colors.grey[300],
+                  color: const Color(0xFFE4DDD8),
                   borderRadius: BorderRadius.circular(2.r),
                 ),
               ),
-              SizedBox(width: 6.w),
+              SizedBox(width: 7.w),
               Flexible(
                 child: Text(
                   value,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.manrope(
-                    fontSize: 13.sp,
-                    fontWeight: FontWeight.w800,
+                  style: GoogleFonts.inter(
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w900,
                     color: const Color(0xFF1D1B20),
+                    height: 1,
                   ),
                 ),
               ),
@@ -1025,10 +1044,11 @@ class _PayrollManagementScreenState extends State<PayrollManagementScreen> {
             value,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.manrope(
-              fontSize: 13.sp,
-              fontWeight: FontWeight.w800,
-              color: valueColor ?? const Color(0xFF1D1B20),
+            style: GoogleFonts.inter(
+              fontSize: 14.sp,
+              fontWeight: FontWeight.w900,
+              color: resolvedValueColor,
+              height: 1.05,
             ),
           ),
       ],
@@ -1043,25 +1063,594 @@ class _PayrollManagementScreenState extends State<PayrollManagementScreen> {
     return InkWell(
       onTap: isLoading ? null : onTap,
       borderRadius: BorderRadius.circular(999.r),
-      child: Container(
-        padding: EdgeInsets.all(8.w),
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: const Color(0xFFF7E6EB),
-        ),
+      child: Padding(
+        padding: EdgeInsets.all(6.w),
         child: isLoading
             ? SizedBox(
                 width: 16.sp,
                 height: 16.sp,
                 child: const CircularProgressIndicator(
                   strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                    AppColors.primary,
-                  ),
+                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1E1F1F)),
                 ),
               )
-            : Icon(icon, size: 16.sp, color: AppColors.primary),
+            : Icon(icon, size: 18.sp, color: Color(0xFF1E1F1F)),
       ),
+    );
+  }
+}
+
+class _PayrollAppBar extends StatelessWidget implements PreferredSizeWidget {
+  const _PayrollAppBar({required this.onBackPressed});
+
+  final VoidCallback onBackPressed;
+
+  @override
+  Size get preferredSize => Size.fromHeight(64.h);
+
+  @override
+  Widget build(BuildContext context) {
+    return AppBar(
+      toolbarHeight: 64.h,
+      backgroundColor: Colors.white,
+      surfaceTintColor: Colors.white,
+      elevation: 0,
+      shadowColor: AppColors.transparent,
+      leadingWidth: 54.w,
+      leading: IconButton(
+        tooltip: 'Back',
+        onPressed: onBackPressed,
+        icon: Icon(
+          Icons.arrow_back_rounded,
+          color: const Color(0xFF171412),
+          size: 24.sp,
+        ),
+      ),
+      title: Text(
+        'Payroll Management',
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: GoogleFonts.inter(
+          color: const Color(0xFF171412),
+          fontSize: 20.sp,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+      centerTitle: true,
+      bottom: PreferredSize(
+        preferredSize: Size.fromHeight(1.h),
+        child: Container(height: 1.h, color: const Color(0xFFE7DCD5)),
+      ),
+    );
+  }
+}
+
+class _PayrollMessageCard extends StatelessWidget {
+  const _PayrollMessageCard({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 20.h),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14.r),
+        border: Border.all(color: const Color(0xFFF0DFD7)),
+      ),
+      child: Text(
+        message,
+        textAlign: TextAlign.center,
+        style: GoogleFonts.inter(
+          color: const Color(0xFF6A5D59),
+          fontSize: 14.sp,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
+ImageProvider _payrollImageProvider(String? image) {
+  final text = image?.trim() ?? '';
+  if (text.startsWith('http')) {
+    return NetworkImage(text);
+  }
+  if (text.startsWith('assets/')) {
+    return AssetImage(text);
+  }
+  return const AssetImage('assets/wedding_hero 1.png');
+}
+
+enum _PayrollStatusFilter { all, draft, ready, failed, paid }
+
+enum _PayrollPayoutFilter { all, withIncentive, withDeductions, editedNet }
+
+class _PayrollFilterSelection {
+  const _PayrollFilterSelection({
+    required this.statusFilter,
+    required this.department,
+    required this.role,
+    required this.manager,
+    required this.payoutFilter,
+  });
+
+  final _PayrollStatusFilter statusFilter;
+  final String? department;
+  final String? role;
+  final String? manager;
+  final _PayrollPayoutFilter payoutFilter;
+}
+
+class _PayrollFiltersBottomSheet extends StatefulWidget {
+  const _PayrollFiltersBottomSheet({
+    required this.departmentOptions,
+    required this.roleOptions,
+    required this.managerOptions,
+    required this.initialSelection,
+  });
+
+  final List<String> departmentOptions;
+  final List<String> roleOptions;
+  final List<String> managerOptions;
+  final _PayrollFilterSelection initialSelection;
+
+  @override
+  State<_PayrollFiltersBottomSheet> createState() =>
+      _PayrollFiltersBottomSheetState();
+}
+
+class _PayrollFiltersBottomSheetState
+    extends State<_PayrollFiltersBottomSheet> {
+  late _PayrollStatusFilter _statusFilter;
+  String? _department;
+  String? _role;
+  String? _manager;
+  late _PayrollPayoutFilter _payoutFilter;
+
+  @override
+  void initState() {
+    super.initState();
+    final selection = widget.initialSelection;
+    _statusFilter = selection.statusFilter;
+    _department = selection.department;
+    _role = selection.role;
+    _manager = selection.manager;
+    _payoutFilter = selection.payoutFilter;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.88,
+      minChildSize: 0.5,
+      maxChildSize: 0.94,
+      expand: false,
+      builder: (context, scrollController) {
+        return Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(22.r)),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x24000000),
+                blurRadius: 26,
+                offset: Offset(0, -10),
+              ),
+            ],
+          ),
+          child: SafeArea(
+            top: false,
+            child: Column(
+              children: [
+                Expanded(
+                  child: SingleChildScrollView(
+                    controller: scrollController,
+                    padding: EdgeInsets.fromLTRB(22.w, 18.h, 22.w, 18.h),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                'Filter',
+                                style: GoogleFonts.inter(
+                                  color: const Color(0xFF1F1C19),
+                                  fontSize: 24.sp,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                            IconButton(
+                              tooltip: 'Close',
+                              onPressed: () => Navigator.of(context).pop(),
+                              icon: Icon(
+                                Icons.close_rounded,
+                                color: const Color(0xFF5F5753),
+                                size: 24.sp,
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 26.h),
+                        const _PayrollFilterSectionTitle(
+                          icon: Icons.flag_outlined,
+                          label: 'Status',
+                        ),
+                        SizedBox(height: 14.h),
+                        Wrap(
+                          spacing: 8.w,
+                          runSpacing: 10.h,
+                          children: [
+                            _PayrollFilterChip(
+                              label: 'All',
+                              selected:
+                                  _statusFilter == _PayrollStatusFilter.all,
+                              onTap: () => setState(
+                                () => _statusFilter = _PayrollStatusFilter.all,
+                              ),
+                            ),
+                            _PayrollFilterChip(
+                              label: 'Draft',
+                              selected:
+                                  _statusFilter == _PayrollStatusFilter.draft,
+                              onTap: () => setState(
+                                () =>
+                                    _statusFilter = _PayrollStatusFilter.draft,
+                              ),
+                            ),
+                            _PayrollFilterChip(
+                              label: 'Ready',
+                              selected:
+                                  _statusFilter == _PayrollStatusFilter.ready,
+                              onTap: () => setState(
+                                () =>
+                                    _statusFilter = _PayrollStatusFilter.ready,
+                              ),
+                            ),
+                            _PayrollFilterChip(
+                              label: 'Failed',
+                              selected:
+                                  _statusFilter == _PayrollStatusFilter.failed,
+                              onTap: () => setState(
+                                () =>
+                                    _statusFilter = _PayrollStatusFilter.failed,
+                              ),
+                            ),
+                            _PayrollFilterChip(
+                              label: 'Paid',
+                              selected:
+                                  _statusFilter == _PayrollStatusFilter.paid,
+                              onTap: () => setState(
+                                () => _statusFilter = _PayrollStatusFilter.paid,
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 30.h),
+                        const _PayrollFilterSectionTitle(
+                          icon: Icons.business_center_outlined,
+                          label: 'Department',
+                        ),
+                        SizedBox(height: 12.h),
+                        _PayrollFilterDropdown(
+                          value: _department,
+                          hintText: 'All Departments',
+                          options: widget.departmentOptions,
+                          onChanged: (value) =>
+                              setState(() => _department = value),
+                        ),
+                        SizedBox(height: 28.h),
+                        const _PayrollFilterSectionTitle(
+                          icon: Icons.badge_outlined,
+                          label: 'Role',
+                        ),
+                        SizedBox(height: 12.h),
+                        _PayrollFilterDropdown(
+                          value: _role,
+                          hintText: 'All Roles',
+                          options: widget.roleOptions,
+                          onChanged: (value) => setState(() => _role = value),
+                        ),
+                        SizedBox(height: 28.h),
+                        const _PayrollFilterSectionTitle(
+                          icon: Icons.manage_accounts_outlined,
+                          label: 'Manager',
+                        ),
+                        SizedBox(height: 12.h),
+                        _PayrollFilterDropdown(
+                          value: _manager,
+                          hintText: 'All Managers',
+                          options: widget.managerOptions,
+                          onChanged: (value) =>
+                              setState(() => _manager = value),
+                        ),
+                        SizedBox(height: 30.h),
+                        const _PayrollFilterSectionTitle(
+                          icon: Icons.payments_outlined,
+                          label: 'Payout',
+                        ),
+                        SizedBox(height: 14.h),
+                        Wrap(
+                          spacing: 8.w,
+                          runSpacing: 10.h,
+                          children: [
+                            _PayrollFilterChip(
+                              label: 'All',
+                              selected:
+                                  _payoutFilter == _PayrollPayoutFilter.all,
+                              onTap: () => setState(
+                                () => _payoutFilter = _PayrollPayoutFilter.all,
+                              ),
+                            ),
+                            _PayrollFilterChip(
+                              label: 'With Incentive',
+                              selected:
+                                  _payoutFilter ==
+                                  _PayrollPayoutFilter.withIncentive,
+                              onTap: () => setState(
+                                () => _payoutFilter =
+                                    _PayrollPayoutFilter.withIncentive,
+                              ),
+                            ),
+                            _PayrollFilterChip(
+                              label: 'With Deductions',
+                              selected:
+                                  _payoutFilter ==
+                                  _PayrollPayoutFilter.withDeductions,
+                              onTap: () => setState(
+                                () => _payoutFilter =
+                                    _PayrollPayoutFilter.withDeductions,
+                              ),
+                            ),
+                            _PayrollFilterChip(
+                              label: 'Edited Net',
+                              selected:
+                                  _payoutFilter ==
+                                  _PayrollPayoutFilter.editedNet,
+                              onTap: () => setState(
+                                () => _payoutFilter =
+                                    _PayrollPayoutFilter.editedNet,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                Container(
+                  padding: EdgeInsets.fromLTRB(22.w, 14.h, 22.w, 16.h),
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    border: Border(top: BorderSide(color: Color(0xFFF0E2DA))),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: _clearFilters,
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFFD76322),
+                            side: const BorderSide(color: Color(0xFFD76322)),
+                            minimumSize: Size.fromHeight(54.h),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12.r),
+                            ),
+                          ),
+                          child: Text(
+                            'Clear All',
+                            style: GoogleFonts.inter(
+                              fontSize: 14.sp,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: 16.w),
+                      Expanded(
+                        flex: 2,
+                        child: ElevatedButton(
+                          onPressed: _applyFilters,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFD76322),
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            minimumSize: Size.fromHeight(54.h),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12.r),
+                            ),
+                          ),
+                          child: Text(
+                            'Apply Filters',
+                            style: GoogleFonts.inter(
+                              fontSize: 15.sp,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _clearFilters() {
+    Navigator.of(context).pop(
+      const _PayrollFilterSelection(
+        statusFilter: _PayrollStatusFilter.all,
+        department: null,
+        role: null,
+        manager: null,
+        payoutFilter: _PayrollPayoutFilter.all,
+      ),
+    );
+  }
+
+  void _applyFilters() {
+    Navigator.of(context).pop(
+      _PayrollFilterSelection(
+        statusFilter: _statusFilter,
+        department: _department,
+        role: _role,
+        manager: _manager,
+        payoutFilter: _payoutFilter,
+      ),
+    );
+  }
+}
+
+class _PayrollFilterSectionTitle extends StatelessWidget {
+  const _PayrollFilterSectionTitle({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 16.sp, color: const Color(0xFF1F1C19)),
+        SizedBox(width: 8.w),
+        Text(
+          label,
+          style: GoogleFonts.inter(
+            color: const Color(0xFF1F1C19),
+            fontSize: 16.sp,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PayrollFilterChip extends StatelessWidget {
+  const _PayrollFilterChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18.r),
+        child: Container(
+          height: 38.h,
+          padding: EdgeInsets.symmetric(horizontal: 16.w),
+          decoration: BoxDecoration(
+            color: selected ? const Color(0xFFD76322) : Colors.white,
+            borderRadius: BorderRadius.circular(18.r),
+            border: Border.all(color: const Color(0xFFD76322)),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            label,
+            style: GoogleFonts.inter(
+              color: selected ? Colors.white : const Color(0xFF1F1C19),
+              fontSize: 14.sp,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PayrollFilterDropdown extends StatelessWidget {
+  const _PayrollFilterDropdown({
+    required this.value,
+    required this.hintText,
+    required this.options,
+    required this.onChanged,
+  });
+
+  final String? value;
+  final String hintText;
+  final List<String> options;
+  final ValueChanged<String?> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final currentValue = options.contains(value) ? value : null;
+
+    return DropdownButtonFormField<String>(
+      initialValue: currentValue,
+      isExpanded: true,
+      icon: Icon(
+        Icons.keyboard_arrow_down_rounded,
+        color: const Color(0xFF71757F),
+        size: 24.sp,
+      ),
+      decoration: InputDecoration(
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 13.h),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8.r),
+          borderSide: const BorderSide(color: Color(0xFFD3D3D3)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8.r),
+          borderSide: const BorderSide(color: Color(0xFFD76322)),
+        ),
+      ),
+      hint: Text(
+        hintText,
+        style: GoogleFonts.inter(
+          color: const Color(0xFF1F1C19),
+          fontSize: 14.sp,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      items: [
+        DropdownMenuItem<String>(
+          value: '',
+          child: Text(
+            hintText,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF1F1C19),
+              fontSize: 14.sp,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        ...options.map(
+          (option) => DropdownMenuItem<String>(
+            value: option,
+            child: Text(
+              option,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.inter(
+                color: const Color(0xFF1F1C19),
+                fontSize: 14.sp,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ),
+      ],
+      onChanged: (value) =>
+          onChanged(value == null || value.isEmpty ? null : value),
     );
   }
 }
@@ -1135,7 +1724,7 @@ class _RecalculatePayrollDialogState extends State<_RecalculatePayrollDialog> {
                   Expanded(
                     child: Text(
                       'Recalculate Payroll',
-                      style: GoogleFonts.manrope(
+                      style: GoogleFonts.inter(
                         fontSize: 22.sp,
                         fontWeight: FontWeight.w900,
                         color: const Color(0xFF2B292D),
@@ -1159,7 +1748,7 @@ class _RecalculatePayrollDialogState extends State<_RecalculatePayrollDialog> {
               SizedBox(height: 6.h),
               Text(
                 'Select the target period to preview and recalculate attendance, deductions, and incentives.',
-                style: GoogleFonts.manrope(
+                style: GoogleFonts.inter(
                   fontSize: 14.sp,
                   height: 1.45,
                   fontWeight: FontWeight.w500,
@@ -1212,7 +1801,7 @@ class _RecalculatePayrollDialogState extends State<_RecalculatePayrollDialog> {
                     ),
                     child: Text(
                       'Cancel',
-                      style: GoogleFonts.manrope(
+                      style: GoogleFonts.inter(
                         fontSize: 13.sp,
                         fontWeight: FontWeight.w700,
                       ),
@@ -1237,7 +1826,7 @@ class _RecalculatePayrollDialogState extends State<_RecalculatePayrollDialog> {
                     ),
                     child: Text(
                       'Recalculate',
-                      style: GoogleFonts.manrope(
+                      style: GoogleFonts.inter(
                         fontSize: 13.sp,
                         fontWeight: FontWeight.w800,
                       ),
@@ -1264,7 +1853,7 @@ class _RecalculatePayrollDialogState extends State<_RecalculatePayrollDialog> {
       children: [
         Text(
           label,
-          style: GoogleFonts.manrope(
+          style: GoogleFonts.inter(
             fontSize: 11.sp,
             fontWeight: FontWeight.w800,
             color: const Color(0xFF2B292D),
@@ -1288,7 +1877,7 @@ class _RecalculatePayrollDialogState extends State<_RecalculatePayrollDialog> {
                 size: 20.sp,
                 color: const Color(0xFF2B292D),
               ),
-              style: GoogleFonts.manrope(
+              style: GoogleFonts.inter(
                 fontSize: 13.sp,
                 fontWeight: FontWeight.w700,
                 color: const Color(0xFF2B292D),

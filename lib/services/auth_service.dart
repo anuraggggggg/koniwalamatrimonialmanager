@@ -52,15 +52,12 @@ class AuthService {
 
   Future<UserModel?> login(String email, String password) async {
     final url = '${ApiConstants.baseUrl}${ApiConstants.login}';
-    
+
     try {
       await _ensureReady();
       final response = await _dio.post(
         url,
-        data: {
-          'email': email,
-          'password': password,
-        },
+        data: {'email': email, 'password': password},
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
@@ -130,20 +127,14 @@ class AuthService {
     }
   }
 
-  Future<bool> runPayroll({
-    required int month,
-    required int year,
-  }) async {
+  Future<bool> runPayroll({required int month, required int year}) async {
     final url = '${ApiConstants.baseUrl}${ApiConstants.payrollRun}';
 
     try {
       await _ensureReady();
       final response = await _dio.post(
         url,
-        data: {
-          'month': month,
-          'year': year,
-        },
+        data: {'month': month, 'year': year},
       );
 
       return response.statusCode == 200 || response.statusCode == 201;
@@ -163,10 +154,7 @@ class AuthService {
       await _ensureReady();
       final response = await _dio.post(
         url,
-        data: {
-          'month': month,
-          'year': year,
-        },
+        data: {'month': month, 'year': year},
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
@@ -192,12 +180,7 @@ class AuthService {
       await _ensureReady();
       final response = await _postPayrollRecalculate(
         url: url,
-        data: {
-          'id': id,
-          'month': month,
-          'year': year,
-          'status': status,
-        },
+        data: {'id': id, 'month': month, 'year': year, 'status': status},
       );
 
       final statusCode = response.statusCode ?? 0;
@@ -214,10 +197,7 @@ class AuthService {
         );
       }
 
-      return PayrollRecalculateResult(
-        success: false,
-        message: message,
-      );
+      return PayrollRecalculateResult(success: false, message: message);
     } catch (_) {
       return const PayrollRecalculateResult(success: false);
     }
@@ -238,10 +218,7 @@ class AuthService {
     try {
       final response = await _postPayrollRecalculate(
         url: url,
-        data: {
-          'month': month,
-          'year': year,
-        },
+        data: {'month': month, 'year': year},
       );
       final statusCode = response.statusCode ?? 0;
       return PayrollRecalculateResult(
@@ -293,10 +270,7 @@ class AuthService {
 
     try {
       await _ensureReady();
-      final response = await _dio.get(
-        url,
-        queryParameters: queryParameters,
-      );
+      final response = await _dio.get(url, queryParameters: queryParameters);
 
       if (response.statusCode == 200) {
         return response.data as List<dynamic>;

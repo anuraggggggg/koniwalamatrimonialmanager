@@ -65,7 +65,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
             children: [
               Text(
                 'Filters',
-                style: GoogleFonts.manrope(
+                style: GoogleFonts.inter(
                   fontSize: 22.sp,
                   fontWeight: FontWeight.w700,
                   color: _primaryColor,
@@ -88,7 +88,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                 },
                 child: Text(
                   'RESET',
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     fontSize: 14.sp,
                     fontWeight: FontWeight.w700,
                     color: const Color(0xFF727782),
@@ -127,7 +127,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                       _buildSectionTitle('AGE RANGE'),
                       Text(
                         '${_ageRange.start.round()} - ${_ageRange.end.round()} Yrs',
-                        style: GoogleFonts.manrope(
+                        style: GoogleFonts.inter(
                           fontSize: 14.sp,
                           fontWeight: FontWeight.w700,
                           color: _primaryColor,
@@ -157,14 +157,14 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                           '18',
                           style: TextStyle(
                             fontSize: 12.sp,
-                            color: Colors.grey,
+                            color: Color(0xFF1E1F1F),
                           ),
                         ),
                         Text(
                           '60+',
                           style: TextStyle(
                             fontSize: 12.sp,
-                            color: Colors.grey,
+                            color: Color(0xFF1E1F1F),
                           ),
                         ),
                       ],
@@ -175,16 +175,20 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                   // Communities
                   _buildSectionTitle('COMMUNITIES'),
                   SizedBox(height: 12.h),
-                  _buildDropdown(_selectedCommunity, (val) {
-                    setState(() => _selectedCommunity = val!);
-                  }, [
-                    'Any Community',
-                    'Agrawal',
-                    'Hindu',
-                    'Muslim',
-                    'Sikh',
-                    'Christian',
-                  ]),
+                  _buildDropdown(
+                    _selectedCommunity,
+                    (val) {
+                      setState(() => _selectedCommunity = val!);
+                    },
+                    [
+                      'Any Community',
+                      'Agrawal',
+                      'Hindu',
+                      'Muslim',
+                      'Sikh',
+                      'Christian',
+                    ],
+                  ),
                   SizedBox(height: 24.h),
 
                   // City / Location
@@ -207,7 +211,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                           child: TextField(
                             decoration: InputDecoration(
                               hintText: 'Search cities...',
-                              hintStyle: GoogleFonts.manrope(
+                              hintStyle: GoogleFonts.inter(
                                 color: const Color(0xFF727782),
                                 fontSize: 14.sp,
                               ),
@@ -224,23 +228,20 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                     children: _selectedLocations
                         .map(
                           (loc) => Chip(
-                        label: Text(
-                          loc,
-                          style: TextStyle(fontSize: 12.sp),
-                        ),
-                        deleteIcon: Icon(Icons.close, size: 14.sp),
-                        onDeleted: () {
-                          setState(() {
-                            _selectedLocations.remove(loc);
-                          });
-                        },
-                        backgroundColor: const Color(0xFFFDECF3),
-                        side: BorderSide.none,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8.r),
-                        ),
-                      ),
-                    )
+                            label: Text(loc, style: TextStyle(fontSize: 12.sp)),
+                            deleteIcon: Icon(Icons.close, size: 14.sp),
+                            onDeleted: () {
+                              setState(() {
+                                _selectedLocations.remove(loc);
+                              });
+                            },
+                            backgroundColor: const Color(0xFFFDECF3),
+                            side: BorderSide.none,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8.r),
+                            ),
+                          ),
+                        )
                         .toList(),
                   ),
                   SizedBox(height: 24.h),
@@ -253,7 +254,11 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                     runSpacing: 12.h,
                     children: [
                       _buildSkinToneItem(0, const Color(0xFFF5D5E6), 'Fair'),
-                      _buildSkinToneItem(1, const Color(0xFFF3D2B5), 'Wheatish'),
+                      _buildSkinToneItem(
+                        1,
+                        const Color(0xFFF3D2B5),
+                        'Wheatish',
+                      ),
                       _buildSkinToneItem(2, const Color(0xFFD09C77), 'Brown'),
                       _buildSkinToneItem(3, const Color(0xFF9B6D4A), 'Dark'),
                       _buildSkinToneItem(4, Colors.white, 'Any', isAny: true),
@@ -264,17 +269,25 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                   // Gotra
                   _buildSectionTitle('GOTRA'),
                   SizedBox(height: 12.h),
-                  _buildDropdown(_selectedGotra, (val) {
-                    setState(() => _selectedGotra = val!);
-                  }, ['All Gotras', 'Mittal', 'Kashyap', 'Bhardwaj', 'Vats']),
+                  _buildDropdown(
+                    _selectedGotra,
+                    (val) {
+                      setState(() => _selectedGotra = val!);
+                    },
+                    ['All Gotras', 'Mittal', 'Kashyap', 'Bhardwaj', 'Vats'],
+                  ),
                   SizedBox(height: 24.h),
 
                   // Profession
                   _buildSectionTitle('PROFESSION'),
                   SizedBox(height: 12.h),
-                  _buildDropdown(_selectedProfession, (val) {
-                    setState(() => _selectedProfession = val!);
-                  }, ['All Professions', 'Engineer', 'Doctor', 'Teacher']),
+                  _buildDropdown(
+                    _selectedProfession,
+                    (val) {
+                      setState(() => _selectedProfession = val!);
+                    },
+                    ['All Professions', 'Engineer', 'Doctor', 'Teacher'],
+                  ),
                   SizedBox(height: 24.h),
 
                   // Status
@@ -330,15 +343,14 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                   _selectedProfession,
                   allValue: 'All Professions',
                 );
-                final status = _enumFilterValue(
-                  _selectedStatus,
-                  allValue: 'All Status',
-                ) ?? 'ACTIVE';
+                final status =
+                    _enumFilterValue(_selectedStatus, allValue: 'All Status') ??
+                    'ACTIVE';
 
                 final filters = {
                   if (category != null) 'category': category,
                   'ageRange':
-                  '${_ageRange.start.round()}-${_ageRange.end.round()}',
+                      '${_ageRange.start.round()}-${_ageRange.end.round()}',
                   if (community != null) 'community': community,
                   if (_selectedLocations.isNotEmpty)
                     'currentResidential': _selectedLocations.join(','),
@@ -355,10 +367,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
 
                 final applied = await context
                     .read<RegistryProfilesProvider>()
-                    .filterProfiles(
-                  accessToken: token,
-                  filters: filters,
-                );
+                    .filterProfiles(accessToken: token, filters: filters);
 
                 if (!mounted) {
                   return;
@@ -395,7 +404,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                   else ...[
                     Text(
                       'Apply Filters',
-                      style: GoogleFonts.manrope(
+                      style: GoogleFonts.inter(
                         fontSize: 16.sp,
                         fontWeight: FontWeight.w700,
                         color: Colors.white,
@@ -416,7 +425,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
   Widget _buildSectionTitle(String title) {
     return Text(
       title,
-      style: GoogleFonts.manrope(
+      style: GoogleFonts.inter(
         fontSize: 12.sp,
         fontWeight: FontWeight.w800,
         color: const Color(0xFF49454F),
@@ -444,7 +453,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
         ),
         child: Text(
           label,
-          style: GoogleFonts.manrope(
+          style: GoogleFonts.inter(
             fontSize: 14.sp,
             fontWeight: FontWeight.w600,
             color: isSelected ? Colors.white : const Color(0xFF49454F),
@@ -479,7 +488,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
             SizedBox(width: 4.w),
             Text(
               'Elite',
-              style: GoogleFonts.manrope(
+              style: GoogleFonts.inter(
                 fontSize: 14.sp,
                 fontWeight: FontWeight.w600,
                 color: isSelected ? Colors.white : const Color(0xFFB8860B),
@@ -492,11 +501,11 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
   }
 
   Widget _buildSkinToneItem(
-      int index,
-      Color color,
-      String label, {
-        bool isAny = false,
-      }) {
+    int index,
+    Color color,
+    String label, {
+    bool isAny = false,
+  }) {
     bool isSelected = _selectedSkinToneIndex == index;
     return GestureDetector(
       onTap: () => setState(() => _selectedSkinToneIndex = index),
@@ -515,16 +524,16 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
             ),
             child: isSelected
                 ? Icon(
-              Icons.check,
-              size: 22.sp,
-              color: isAny ? _primaryColor : Colors.white,
-            )
+                    Icons.check,
+                    size: 22.sp,
+                    color: isAny ? _primaryColor : Colors.white,
+                  )
                 : null,
           ),
           SizedBox(height: 6.h),
           Text(
             label,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               fontSize: 11.sp,
               fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
               color: isSelected ? _primaryColor : const Color(0xFF49454F),
@@ -536,10 +545,10 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
   }
 
   Widget _buildDropdown(
-      String value,
-      ValueChanged<String?> onChanged,
-      List<String> items,
-      ) {
+    String value,
+    ValueChanged<String?> onChanged,
+    List<String> items,
+  ) {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 16.w),
       decoration: BoxDecoration(
@@ -554,7 +563,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
           items: items.map((String item) {
             return DropdownMenuItem<String>(
               value: item,
-              child: Text(item, style: GoogleFonts.manrope(fontSize: 14.sp)),
+              child: Text(item, style: GoogleFonts.inter(fontSize: 14.sp)),
             );
           }).toList(),
           onChanged: onChanged,

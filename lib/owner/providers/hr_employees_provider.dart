@@ -7,6 +7,51 @@ import 'package:koniwalamatrimonial/constants/api_constants.dart';
 import 'package:koniwalamatrimonial/owner/models/hr_employee_detail.dart';
 import 'package:koniwalamatrimonial/owner/models/hr_employee_item.dart';
 
+List<HrEmployeeItem> _parseHrEmployeeItemsResponse(String body) {
+  final decoded = jsonDecode(body);
+  final employeeRows = _extractHrEmployeeRows(decoded);
+
+  return employeeRows
+      .whereType<Map<String, dynamic>>()
+      .map(HrEmployeeItem.fromJson)
+      .toList();
+}
+
+List<dynamic> _extractHrEmployeeRows(dynamic payload) {
+  if (payload is List) {
+    return payload;
+  }
+
+  if (payload is Map<String, dynamic>) {
+    for (final key in const ['data', 'employees', 'items', 'results']) {
+      final value = payload[key];
+
+      if (value is List) {
+        return value;
+      }
+
+      final nestedRows = _extractHrEmployeeRows(value);
+      if (nestedRows.isNotEmpty) {
+        return nestedRows;
+      }
+    }
+  }
+
+  return const [];
+}
+
+void _debugPrintCompact(String label, String value) {
+  if (!kDebugMode) {
+    return;
+  }
+
+  const maxChars = 1200;
+  final compactValue = value.length > maxChars
+      ? '${value.substring(0, maxChars)}... [truncated ${value.length} chars]'
+      : value;
+  debugPrint('$label$compactValue');
+}
+
 class HrEmployeesProvider extends ChangeNotifier {
   bool _isLoading = false;
   String? _error;
@@ -59,7 +104,9 @@ class HrEmployeesProvider extends ChangeNotifier {
 
     try {
       final url = '${ApiConstants.baseUrl}${ApiConstants.hrEmployees}';
-      debugPrint('Calling staff list API: $url');
+      if (kDebugMode) {
+        debugPrint('Calling staff list API: $url');
+      }
       final response = await http.get(
         Uri.parse(url),
         headers: {
@@ -68,22 +115,18 @@ class HrEmployeesProvider extends ChangeNotifier {
         },
       );
 
-      debugPrint(
-        'Staff list API response status=${response.statusCode}, '
-        'body=${response.body}',
-      );
+      if (kDebugMode) {
+        debugPrint('Staff list API response status=${response.statusCode}');
+      }
+      _debugPrintCompact('Staff list API body: ', response.body);
 
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception('Staff list API failed with ${response.statusCode}');
       }
 
-      final decoded = jsonDecode(response.body);
-      final employeeRows = _extractEmployeeRows(decoded);
-
-      _employees = employeeRows
-          .whereType<Map<String, dynamic>>()
-          .map(HrEmployeeItem.fromJson)
-          .toList();
+      // PERF: Staff lists can include enough nested data to hitch the UI while
+      // opening HR/owner screens. Parse on a background isolate.
+      _employees = await compute(_parseHrEmployeeItemsResponse, response.body);
       _isLoading = false;
       _error = null;
       notifyListeners();
@@ -142,7 +185,9 @@ class HrEmployeesProvider extends ChangeNotifier {
     try {
       final url =
           '${ApiConstants.baseUrl}${ApiConstants.hrEmployeeAttendance(employeeId: employeeId, month: month, year: year)}';
-      debugPrint('Calling employee attendance API: $url');
+      if (kDebugMode) {
+        debugPrint('Calling employee attendance API: $url');
+      }
 
       final response = await http.get(
         Uri.parse(url),
@@ -152,10 +197,12 @@ class HrEmployeesProvider extends ChangeNotifier {
         },
       );
 
-      debugPrint(
-        'Employee attendance API response status=${response.statusCode}, '
-        'body=${response.body}',
-      );
+      if (kDebugMode) {
+        debugPrint(
+          'Employee attendance API response status=${response.statusCode}',
+        );
+      }
+      _debugPrintCompact('Employee attendance API body: ', response.body);
 
       if (response.statusCode == 304 &&
           _employeeAttendanceByKey.containsKey(key)) {
@@ -214,7 +261,9 @@ class HrEmployeesProvider extends ChangeNotifier {
     try {
       final url =
           '${ApiConstants.baseUrl}${ApiConstants.payrollEmployeeHistory(employeeId)}';
-      debugPrint('Calling payroll history API: $url');
+      if (kDebugMode) {
+        debugPrint('Calling payroll history API: $url');
+      }
 
       final response = await http.get(
         Uri.parse(url),
@@ -224,10 +273,12 @@ class HrEmployeesProvider extends ChangeNotifier {
         },
       );
 
-      debugPrint(
-        'Payroll history API response status=${response.statusCode}, '
-        'body=${response.body}',
-      );
+      if (kDebugMode) {
+        debugPrint(
+          'Payroll history API response status=${response.statusCode}',
+        );
+      }
+      _debugPrintCompact('Payroll history API body: ', response.body);
 
       if (response.statusCode == 304 &&
           _payrollHistoryByEmployee.containsKey(employeeId)) {
@@ -407,29 +458,6 @@ class HrEmployeesProvider extends ChangeNotifier {
 
   String _attendanceKey(String employeeId, int month, int year) {
     return '$employeeId:$year:$month';
-  }
-
-  List<dynamic> _extractEmployeeRows(dynamic payload) {
-    if (payload is List) {
-      return payload;
-    }
-
-    if (payload is Map<String, dynamic>) {
-      for (final key in const ['data', 'employees', 'items', 'results']) {
-        final value = payload[key];
-
-        if (value is List) {
-          return value;
-        }
-
-        final nestedRows = _extractEmployeeRows(value);
-        if (nestedRows.isNotEmpty) {
-          return nestedRows;
-        }
-      }
-    }
-
-    return const [];
   }
 
   String? _extractErrorMessage(String body) {

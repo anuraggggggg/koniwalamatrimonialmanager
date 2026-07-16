@@ -23,7 +23,7 @@ class ProposalsScreen extends StatelessWidget {
                       children: [
                         Text(
                           'Proposals',
-                          style: GoogleFonts.manrope(
+                          style: GoogleFonts.inter(
                             fontSize: 28.sp,
                             fontWeight: FontWeight.w800,
                             color: AppColors.rmPrimary,
@@ -31,7 +31,7 @@ class ProposalsScreen extends StatelessWidget {
                         ),
                         Text(
                           '12 Pending Proposals',
-                          style: GoogleFonts.manrope(
+                          style: GoogleFonts.inter(
                             fontSize: 14.sp,
                             fontWeight: FontWeight.w600,
                             color: AppColors.rmMutedText,
@@ -97,7 +97,7 @@ class ProposalsScreen extends StatelessWidget {
                     children: [
                       Text(
                         'Bhavesh Chaudhary',
-                        style: GoogleFonts.manrope(
+                        style: GoogleFonts.inter(
                           fontSize: 20.sp,
                           fontWeight: FontWeight.w900,
                           color: AppColors.rmPrimary,
@@ -105,7 +105,7 @@ class ProposalsScreen extends StatelessWidget {
                       ),
                       Text(
                         'Sent 2 hours ago • ID: #WA-3762',
-                        style: GoogleFonts.manrope(
+                        style: GoogleFonts.inter(
                           fontSize: 13.sp,
                           color: AppColors.rmMutedText,
                         ),
@@ -118,9 +118,19 @@ class ProposalsScreen extends StatelessWidget {
             SizedBox(height: 12.h),
             Row(
               children: [
-                _buildStatusPill('Pending', const Color(0xFFFFF7DE), const Color(0xFFFFA000), const Color(0xFF8B6200)),
+                _buildStatusPill(
+                  'Pending',
+                  const Color(0xFFFFF7DE),
+                  const Color(0xFFFFA000),
+                  const Color(0xFF8B6200),
+                ),
                 SizedBox(width: 8.w),
-                _buildStatusPill('High Priority', const Color(0xFFFBE0E9), const Color(0xFFD1213E), const Color(0xFFD1213E)),
+                _buildStatusPill(
+                  'High Priority',
+                  const Color(0xFFFBE0E9),
+                  const Color(0xFFD1213E),
+                  const Color(0xFFD1213E),
+                ),
               ],
             ),
             SizedBox(height: 12.h),
@@ -131,9 +141,17 @@ class ProposalsScreen extends StatelessWidget {
                     onPressed: () {},
                     style: OutlinedButton.styleFrom(
                       side: const BorderSide(color: AppColors.rmPrimary),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8.r),
+                      ),
                     ),
-                    child: Text('View Details', style: GoogleFonts.manrope(color: AppColors.rmPrimary, fontWeight: FontWeight.bold)),
+                    child: Text(
+                      'View Details',
+                      style: GoogleFonts.inter(
+                        color: AppColors.rmPrimary,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
                 ),
                 SizedBox(width: 8.w),
@@ -142,9 +160,17 @@ class ProposalsScreen extends StatelessWidget {
                     onPressed: () {},
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.rmPrimary,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8.r),
+                      ),
                     ),
-                    child: Text('Follow Up', style: GoogleFonts.manrope(color: Colors.white, fontWeight: FontWeight.bold)),
+                    child: Text(
+                      'Follow Up',
+                      style: GoogleFonts.inter(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -158,12 +184,22 @@ class ProposalsScreen extends StatelessWidget {
   Widget _buildStatusPill(String label, Color bg, Color dot, Color text) {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
-      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(14.r)),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(14.r),
+      ),
       child: Row(
         children: [
           Icon(Icons.circle, size: 8.sp, color: dot),
           SizedBox(width: 4.w),
-          Text(label, style: GoogleFonts.manrope(fontSize: 12.sp, fontWeight: FontWeight.w800, color: text)),
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              fontSize: 12.sp,
+              fontWeight: FontWeight.w800,
+              color: text,
+            ),
+          ),
         ],
       ),
     );

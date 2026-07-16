@@ -12,10 +12,12 @@ class WhatsappConversationScreen extends StatefulWidget {
   final RmLeadItem? lead;
 
   @override
-  State<WhatsappConversationScreen> createState() => _WhatsappConversationScreenState();
+  State<WhatsappConversationScreen> createState() =>
+      _WhatsappConversationScreenState();
 }
 
-class _WhatsappConversationScreenState extends State<WhatsappConversationScreen> {
+class _WhatsappConversationScreenState
+    extends State<WhatsappConversationScreen> {
   final List<RmCommunicationLog> _localMessages = [];
 
   void _addMessage(String text, {String? imageUrl}) {
@@ -51,7 +53,7 @@ class _WhatsappConversationScreenState extends State<WhatsappConversationScreen>
                     child: Text(
                       'Open a manager lead from the chat hub to view the WhatsApp conversation.',
                       textAlign: TextAlign.center,
-                      style: GoogleFonts.manrope(
+                      style: GoogleFonts.inter(
                         color: AppColors.rmBodyText,
                         fontSize: 16.sp,
                         fontWeight: FontWeight.w600,
@@ -140,7 +142,7 @@ class _WhatsappChatHeader extends StatelessWidget {
             backgroundColor: AppColors.rmPrimary,
             child: Text(
               initials,
-              style: GoogleFonts.manrope(
+              style: GoogleFonts.inter(
                 color: AppColors.white,
                 fontSize: 16.sp,
                 fontWeight: FontWeight.w800,
@@ -160,7 +162,7 @@ class _WhatsappChatHeader extends StatelessWidget {
                         title,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.manrope(
+                        style: GoogleFonts.inter(
                           color: AppColors.rmPrimary,
                           fontSize: 24.sp,
                           fontWeight: FontWeight.w800,
@@ -181,7 +183,7 @@ class _WhatsappChatHeader extends StatelessWidget {
                   subtitle,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     color: AppColors.rmMutedText,
                     fontSize: 12.sp,
                     fontWeight: FontWeight.w600,
@@ -245,7 +247,7 @@ class _MetaInfoCard extends StatelessWidget {
               children: [
                 Text(
                   'WhatsApp for Koniwala',
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     color: AppColors.whatsappGreen,
                     fontSize: 14.sp,
                     fontWeight: FontWeight.w900,
@@ -254,7 +256,7 @@ class _MetaInfoCard extends StatelessWidget {
                 SizedBox(height: 4.h),
                 Text(
                   'Assigned to ${lead.assignedToName} - ${lead.city}\n${lead.stageLabel} lead - ${lead.sourceLabel} source',
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     color: AppColors.rmMutedText,
                     fontSize: 12.sp,
                     fontWeight: FontWeight.w600,
@@ -293,7 +295,7 @@ class _EncryptionNotice extends StatelessWidget {
               child: Text(
                 'Messages are end-to-end encrypted. No one\noutside of this chat, not even Koniwala, can read\nor listen to them.',
                 textAlign: TextAlign.center,
-                style: GoogleFonts.manrope(
+                style: GoogleFonts.inter(
                   color: AppColors.rmBodyText,
                   fontSize: 9.sp,
                   fontWeight: FontWeight.w600,
@@ -325,7 +327,7 @@ class _ChatDatePill extends StatelessWidget {
         ),
         child: Text(
           text,
-          style: GoogleFonts.manrope(
+          style: GoogleFonts.inter(
             color: AppColors.rmPrimary,
             fontSize: 10.sp,
             fontWeight: FontWeight.w700,
@@ -388,7 +390,7 @@ class _ConversationBubble extends StatelessWidget {
                   if (message.previewText.isNotEmpty)
                     Text(
                       message.previewText,
-                      style: GoogleFonts.manrope(
+                      style: GoogleFonts.inter(
                         color: AppColors.rmHeading,
                         fontSize: 16.sp,
                         fontWeight: FontWeight.w500,
@@ -401,7 +403,7 @@ class _ConversationBubble extends StatelessWidget {
                     children: [
                       Text(
                         message.directionLabel,
-                        style: GoogleFonts.manrope(
+                        style: GoogleFonts.inter(
                           color: AppColors.rmMutedText,
                           fontSize: 11.sp,
                           fontWeight: FontWeight.w700,
@@ -410,7 +412,7 @@ class _ConversationBubble extends StatelessWidget {
                       SizedBox(width: 6.w),
                       Text(
                         _formatTime(message.createdAt),
-                        style: GoogleFonts.manrope(
+                        style: GoogleFonts.inter(
                           color: AppColors.rmMutedText,
                           fontSize: 11.sp,
                           fontWeight: FontWeight.w700,
@@ -418,8 +420,11 @@ class _ConversationBubble extends StatelessWidget {
                       ),
                       if (!isIncoming) ...[
                         SizedBox(width: 4.w),
-                        Icon(Icons.done_all,
-                            color: Colors.blueAccent, size: 14.sp),
+                        Icon(
+                          Icons.done_all,
+                          color: Colors.blueAccent,
+                          size: 14.sp,
+                        ),
                       ],
                     ],
                   ),
@@ -453,7 +458,7 @@ class _EmptyConversationCard extends StatelessWidget {
         children: [
           Text(
             'No WhatsApp messages synced yet.',
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: AppColors.rmPrimary,
               fontSize: 16.sp,
               fontWeight: FontWeight.w800,
@@ -462,7 +467,7 @@ class _EmptyConversationCard extends StatelessWidget {
           SizedBox(height: 8.h),
           Text(
             lead.notes.isEmpty ? lead.latestMessagePreview : lead.notes,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: AppColors.rmBodyText,
               fontSize: 14.sp,
               fontWeight: FontWeight.w500,
@@ -495,7 +500,7 @@ class _TaskSummaryCard extends StatelessWidget {
         children: [
           Text(
             'Lead Context',
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: AppColors.rmPrimary,
               fontSize: 16.sp,
               fontWeight: FontWeight.w800,
@@ -531,7 +536,7 @@ class _SummaryRow extends StatelessWidget {
         Expanded(
           child: Text(
             label,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: AppColors.rmMutedText,
               fontSize: 13.sp,
               fontWeight: FontWeight.w600,
@@ -543,7 +548,7 @@ class _SummaryRow extends StatelessWidget {
           child: Text(
             value,
             textAlign: TextAlign.right,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: AppColors.rmHeading,
               fontSize: 13.sp,
               fontWeight: FontWeight.w700,
@@ -631,7 +636,11 @@ class _MessageComposerState extends State<_MessageComposer> {
                         color: Colors.black54,
                         shape: BoxShape.circle,
                       ),
-                      child: Icon(Icons.close, color: Colors.white, size: 18.sp),
+                      child: Icon(
+                        Icons.close,
+                        color: Colors.white,
+                        size: 18.sp,
+                      ),
                     ),
                   ),
                 ),
@@ -671,11 +680,7 @@ class _MessageComposerState extends State<_MessageComposer> {
                     ),
                   );
                 },
-                icon: Icon(
-                  Icons.add,
-                  color: AppColors.rmPrimary,
-                  size: 26.sp,
-                ),
+                icon: Icon(Icons.add, color: AppColors.rmPrimary, size: 26.sp),
               ),
               Expanded(
                 child: Container(
@@ -699,23 +704,24 @@ class _MessageComposerState extends State<_MessageComposer> {
                           controller: _controller,
                           onChanged: (val) => setState(() {}),
                           decoration: InputDecoration(
-                          hintText: 'Type a message',
-                          hintStyle: GoogleFonts.manrope(
-                            color: AppColors.rmMutedText,
+                            hintText: 'Type a message',
+                            hintStyle: GoogleFonts.inter(
+                              color: AppColors.rmMutedText,
+                              fontSize: 16.sp,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            border: InputBorder.none,
+                            isDense: true,
+                          ),
+                          style: GoogleFonts.inter(
+                            color: AppColors.rmHeading,
                             fontSize: 16.sp,
                             fontWeight: FontWeight.w500,
                           ),
-                          border: InputBorder.none,
-                          isDense: true,
-                          ),
-                          style: GoogleFonts.manrope(
-                          color: AppColors.rmHeading,
-                          fontSize: 16.sp,
-                          fontWeight: FontWeight.w500,
-                          ),
                         ),
                       ),
-                      if (_controller.text.isEmpty && _selectedImage == null) ...[
+                      if (_controller.text.isEmpty &&
+                          _selectedImage == null) ...[
                         IconButton(
                           onPressed: () => _pickImage(ImageSource.gallery),
                           icon: Icon(

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -41,8 +43,8 @@ class RegistryScreen extends StatelessWidget {
 
     return Theme(
       data: theme.copyWith(
-        textTheme: GoogleFonts.poppinsTextTheme(theme.textTheme),
-        primaryTextTheme: GoogleFonts.poppinsTextTheme(theme.primaryTextTheme),
+        textTheme: GoogleFonts.interTextTheme(theme.textTheme),
+        primaryTextTheme: GoogleFonts.interTextTheme(theme.primaryTextTheme),
       ),
       child: DefaultTabController(
         length: 3,
@@ -71,52 +73,6 @@ class RegistryScreen extends StatelessWidget {
                 floatingActionButton: fab,
               ),
       ),
-    );
-  }
-}
-
-class _RegistryProfilesContent extends StatelessWidget {
-  const _RegistryProfilesContent({
-    required this.isLoading,
-    required this.error,
-    required this.profiles,
-    required this.onRetry,
-    required this.buildProfileCard,
-  });
-
-  final bool isLoading;
-  final String? error;
-  final List<RegistryProfileItem> profiles;
-  final VoidCallback onRetry;
-  final Widget Function(RegistryProfileItem profile) buildProfileCard;
-
-  @override
-  Widget build(BuildContext context) {
-    if (isLoading) {
-      return Padding(
-        padding: EdgeInsets.symmetric(vertical: 28.h),
-        child: const Center(child: CircularProgressIndicator()),
-      );
-    }
-
-    if (error != null) {
-      return _RegistryProfilesMessage(
-        message: error!,
-        actionLabel: 'Retry',
-        onActionPressed: onRetry,
-      );
-    }
-
-    if (profiles.isEmpty) {
-      return const _RegistryProfilesMessage(message: 'No profiles found.');
-    }
-
-    return ListView.separated(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: profiles.length,
-      separatorBuilder: (context, index) => SizedBox(height: 16.h),
-      itemBuilder: (context, index) => buildProfileCard(profiles[index]),
     );
   }
 }
@@ -154,7 +110,7 @@ class _RegistryProfilesMessage extends StatelessWidget {
           Text(
             message,
             textAlign: TextAlign.center,
-            style: GoogleFonts.poppins(
+            style: GoogleFonts.inter(
               color: AppColors.rmBodyText,
               fontSize: 14.sp,
               fontWeight: FontWeight.w700,
@@ -173,7 +129,7 @@ class _RegistryProfilesMessage extends StatelessWidget {
               ),
               child: Text(
                 actionLabel!,
-                style: GoogleFonts.poppins(fontWeight: FontWeight.w800),
+                style: GoogleFonts.inter(fontWeight: FontWeight.w800),
               ),
             ),
           ],
@@ -227,7 +183,7 @@ class _ProfileCardImage extends StatelessWidget {
                 ),
                 child: Text(
                   '${visibleImages.length} Photos',
-                  style: GoogleFonts.poppins(
+                  style: GoogleFonts.inter(
                     color: AppColors.rmBodyText,
                     fontSize: 11.sp,
                     fontWeight: FontWeight.w800,
@@ -265,53 +221,83 @@ class _ProfileCardImage extends StatelessWidget {
     showDialog<void>(
       context: context,
       barrierColor: AppColors.black.withValues(alpha: 0.86),
-      builder: (context) {
-        return Dialog(
-          insetPadding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 28.h),
-          backgroundColor: AppColors.black,
-          shape: RoundedRectangleBorder(
+      // PERF: The full-screen gallery owns a PageController and disposes it.
+      // Creating PageController inside a dialog builder leaks controller state.
+      builder: (context) =>
+          _FullImageDialog(initialIndex: initialIndex, images: visibleImages),
+    );
+  }
+}
+
+class _FullImageDialog extends StatefulWidget {
+  const _FullImageDialog({required this.initialIndex, required this.images});
+
+  final int initialIndex;
+  final List<String> images;
+
+  @override
+  State<_FullImageDialog> createState() => _FullImageDialogState();
+}
+
+class _FullImageDialogState extends State<_FullImageDialog> {
+  late final PageController _pageController;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController(initialPage: widget.initialIndex);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      insetPadding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 28.h),
+      backgroundColor: AppColors.black,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r)),
+      child: Stack(
+        children: [
+          ClipRRect(
             borderRadius: BorderRadius.circular(12.r),
-          ),
-          child: Stack(
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12.r),
-                child: SizedBox(
-                  width: double.infinity,
-                  height: 620.h,
-                  child: PageView.builder(
-                    controller: PageController(initialPage: initialIndex),
-                    itemCount: visibleImages.length,
-                    itemBuilder: (context, index) {
-                      return InteractiveViewer(
-                        minScale: 1,
-                        maxScale: 4,
-                        child: _ProfileImageView(
-                          image: visibleImages[index],
-                          fit: BoxFit.contain,
-                          alignment: Alignment.center,
-                        ),
-                      );
-                    },
-                  ),
-                ),
+            child: SizedBox(
+              width: double.infinity,
+              height: 620.h,
+              child: PageView.builder(
+                controller: _pageController,
+                itemCount: widget.images.length,
+                itemBuilder: (context, index) {
+                  return InteractiveViewer(
+                    minScale: 1,
+                    maxScale: 4,
+                    child: _ProfileImageView(
+                      image: widget.images[index],
+                      fit: BoxFit.contain,
+                      alignment: Alignment.center,
+                    ),
+                  );
+                },
               ),
-              Positioned(
-                top: 8.h,
-                right: 8.w,
-                child: IconButton.filled(
-                  style: IconButton.styleFrom(
-                    backgroundColor: AppColors.black.withValues(alpha: 0.58),
-                    foregroundColor: AppColors.white,
-                  ),
-                  onPressed: () => Navigator.of(context).pop(),
-                  icon: Icon(Icons.close_rounded, size: 22.sp),
-                ),
-              ),
-            ],
+            ),
           ),
-        );
-      },
+          Positioned(
+            top: 8.h,
+            right: 8.w,
+            child: IconButton.filled(
+              style: IconButton.styleFrom(
+                backgroundColor: AppColors.black.withValues(alpha: 0.58),
+                foregroundColor: AppColors.white,
+              ),
+              onPressed: () => Navigator.of(context).pop(),
+              icon: Icon(Icons.close_rounded, size: 22.sp),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -338,6 +324,7 @@ class _ProfileImageView extends StatelessWidget {
         width: double.infinity,
         fit: fit,
         alignment: alignment,
+        gaplessPlayback: true,
         errorBuilder: (context, error, stackTrace) => _FallbackProfileImage(
           fit: fit,
           alignment: alignment,
@@ -397,7 +384,7 @@ class RegistryAppBar extends StatelessWidget implements PreferredSizeWidget {
       ),
       title: Text(
         'Profile',
-        style: GoogleFonts.manrope(
+        style: GoogleFonts.inter(
           color: AppColors.black,
           fontSize: 16.sp,
           fontWeight: FontWeight.w600,
@@ -429,14 +416,27 @@ class RegistryBody extends StatefulWidget {
 
 class _RegistryBodyState extends State<RegistryBody> {
   final TextEditingController _searchController = TextEditingController();
+  Timer? _searchDebounce;
   String _searchQuery = '';
   int _selectedTab = 0;
   bool _hasRequestedProfiles = false;
   String? _requestedAccessToken;
+  List<RegistryProfileItem>? _cachedSourceProfiles;
+  List<RegistryProfileItem> _cachedFilteredProfiles = const [];
+  int? _cachedSelectedTab;
+  String? _cachedSearchQuery;
 
   List<RegistryProfileItem> _filteredProfiles(
     List<RegistryProfileItem> profiles,
   ) {
+    // PERF: Cache the filter result so provider rebuilds, keyboard focus changes,
+    // and unrelated setState calls do not repeatedly scan every profile.
+    if (identical(_cachedSourceProfiles, profiles) &&
+        _cachedSelectedTab == _selectedTab &&
+        _cachedSearchQuery == _searchQuery) {
+      return _cachedFilteredProfiles;
+    }
+
     var visibleProfiles = profiles;
 
     if (_selectedTab == 1) {
@@ -449,21 +449,30 @@ class _RegistryBodyState extends State<RegistryBody> {
           .toList();
     }
 
-    if (_searchQuery.isEmpty) return visibleProfiles;
-    return visibleProfiles.where((profile) {
-      final query = _searchQuery.toLowerCase();
-      return profile.name.toLowerCase().contains(query) ||
-          profile.id.toLowerCase().contains(query) ||
-          profile.city.toLowerCase().contains(query) ||
-          profile.work.toLowerCase().contains(query) ||
-          profile.profession.toLowerCase().contains(query);
-    }).toList();
+    final query = _searchQuery.trim().toLowerCase();
+    final filtered = query.isEmpty
+        ? visibleProfiles
+        : visibleProfiles.where((profile) {
+            return profile.name.toLowerCase().contains(query) ||
+                profile.id.toLowerCase().contains(query) ||
+                profile.city.toLowerCase().contains(query) ||
+                profile.work.toLowerCase().contains(query) ||
+                profile.profession.toLowerCase().contains(query);
+          }).toList();
+
+    _cachedSourceProfiles = profiles;
+    _cachedSelectedTab = _selectedTab;
+    _cachedSearchQuery = _searchQuery;
+    _cachedFilteredProfiles = filtered;
+    return filtered;
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
 
+    // PERF: Keep this dependency so the first fetch runs when auth finishes
+    // initializing, but guard by token so auth updates do not duplicate requests.
     final authProvider = Provider.of<AuthProvider>(context);
     final accessToken = authProvider.userModel?.accessToken;
 
@@ -486,194 +495,285 @@ class _RegistryBodyState extends State<RegistryBody> {
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _searchController.dispose();
     super.dispose();
   }
 
+  void _selectTab(int index) {
+    if (_selectedTab == index) {
+      return;
+    }
+
+    setState(() {
+      _selectedTab = index;
+    });
+  }
+
+  void _onSearchChanged(String value) {
+    // PERF: Debounce search so fast typing does not rebuild and refilter the
+    // entire visible profile list for every single character event.
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 160), () {
+      if (!mounted || _searchQuery == value) {
+        return;
+      }
+
+      setState(() {
+        _searchQuery = value;
+      });
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    final profilesProvider = context.watch<RegistryProfilesProvider>();
-    final allProfiles = profilesProvider.profiles;
+    // PERF: Select only the fields this screen needs. This prevents create/error
+    // state changes in RegistryProfilesProvider from rebuilding the whole page.
+    final profilesState = context
+        .select<
+          RegistryProfilesProvider,
+          ({bool isLoading, String? error, List<RegistryProfileItem> profiles})
+        >(
+          (provider) => (
+            isLoading: provider.isLoading,
+            error: provider.error,
+            profiles: provider.profiles,
+          ),
+        );
+    final allProfiles = profilesState.profiles;
     final filtered = _filteredProfiles(allProfiles);
     final listTitle = switch (_selectedTab) {
       1 => 'Brides',
       2 => 'Grooms',
       _ => 'All Profiles',
     };
+    final hasMessage =
+        profilesState.isLoading ||
+        profilesState.error != null ||
+        filtered.isEmpty;
+    final itemCount = hasMessage ? 2 : filtered.length + 1;
 
-    return SingleChildScrollView(
+    // PERF: A SingleChildScrollView containing a shrink-wrapped ListView builds
+    // every profile card and image carousel up front. This lazy ListView keeps
+    // off-screen cards out of the widget tree, improving open time and scroll FPS.
+    return ListView.builder(
       padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'All Profiles',
-            style: GoogleFonts.poppins(
-              color: AppColors.titleColor,
-              fontSize: 27.sp,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          SizedBox(height: 6.h),
-          Text(
-            'Manage and organize all your client profiles in one place.',
-            style: GoogleFonts.poppins(
-              color: AppColors.rmBodyText,
-              fontSize: 14.sp,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          SizedBox(height: 12.h),
-          // Tab Bar
-          TabBar(
-            onTap: (index) => setState(() => _selectedTab = index),
-            isScrollable: true,
-            tabAlignment: TabAlignment.start,
-            labelColor: AppColors.primary,
-            unselectedLabelColor: AppColors.inactiveNavItemColor,
-            indicatorColor: AppColors.accent,
-            indicatorSize: TabBarIndicatorSize.label,
-            labelPadding: EdgeInsets.only(right: 24.w),
-            dividerColor: AppColors.transparent,
-            labelStyle: GoogleFonts.poppins(
-              fontSize: 14.sp,
-              fontWeight: FontWeight.w700,
-            ),
-            unselectedLabelStyle: GoogleFonts.poppins(
-              fontSize: 14.sp,
-              fontWeight: FontWeight.w600,
-            ),
-            tabs: const [
-              Tab(text: 'All Profiles'),
-              Tab(text: 'Brides'),
-              Tab(text: 'Grooms'),
-            ],
-          ),
-          SizedBox(height: 12.h),
-          // Search Bar
-          Container(
-            height: 48.h,
-            padding: EdgeInsets.symmetric(horizontal: 16.w),
-            decoration: BoxDecoration(
-              color: AppColors.white,
-              borderRadius: BorderRadius.circular(12.r),
-              border: Border.all(color: AppColors.inactiveNavItemColor),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.search, color: AppColors.rmBodyText),
-                SizedBox(width: 12.w),
-                Expanded(
-                  child: TextField(
-                    controller: _searchController,
-                    style: GoogleFonts.poppins(fontSize: 14.sp),
-                    onChanged: (value) {
-                      setState(() {
-                        _searchQuery = value;
-                      });
-                    },
-                    decoration: InputDecoration(
-                      hintText: 'Search by name, ID, city, or work...',
-                      hintStyle: GoogleFonts.poppins(
-                        color: AppColors.rmBodyText,
-                        fontSize: 14.sp,
-                      ),
-                      border: InputBorder.none,
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          SizedBox(height: 16.h),
-          // List Header
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  listTitle,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.manrope(
-                    color: AppColors.rmPrimary,
-                    fontSize: 20.sp,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              Flexible(
-                flex: 2,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    // IconButton(
-                    //   icon: Icon(Icons.bookmark, color: AppColors.rmPrimary),
-                    //   onPressed: () {
-                    //     ScaffoldMessenger.of(context).showSnackBar(
-                    //       const SnackBar(
-                    //         content: Text(
-                    //           'Select a profile card to open its shortlist.',
-                    //         ),
-                    //       ),
-                    //     );
-                    //   },
-                    // ),
-                    SizedBox(width: 4.w),
-                    Flexible(
-                      child: Text(
-                        'Showing ${filtered.length} of ${allProfiles.length} profiles',
-                        overflow: TextOverflow.ellipsis,
-                        textAlign: TextAlign.right,
-                        style: GoogleFonts.poppins(
-                          color: AppColors.rmBodyText,
-                          fontSize: 12.sp,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                    SizedBox(width: 8.w),
-                    Container(
-                      padding: EdgeInsets.all(6.r),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFF2EB),
-                        borderRadius: BorderRadius.circular(4.r),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.grid_view,
-                            size: 16.sp,
-                            color: AppColors.primary,
-                          ),
-                          SizedBox(width: 4.w),
-                          Icon(Icons.list, size: 16.sp, color: AppColors.black),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: 32.h),
-          // Profile List
-          _RegistryProfilesContent(
-            isLoading: profilesProvider.isLoading,
-            error: profilesProvider.error,
-            profiles: filtered,
-            onRetry: () => context.read<RegistryProfilesProvider>().retry(),
-            buildProfileCard: _buildProfileCard,
-          ),
-        ],
-      ),
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      cacheExtent: 900.h,
+      itemCount: itemCount,
+      itemBuilder: (context, index) {
+        if (index == 0) {
+          return _RegistryListHeader(
+            searchController: _searchController,
+            selectedTab: _selectedTab,
+            listTitle: listTitle,
+            filteredCount: filtered.length,
+            totalCount: allProfiles.length,
+            onTabSelected: _selectTab,
+            onSearchChanged: _onSearchChanged,
+          );
+        }
+
+        if (profilesState.isLoading) {
+          return Padding(
+            padding: EdgeInsets.symmetric(vertical: 28.h),
+            child: const Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        if (profilesState.error != null) {
+          return _RegistryProfilesMessage(
+            message: profilesState.error!,
+            actionLabel: 'Retry',
+            onActionPressed: () =>
+                context.read<RegistryProfilesProvider>().retry(),
+          );
+        }
+
+        if (filtered.isEmpty) {
+          return const _RegistryProfilesMessage(message: 'No profiles found.');
+        }
+
+        return Padding(
+          padding: EdgeInsets.only(bottom: 16.h),
+          child: _RegistryProfileCard(profile: filtered[index - 1]),
+        );
+      },
     );
   }
+}
 
-  Widget _buildProfileCard(RegistryProfileItem profile) {
+class _RegistryListHeader extends StatelessWidget {
+  const _RegistryListHeader({
+    required this.searchController,
+    required this.selectedTab,
+    required this.listTitle,
+    required this.filteredCount,
+    required this.totalCount,
+    required this.onTabSelected,
+    required this.onSearchChanged,
+  });
+
+  final TextEditingController searchController;
+  final int selectedTab;
+  final String listTitle;
+  final int filteredCount;
+  final int totalCount;
+  final ValueChanged<int> onTabSelected;
+  final ValueChanged<String> onSearchChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'All Profiles',
+          style: GoogleFonts.inter(
+            color: AppColors.titleColor,
+            fontSize: 27.sp,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        SizedBox(height: 6.h),
+        Text(
+          'Manage and organize all your client profiles in one place.',
+          style: GoogleFonts.inter(
+            color: AppColors.rmBodyText,
+            fontSize: 14.sp,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        SizedBox(height: 12.h),
+        TabBar(
+          onTap: onTabSelected,
+          isScrollable: true,
+          tabAlignment: TabAlignment.start,
+          labelColor: AppColors.primary,
+          unselectedLabelColor: AppColors.inactiveNavItemColor,
+          indicatorColor: AppColors.accent,
+          indicatorSize: TabBarIndicatorSize.label,
+          labelPadding: EdgeInsets.only(right: 24.w),
+          dividerColor: AppColors.transparent,
+          labelStyle: GoogleFonts.inter(
+            fontSize: 14.sp,
+            fontWeight: FontWeight.w700,
+          ),
+          unselectedLabelStyle: GoogleFonts.inter(
+            fontSize: 14.sp,
+            fontWeight: FontWeight.w600,
+          ),
+          tabs: const [
+            Tab(text: 'All Profiles'),
+            Tab(text: 'Brides'),
+            Tab(text: 'Grooms'),
+          ],
+        ),
+        SizedBox(height: 12.h),
+        Container(
+          height: 48.h,
+          padding: EdgeInsets.symmetric(horizontal: 16.w),
+          decoration: BoxDecoration(
+            color: AppColors.white,
+            borderRadius: BorderRadius.circular(12.r),
+            border: Border.all(color: AppColors.inactiveNavItemColor),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.search, color: AppColors.rmBodyText),
+              SizedBox(width: 12.w),
+              Expanded(
+                child: TextField(
+                  controller: searchController,
+                  style: GoogleFonts.inter(fontSize: 14.sp),
+                  onChanged: onSearchChanged,
+                  decoration: InputDecoration(
+                    hintText: 'Search by name, ID, city, or work...',
+                    hintStyle: GoogleFonts.inter(
+                      color: AppColors.rmBodyText,
+                      fontSize: 14.sp,
+                    ),
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        SizedBox(height: 16.h),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                listTitle,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.inter(
+                  color: AppColors.rmPrimary,
+                  fontSize: 20.sp,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            Flexible(
+              flex: 2,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  SizedBox(width: 4.w),
+                  Flexible(
+                    child: Text(
+                      'Showing $filteredCount of $totalCount profiles',
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.right,
+                      style: GoogleFonts.inter(
+                        color: AppColors.rmBodyText,
+                        fontSize: 12.sp,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: 8.w),
+                  Container(
+                    padding: EdgeInsets.all(6.r),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF2EB),
+                      borderRadius: BorderRadius.circular(4.r),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.grid_view,
+                          size: 16.sp,
+                          color: AppColors.primary,
+                        ),
+                        SizedBox(width: 4.w),
+                        Icon(Icons.list, size: 16.sp, color: AppColors.black),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        SizedBox(height: 32.h),
+      ],
+    );
+  }
+}
+
+class _RegistryProfileCard extends StatelessWidget {
+  const _RegistryProfileCard({required this.profile});
+
+  final RegistryProfileItem profile;
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.white,
+        color: const Color(0xFFFFF6F7),
         borderRadius: BorderRadius.circular(16.r),
         border: Border.all(color: AppColors.rmPaleRoseBorder),
         boxShadow: const [
@@ -696,27 +796,27 @@ class _RegistryBodyState extends State<RegistryBody> {
               ),
               if (profile.isPremium)
                 Positioned(
-                  top: 10.h,
-                  left: 10.w,
+                  top: 14.h,
+                  left: 16.w,
                   child: Container(
                     padding: EdgeInsets.symmetric(
-                      horizontal: 8.w,
-                      vertical: 4.h,
+                      horizontal: 11.w,
+                      vertical: 7.h,
                     ),
                     decoration: BoxDecoration(
-                      color: AppColors.accent,
-                      borderRadius: BorderRadius.circular(16.r),
+                      color: AppColors.primary,
+                      borderRadius: BorderRadius.circular(18.r),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.star, color: AppColors.white, size: 12.sp),
-                        SizedBox(width: 4.w),
+                        Icon(Icons.star, color: AppColors.white, size: 10.sp),
+                        SizedBox(width: 3.w),
                         Text(
                           'PREMIUM',
-                          style: GoogleFonts.poppins(
+                          style: GoogleFonts.inter(
                             color: AppColors.white,
-                            fontSize: 10.sp,
+                            fontSize: 11.sp,
                             fontWeight: FontWeight.w800,
                           ),
                         ),
@@ -738,7 +838,7 @@ class _RegistryBodyState extends State<RegistryBody> {
                       child: Text(
                         profile.name,
                         overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.poppins(
+                        style: GoogleFonts.inter(
                           color: AppColors.primary,
                           fontSize: 24.sp,
                           fontWeight: FontWeight.w700,
@@ -749,7 +849,7 @@ class _RegistryBodyState extends State<RegistryBody> {
                     Text(
                       '#${profile.id}',
                       overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.inter(
                         color: AppColors.rmBodyText,
                         fontSize: 12.sp,
                         fontWeight: FontWeight.w600,
@@ -758,13 +858,12 @@ class _RegistryBodyState extends State<RegistryBody> {
                   ],
                 ),
                 SizedBox(height: 6.h),
-                Text(
-                  '${profile.age} yrs - ${profile.height} - ${profile.city}',
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.poppins(
-                    color: AppColors.primary,
-                    fontSize: 14.sp,
-                    fontWeight: FontWeight.w700,
+                _ProfileDotTextRow(
+                  items: ['${profile.age} yrs', profile.height, profile.city],
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF211A1B),
+                    fontSize: 13.sp,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
                 SizedBox(height: 8.h),
@@ -772,7 +871,7 @@ class _RegistryBodyState extends State<RegistryBody> {
                   profile.profession.toUpperCase(),
                   overflow: TextOverflow.ellipsis,
                   maxLines: 1,
-                  style: GoogleFonts.poppins(
+                  style: GoogleFonts.inter(
                     color: AppColors.primary,
                     fontSize: 12.sp,
                     fontWeight: FontWeight.w500,
@@ -782,20 +881,23 @@ class _RegistryBodyState extends State<RegistryBody> {
                   profile.work.toUpperCase(),
                   overflow: TextOverflow.ellipsis,
                   maxLines: 1,
-                  style: GoogleFonts.poppins(
+                  style: GoogleFonts.inter(
                     color: AppColors.rmBodyText,
                     fontSize: 11.sp,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
                 SizedBox(height: 8.h),
-                Text(
-                  '${profile.community} - ${profile.manglikLabel}',
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.poppins(
-                    color: AppColors.primary,
+                _ProfileDotTextRow(
+                  items: [
+                    profile.community,
+                    profile.religion,
+                    profile.manglikLabel,
+                  ],
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF211A1B),
                     fontSize: 13.sp,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
                 SizedBox(height: 16.h),
@@ -828,7 +930,7 @@ class _RegistryBodyState extends State<RegistryBody> {
                               child: Text(
                                 'View',
                                 overflow: TextOverflow.ellipsis,
-                                style: GoogleFonts.poppins(
+                                style: GoogleFonts.inter(
                                   color: AppColors.white,
                                   fontSize: 14.sp,
                                   fontWeight: FontWeight.w700,
@@ -866,7 +968,7 @@ class _RegistryBodyState extends State<RegistryBody> {
                               child: Text(
                                 'Shortlist',
                                 overflow: TextOverflow.ellipsis,
-                                style: GoogleFonts.poppins(
+                                style: GoogleFonts.inter(
                                   color: AppColors.primary,
                                   fontSize: 14.sp,
                                   fontWeight: FontWeight.w700,
@@ -884,6 +986,47 @@ class _RegistryBodyState extends State<RegistryBody> {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _ProfileDotTextRow extends StatelessWidget {
+  const _ProfileDotTextRow({required this.items, required this.style});
+
+  final List<String> items;
+  final TextStyle style;
+
+  @override
+  Widget build(BuildContext context) {
+    final visibleItems = items
+        .where((item) => item.trim().isNotEmpty && item.trim() != '-')
+        .toList();
+
+    return Row(
+      children: [
+        for (var index = 0; index < visibleItems.length; index++) ...[
+          Flexible(
+            child: Text(
+              visibleItems[index],
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: style,
+            ),
+          ),
+          if (index != visibleItems.length - 1) ...[
+            SizedBox(width: 8.w),
+            Container(
+              width: 4.r,
+              height: 4.r,
+              decoration: const BoxDecoration(
+                color: Color(0xFFE6C8CF),
+                shape: BoxShape.circle,
+              ),
+            ),
+            SizedBox(width: 8.w),
+          ],
+        ],
+      ],
     );
   }
 }

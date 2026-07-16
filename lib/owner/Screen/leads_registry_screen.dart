@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -13,14 +15,19 @@ class LeadsRegistryScreen extends StatelessWidget {
     super.key,
     this.showScaffold = false,
     this.onMenuPressed,
+    this.initialStage,
   });
 
   final bool showScaffold;
   final VoidCallback? onMenuPressed;
+  final String? initialStage;
 
   @override
   Widget build(BuildContext context) {
-    final body = _LeadsRegistryBody(onMenuPressed: onMenuPressed);
+    final body = _LeadsRegistryBody(
+      onMenuPressed: onMenuPressed,
+      initialStage: initialStage,
+    );
 
     if (!showScaffold) {
       return ColoredBox(color: AppColors.rmSoftPink, child: body);
@@ -31,9 +38,10 @@ class LeadsRegistryScreen extends StatelessWidget {
 }
 
 class _LeadsRegistryBody extends StatefulWidget {
-  const _LeadsRegistryBody({this.onMenuPressed});
+  const _LeadsRegistryBody({this.onMenuPressed, this.initialStage});
 
   final VoidCallback? onMenuPressed;
+  final String? initialStage;
 
   @override
   State<_LeadsRegistryBody> createState() => _LeadsRegistryBodyState();
@@ -41,54 +49,113 @@ class _LeadsRegistryBody extends StatefulWidget {
 
 class _LeadsRegistryBodyState extends State<_LeadsRegistryBody> {
   static const List<String> _leadForOptions = ['Groom', 'Bride'];
+  static const int _registryPreviewCount = 3;
+  static const int _registryPageSize = 15;
   int _selectedStage = 0;
   _LeadsView _selectedView = _LeadsView.registry;
+  String? _selectedSource;
+  String? _selectedCity;
+  String? _selectedAssignee;
+  _LeadDateRange _selectedDateRange = _LeadDateRange.any;
+  DateTime? _customDateFrom;
+  DateTime? _customDateTo;
   bool _hasRequestedLeads = false;
   String? _requestedAccessToken;
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
-  bool _showAllRegistryLeads = false;
+  Timer? _searchDebounce;
+  int _registryLeadLimit = _registryPreviewCount;
 
-  List<_StageFilter> _stageFilters(List<LeadRegistryItem> leads) => [
-    _StageFilter(label: 'All Registry', count: leads.length),
-    _StageFilter(
-      label: 'New',
-      count: _countLeadsForStage(leads, 'NEW'),
-      dotColor: const Color(0xFFB6BEC8),
-    ),
-    _StageFilter(
-      label: 'Contacted',
-      count: _countLeadsForStage(leads, 'CONTACTED'),
-      dotColor: const Color(0xFFFFA000),
-    ),
-    _StageFilter(
-      label: 'Interested',
-      count: _countLeadsForStage(leads, 'INTERESTED'),
-      dotColor: const Color(0xFF338AF3),
-    ),
-    _StageFilter(
-      label: 'Converted',
-      count: _countLeadsForStage(leads, 'CONVERTED'),
-      dotColor: const Color(0xFF22B883),
-    ),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _selectedStage = _initialStageIndex(widget.initialStage);
+  }
+
+  int _initialStageIndex(String? stage) {
+    switch (stage?.trim().toLowerCase()) {
+      case 'new':
+        return 1;
+      case 'converted':
+        return 4;
+      default:
+        return 0;
+    }
+  }
+
+  List<_StageFilter> _stageFilters(List<LeadRegistryItem> leads) {
+    final counts = _stageCounts(leads);
+    return [
+      _StageFilter(label: 'All Registry', count: leads.length),
+      _StageFilter(
+        label: 'New',
+        count: counts['NEW'] ?? 0,
+        dotColor: const Color(0xFFB6BEC8),
+      ),
+      _StageFilter(
+        label: 'Contacted',
+        count: counts['CONTACTED'] ?? 0,
+        dotColor: const Color(0xFFFFA000),
+      ),
+      _StageFilter(
+        label: 'Interested',
+        count: counts['INTERESTED'] ?? 0,
+        dotColor: const Color(0xFF338AF3),
+      ),
+      _StageFilter(
+        label: 'Converted',
+        count: counts['CONVERTED'] ?? 0,
+        dotColor: const Color(0xFF22B883),
+      ),
+      _StageFilter(
+        label: 'Closed',
+        count: counts['CLOSED'] ?? 0,
+        dotColor: const Color(0xFF77716C),
+      ),
+      _StageFilter(
+        label: 'Starred',
+        count: counts['STARRED'] ?? 0,
+        dotColor: const Color(0xFFE2B714),
+        icon: Icons.star_border_rounded,
+      ),
+    ];
+  }
+
+  Map<String, int> _stageCounts(List<LeadRegistryItem> leads) {
+    final counts = <String, int>{};
+    for (final lead in leads) {
+      final key = _stageKey(lead.stage);
+      counts[key] = (counts[key] ?? 0) + 1;
+    }
+    return counts;
+  }
 
   List<LeadRegistryItem> _visibleLeads(
     List<LeadRegistryItem> leads,
     List<_StageFilter> stageFilters,
   ) {
-    if (_selectedStage == 0) {
-      return leads;
-    }
+    return leads.where((lead) {
+      if (_selectedStage != 0) {
+        final selectedStage = _stageKey(stageFilters[_selectedStage].label);
+        if (_stageKey(lead.stage) != selectedStage) {
+          return false;
+        }
+      }
 
-    final selectedStage = _stageKey(stageFilters[_selectedStage].label);
-    return leads
-        .where((lead) => _stageKey(lead.stage) == selectedStage)
-        .toList();
-  }
+      if (!_matchesOptionalFilter(lead.source, _selectedSource)) {
+        return false;
+      }
 
-  int _countLeadsForStage(List<LeadRegistryItem> leads, String stage) {
-    return leads.where((lead) => _stageKey(lead.stage) == stage).length;
+      if (!_matchesOptionalFilter(lead.city, _selectedCity)) {
+        return false;
+      }
+
+      if (!_matchesOptionalFilter(lead.assignedTo, _selectedAssignee)) {
+        return false;
+      }
+
+      return _matchesDateRange(lead.createdOn);
+    }).toList();
   }
 
   bool _matchesSearch(LeadRegistryItem lead, String query) {
@@ -97,22 +164,203 @@ class _LeadsRegistryBodyState extends State<_LeadsRegistryBody> {
     }
 
     final normalized = query.trim().toLowerCase();
-    final haystack = <String>[
-      lead.name,
-      lead.phone,
-      lead.email,
-      lead.city,
-      lead.assignedTo,
-      lead.source,
-      lead.stage,
-      lead.leadFor,
-    ].join(' ').toLowerCase();
-
-    return haystack.contains(normalized);
+    return lead.searchIndex.contains(normalized);
   }
 
   String _stageKey(String stage) {
     return stage.toUpperCase().replaceAll(' ', '_');
+  }
+
+  bool _matchesOptionalFilter(String value, String? selectedValue) {
+    return selectedValue == null || value.trim() == selectedValue.trim();
+  }
+
+  bool _matchesDateRange(String createdOn) {
+    if (_selectedDateRange == _LeadDateRange.any) {
+      return true;
+    }
+
+    final createdDate = _parseLeadDate(createdOn);
+    if (createdDate == null) {
+      return false;
+    }
+
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final leadDate = DateTime(
+      createdDate.year,
+      createdDate.month,
+      createdDate.day,
+    );
+
+    switch (_selectedDateRange) {
+      case _LeadDateRange.any:
+        return true;
+      case _LeadDateRange.today:
+        return leadDate == today;
+      case _LeadDateRange.last7Days:
+        return !leadDate.isBefore(today.subtract(const Duration(days: 6))) &&
+            !leadDate.isAfter(today);
+      case _LeadDateRange.last30Days:
+        return !leadDate.isBefore(today.subtract(const Duration(days: 29))) &&
+            !leadDate.isAfter(today);
+      case _LeadDateRange.custom:
+        final from = _customDateFrom;
+        final to = _customDateTo;
+        if (from == null && to == null) {
+          return true;
+        }
+
+        final start = from == null
+            ? null
+            : DateTime(from.year, from.month, from.day);
+        final end = to == null ? null : DateTime(to.year, to.month, to.day);
+
+        if (start != null && leadDate.isBefore(start)) {
+          return false;
+        }
+
+        if (end != null && leadDate.isAfter(end)) {
+          return false;
+        }
+
+        return true;
+    }
+  }
+
+  DateTime? _parseLeadDate(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty || trimmed == '-') {
+      return null;
+    }
+
+    final parsedDate = DateTime.tryParse(trimmed);
+    if (parsedDate != null) {
+      return parsedDate;
+    }
+
+    final parts = trimmed.split(RegExp(r'\s+'));
+    if (parts.length != 3) {
+      return null;
+    }
+
+    final day = int.tryParse(parts[0]);
+    final month = _monthNumber(parts[1]);
+    final year = int.tryParse(parts[2]);
+    if (day == null || month == null || year == null) {
+      return null;
+    }
+
+    return DateTime(year, month, day);
+  }
+
+  int? _monthNumber(String label) {
+    const months = {
+      'jan': 1,
+      'feb': 2,
+      'mar': 3,
+      'apr': 4,
+      'may': 5,
+      'jun': 6,
+      'jul': 7,
+      'aug': 8,
+      'sep': 9,
+      'oct': 10,
+      'nov': 11,
+      'dec': 12,
+    };
+
+    return months[label.trim().toLowerCase()];
+  }
+
+  List<String> _filterOptions(
+    List<LeadRegistryItem> leads,
+    String Function(LeadRegistryItem lead) valueForLead,
+  ) {
+    final values = leads
+        .map(valueForLead)
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty && value != '-')
+        .toSet()
+        .toList();
+    values.sort(
+      (first, second) => first.toLowerCase().compareTo(second.toLowerCase()),
+    );
+    return values;
+  }
+
+  int get _activeFilterCount {
+    var count = 0;
+    if (_selectedSource != null) count++;
+    if (_selectedCity != null) count++;
+    if (_selectedAssignee != null) count++;
+    if (_selectedDateRange != _LeadDateRange.any) count++;
+    return count;
+  }
+
+  int _visibleLeadLimitFor(int totalLeadCount) {
+    return _boundedRegistryLeadLimit(_registryLeadLimit, totalLeadCount);
+  }
+
+  int _boundedRegistryLeadLimit(int requestedLimit, int totalLeadCount) {
+    if (totalLeadCount <= 0) {
+      return 0;
+    }
+
+    if (requestedLimit < _registryPreviewCount) {
+      return totalLeadCount < _registryPreviewCount
+          ? totalLeadCount
+          : _registryPreviewCount;
+    }
+
+    if (requestedLimit > totalLeadCount) {
+      return totalLeadCount;
+    }
+
+    return requestedLimit;
+  }
+
+  Future<void> _showLeadFiltersSheet(
+    List<LeadRegistryItem> leads,
+    List<_StageFilter> stageFilters,
+  ) async {
+    final result = await showModalBottomSheet<_LeadFilterSelection>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.transparent,
+      builder: (sheetContext) {
+        return _LeadFiltersBottomSheet(
+          stageFilters: stageFilters,
+          sourceOptions: _filterOptions(leads, (lead) => lead.source),
+          cityOptions: _filterOptions(leads, (lead) => lead.city),
+          assigneeOptions: _filterOptions(leads, (lead) => lead.assignedTo),
+          initialSelection: _LeadFilterSelection(
+            selectedStage: _selectedStage,
+            source: _selectedSource,
+            city: _selectedCity,
+            assignee: _selectedAssignee,
+            dateRange: _selectedDateRange,
+            customDateFrom: _customDateFrom,
+            customDateTo: _customDateTo,
+          ),
+        );
+      },
+    );
+
+    if (result == null || !mounted) {
+      return;
+    }
+
+    setState(() {
+      _selectedStage = result.selectedStage;
+      _selectedSource = result.source;
+      _selectedCity = result.city;
+      _selectedAssignee = result.assignee;
+      _selectedDateRange = result.dateRange;
+      _customDateFrom = result.customDateFrom;
+      _customDateTo = result.customDateTo;
+      _registryLeadLimit = _registryPreviewCount;
+    });
   }
 
   bool _canEditLeads(String? role) {
@@ -146,6 +394,7 @@ class _LeadsRegistryBodyState extends State<_LeadsRegistryBody> {
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -156,15 +405,23 @@ class _LeadsRegistryBodyState extends State<_LeadsRegistryBody> {
     final authProvider = context.watch<AuthProvider>();
     final leads = leadsProvider.leads;
     final stageFilters = _stageFilters(leads);
+    final sourceOptions = _filterOptions(leads, (lead) => lead.source);
+    final cityOptions = _filterOptions(leads, (lead) => lead.city);
+    final assigneeOptions = _filterOptions(leads, (lead) => lead.assignedTo);
     final stageScopedLeads = _visibleLeads(leads, stageFilters);
     final visibleLeads = stageScopedLeads
         .where((lead) => _matchesSearch(lead, _searchQuery))
         .toList();
     final canEditLeads = _canEditLeads(authProvider.userModel?.user?.role);
-    final convertedCount = _countLeadsForStage(leads, 'CONVERTED');
-    final registryPreviewLeads = _showAllRegistryLeads
-        ? visibleLeads
-        : visibleLeads.take(3).toList();
+    final convertedCount =
+        stageFilters
+            .firstWhere((filter) => filter.label == 'Converted')
+            .count ??
+        0;
+    final registryVisibleLimit = _visibleLeadLimitFor(visibleLeads.length);
+    final registryPreviewLeads = visibleLeads
+        .take(registryVisibleLimit)
+        .toList(growable: false);
 
     return Material(
       color: Colors.transparent,
@@ -191,10 +448,20 @@ class _LeadsRegistryBodyState extends State<_LeadsRegistryBody> {
                     _LeadsSearchField(
                       controller: _searchController,
                       onChanged: (value) {
-                        setState(() {
-                          _searchQuery = value;
-                          _showAllRegistryLeads = false;
-                        });
+                        _searchDebounce?.cancel();
+                        _searchDebounce = Timer(
+                          const Duration(milliseconds: 220),
+                          () {
+                            if (!mounted) {
+                              return;
+                            }
+
+                            setState(() {
+                              _searchQuery = value;
+                              _registryLeadLimit = _registryPreviewCount;
+                            });
+                          },
+                        );
                       },
                     ),
                     SizedBox(height: 16.h),
@@ -205,7 +472,11 @@ class _LeadsRegistryBodyState extends State<_LeadsRegistryBody> {
                     ),
                     SizedBox(height: 22.h),
                     if (_selectedView == _LeadsView.registry) ...[
-                      _FilterHeader(onFilterPressed: () {}),
+                      _FilterHeader(
+                        activeFilterCount: _activeFilterCount,
+                        onFilterPressed: () =>
+                            _showLeadFiltersSheet(leads, stageFilters),
+                      ),
                       SizedBox(height: 10.h),
                       _StageFilterList(
                         filters: stageFilters,
@@ -213,7 +484,34 @@ class _LeadsRegistryBodyState extends State<_LeadsRegistryBody> {
                         onSelected: (index) {
                           setState(() {
                             _selectedStage = index;
-                            _showAllRegistryLeads = false;
+                            _registryLeadLimit = _registryPreviewCount;
+                          });
+                        },
+                      ),
+                      SizedBox(height: 18.h),
+                      _LeadsInlineFilters(
+                        sourceOptions: sourceOptions,
+                        cityOptions: cityOptions,
+                        assigneeOptions: assigneeOptions,
+                        selectedSource: _selectedSource,
+                        selectedCity: _selectedCity,
+                        selectedAssignee: _selectedAssignee,
+                        onSourceChanged: (value) {
+                          setState(() {
+                            _selectedSource = value;
+                            _registryLeadLimit = _registryPreviewCount;
+                          });
+                        },
+                        onCityChanged: (value) {
+                          setState(() {
+                            _selectedCity = value;
+                            _registryLeadLimit = _registryPreviewCount;
+                          });
+                        },
+                        onAssigneeChanged: (value) {
+                          setState(() {
+                            _selectedAssignee = value;
+                            _registryLeadLimit = _registryPreviewCount;
                           });
                         },
                       ),
@@ -223,12 +521,21 @@ class _LeadsRegistryBodyState extends State<_LeadsRegistryBody> {
                         error: leadsProvider.error,
                         leads: registryPreviewLeads,
                         totalLeadCount: visibleLeads.length,
-                        isExpanded: _showAllRegistryLeads,
-                        onToggleExpanded: visibleLeads.length > 3
-                            ? () => setState(
-                                () => _showAllRegistryLeads =
-                                    !_showAllRegistryLeads,
-                              )
+                        isExpanded: registryVisibleLimit >= visibleLeads.length,
+                        onToggleExpanded:
+                            visibleLeads.length > _registryPreviewCount
+                            ? () => setState(() {
+                                if (registryVisibleLimit >=
+                                    visibleLeads.length) {
+                                  _registryLeadLimit = _registryPreviewCount;
+                                  return;
+                                }
+
+                                _registryLeadLimit = _boundedRegistryLeadLimit(
+                                  _registryLeadLimit + _registryPageSize,
+                                  visibleLeads.length,
+                                );
+                              })
                             : null,
                         onRetry: () => context.read<LeadsProvider>().retry(),
                         isRemovingLead: leadsProvider.isRemovingLead,
@@ -255,15 +562,24 @@ class _LeadsRegistryBodyState extends State<_LeadsRegistryBody> {
                       _LeadsPipelineContent(
                         isLoading: leadsProvider.isLoading,
                         error: leadsProvider.error,
-                        leads: leads,
-                        filters: stageFilters,
+                        leads: visibleLeads,
+                        onFiltersPressed: () =>
+                            _showLeadFiltersSheet(leads, stageFilters),
+                        onViewAllPressed: () {
+                          setState(() => _selectedView = _LeadsView.registry);
+                        },
                         onRetry: () => context.read<LeadsProvider>().retry(),
                       )
                     else
                       _LeadsHubContent(
                         isLoading: leadsProvider.isLoading,
                         error: leadsProvider.error,
-                        leads: leads,
+                        leads: visibleLeads,
+                        onFiltersPressed: () =>
+                            _showLeadFiltersSheet(leads, stageFilters),
+                        onViewAllPressed: () {
+                          setState(() => _selectedView = _LeadsView.registry);
+                        },
                         onRetry: () => context.read<LeadsProvider>().retry(),
                       ),
                     SizedBox(height: 20.h),
@@ -370,7 +686,7 @@ class _LeadsRegistryBodyState extends State<_LeadsRegistryBody> {
                                 children: [
                                   Text(
                                     'Edit Lead',
-                                    style: GoogleFonts.manrope(
+                                    style: GoogleFonts.inter(
                                       color: const Color(0xFF1F1C19),
                                       fontSize: 22.sp,
                                       fontWeight: FontWeight.w800,
@@ -379,7 +695,7 @@ class _LeadsRegistryBodyState extends State<_LeadsRegistryBody> {
                                   SizedBox(height: 4.h),
                                   Text(
                                     'Update the lead details and assignment information.',
-                                    style: GoogleFonts.manrope(
+                                    style: GoogleFonts.inter(
                                       color: const Color(0xFF6F6661),
                                       fontSize: 13.sp,
                                       fontWeight: FontWeight.w500,
@@ -490,7 +806,7 @@ class _LeadsRegistryBodyState extends State<_LeadsRegistryBody> {
                                 ),
                                 child: Text(
                                   'Cancel',
-                                  style: GoogleFonts.manrope(
+                                  style: GoogleFonts.inter(
                                     fontWeight: FontWeight.w700,
                                     fontSize: 14.sp,
                                   ),
@@ -529,7 +845,7 @@ class _LeadsRegistryBodyState extends State<_LeadsRegistryBody> {
                                 ),
                                 child: Text(
                                   'Save',
-                                  style: GoogleFonts.manrope(
+                                  style: GoogleFonts.inter(
                                     fontWeight: FontWeight.w800,
                                     fontSize: 14.sp,
                                   ),
@@ -598,13 +914,13 @@ class _LeadsRegistryBodyState extends State<_LeadsRegistryBody> {
         return AlertDialog(
           title: Text(
             'Delete Lead',
-            style: GoogleFonts.manrope(fontWeight: FontWeight.w800),
+            style: GoogleFonts.inter(fontWeight: FontWeight.w800),
           ),
           content: Text(
             lead.id.isNotEmpty
                 ? 'Are you sure you want to delete ${lead.name}? This action cannot be undone.'
                 : 'This lead does not include a lead id yet, so the delete API cannot be called.',
-            style: GoogleFonts.manrope(height: 1.45),
+            style: GoogleFonts.inter(height: 1.45),
           ),
           actions: [
             OutlinedButton(
@@ -615,7 +931,7 @@ class _LeadsRegistryBodyState extends State<_LeadsRegistryBody> {
               ),
               child: Text(
                 'No, Cancel',
-                style: GoogleFonts.manrope(fontWeight: FontWeight.w700),
+                style: GoogleFonts.inter(fontWeight: FontWeight.w700),
               ),
             ),
             ElevatedButton(
@@ -627,7 +943,7 @@ class _LeadsRegistryBodyState extends State<_LeadsRegistryBody> {
               ),
               child: Text(
                 lead.id.isNotEmpty ? 'Yes, Delete' : 'Close',
-                style: GoogleFonts.manrope(fontWeight: FontWeight.w800),
+                style: GoogleFonts.inter(fontWeight: FontWeight.w800),
               ),
             ),
           ],
@@ -792,8 +1108,8 @@ class _LeadsContent extends StatelessWidget {
                   ),
                 ),
                 child: Text(
-                  isExpanded ? 'Show Less' : 'View All Leads ->',
-                  style: GoogleFonts.manrope(
+                  isExpanded ? 'Show Less' : 'Show More Leads ->',
+                  style: GoogleFonts.inter(
                     fontSize: 15.sp,
                     fontWeight: FontWeight.w800,
                   ),
@@ -816,7 +1132,7 @@ class _LeadsContent extends StatelessWidget {
                 ),
                 child: Text(
                   'View All Leads ->',
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     fontSize: 15.sp,
                     fontWeight: FontWeight.w800,
                   ),
@@ -870,7 +1186,7 @@ class _EditLeadField extends StatelessWidget {
     return TextField(
       controller: controller,
       keyboardType: keyboardType,
-      style: GoogleFonts.manrope(
+      style: GoogleFonts.inter(
         color: AppColors.rmHeading,
         fontSize: 14.sp,
         fontWeight: FontWeight.w700,
@@ -900,6 +1216,12 @@ class _EditLeadDropdownField extends StatelessWidget {
     return DropdownButtonFormField<String>(
       initialValue: value,
       isExpanded: true,
+      dropdownColor: AppColors.white,
+      style: GoogleFonts.inter(
+        color: AppColors.rmHeading,
+        fontSize: 14.sp,
+        fontWeight: FontWeight.w700,
+      ),
       decoration: _editLeadDecoration(label),
       icon: Icon(
         Icons.keyboard_arrow_down_rounded,
@@ -910,7 +1232,7 @@ class _EditLeadDropdownField extends StatelessWidget {
           ? null
           : Text(
               hintText!,
-              style: GoogleFonts.manrope(
+              style: GoogleFonts.inter(
                 color: const Color(0xFF8C817D),
                 fontSize: 14.sp,
                 fontWeight: FontWeight.w500,
@@ -922,7 +1244,7 @@ class _EditLeadDropdownField extends StatelessWidget {
               value: item,
               child: Text(
                 item,
-                style: GoogleFonts.manrope(
+                style: GoogleFonts.inter(
                   color: AppColors.rmHeading,
                   fontSize: 14.sp,
                   fontWeight: FontWeight.w700,
@@ -956,7 +1278,7 @@ class _RelationshipManagerField extends StatelessWidget {
         decoration: _editLeadDecoration('Assigned To'),
         child: Text(
           fallbackLabel.isEmpty ? '-' : fallbackLabel,
-          style: GoogleFonts.manrope(
+          style: GoogleFonts.inter(
             color: AppColors.rmHeading,
             fontSize: 14.sp,
             fontWeight: FontWeight.w700,
@@ -968,11 +1290,17 @@ class _RelationshipManagerField extends StatelessWidget {
     return DropdownButtonFormField<String>(
       initialValue: selectedManagerId,
       isExpanded: true,
+      dropdownColor: AppColors.white,
+      style: GoogleFonts.inter(
+        color: AppColors.rmHeading,
+        fontSize: 14.sp,
+        fontWeight: FontWeight.w700,
+      ),
       decoration: _editLeadDecoration('Assigned To'),
       hint: Text(
         fallbackLabel.isEmpty ? 'Select relationship manager' : fallbackLabel,
         overflow: TextOverflow.ellipsis,
-        style: GoogleFonts.manrope(
+        style: GoogleFonts.inter(
           color: const Color(0xFF8C817D),
           fontSize: 14.sp,
           fontWeight: FontWeight.w500,
@@ -990,7 +1318,7 @@ class _RelationshipManagerField extends StatelessWidget {
               child: Text(
                 manager.displayLabel,
                 overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.manrope(
+                style: GoogleFonts.inter(
                   color: AppColors.rmHeading,
                   fontSize: 14.sp,
                   fontWeight: FontWeight.w700,
@@ -1007,7 +1335,7 @@ class _RelationshipManagerField extends StatelessWidget {
 InputDecoration _editLeadDecoration(String label) {
   return InputDecoration(
     labelText: label,
-    labelStyle: GoogleFonts.manrope(
+    labelStyle: GoogleFonts.inter(
       color: const Color(0xFF6F5F64),
       fontSize: 13.sp,
       fontWeight: FontWeight.w700,
@@ -1063,7 +1391,7 @@ class _LeadsMessage extends StatelessWidget {
           Text(
             message,
             textAlign: TextAlign.center,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: const Color(0xFF6F5F64),
               fontSize: 15.sp,
               fontWeight: FontWeight.w700,
@@ -1082,7 +1410,7 @@ class _LeadsMessage extends StatelessWidget {
               ),
               child: Text(
                 actionLabel!,
-                style: GoogleFonts.manrope(fontWeight: FontWeight.w800),
+                style: GoogleFonts.inter(fontWeight: FontWeight.w800),
               ),
             ),
           ],
@@ -1115,7 +1443,7 @@ class _LeadsHeader extends StatelessWidget {
                 child: Text(
                   'Leads Registration',
                   textAlign: TextAlign.center,
-                  style: GoogleFonts.playfairDisplay(
+                  style: GoogleFonts.inter(
                     color: const Color(0xFF1F1A17),
                     fontSize: 22.sp,
                     fontWeight: FontWeight.w700,
@@ -1132,7 +1460,7 @@ class _LeadsHeader extends StatelessWidget {
             children: [
               Text(
                 'Curating matrimonial connections with archival precision.',
-                style: GoogleFonts.manrope(
+                style: GoogleFonts.inter(
                   color: const Color(0xFF2A2927),
                   fontSize: 14.sp,
                   fontWeight: FontWeight.w500,
@@ -1209,7 +1537,7 @@ class _NewInquiryButton extends StatelessWidget {
         ),
         child: Text(
           '+ New Inquiry',
-          style: GoogleFonts.manrope(
+          style: GoogleFonts.inter(
             fontSize: 14.sp,
             fontWeight: FontWeight.w800,
           ),
@@ -1237,7 +1565,7 @@ class _LeadsSearchField extends StatelessWidget {
       child: TextField(
         controller: controller,
         onChanged: onChanged,
-        style: GoogleFonts.manrope(
+        style: GoogleFonts.inter(
           color: const Color(0xFF1B1B1B),
           fontSize: 14.sp,
           fontWeight: FontWeight.w600,
@@ -1250,7 +1578,7 @@ class _LeadsSearchField extends StatelessWidget {
             size: 23.sp,
           ),
           hintText: 'Search by name, phone, email, city, note, or executive',
-          hintStyle: GoogleFonts.manrope(
+          hintStyle: GoogleFonts.inter(
             color: const Color(0xFF8B8684),
             fontSize: 14.sp,
             fontWeight: FontWeight.w500,
@@ -1287,7 +1615,7 @@ class _LeadsViewTabs extends StatelessWidget {
           ),
           SizedBox(width: 10.w),
           _LeadsTab(
-            label: 'Communication',
+            label: 'Communication Hub',
             selected: selectedView == _LeadsView.hub,
             onTap: () => onSelected(_LeadsView.hub),
           ),
@@ -1328,7 +1656,7 @@ class _LeadsTab extends StatelessWidget {
           alignment: Alignment.center,
           child: Text(
             label,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: const Color(0xFF282623),
               fontSize: 13.sp,
               fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
@@ -1347,140 +1675,28 @@ class _LeadsPipelineContent extends StatelessWidget {
     required this.isLoading,
     required this.error,
     required this.leads,
-    required this.filters,
+    required this.onFiltersPressed,
+    required this.onViewAllPressed,
     required this.onRetry,
   });
 
   final bool isLoading;
   final String? error;
   final List<LeadRegistryItem> leads;
-  final List<_StageFilter> filters;
+  final VoidCallback onFiltersPressed;
+  final VoidCallback onViewAllPressed;
   final VoidCallback onRetry;
 
   @override
   Widget build(BuildContext context) {
-    if (isLoading) {
-      return Padding(
-        padding: EdgeInsets.symmetric(vertical: 28.h),
-        child: const Center(child: CircularProgressIndicator()),
-      );
-    }
-
-    if (error != null) {
-      return _LeadsMessage(
-        message: error!,
-        actionLabel: 'Retry',
-        onActionPressed: onRetry,
-      );
-    }
-
-    if (leads.isEmpty) {
-      return const _LeadsMessage(message: 'No pipeline leads found.');
-    }
-
-    final activeFilters = filters.skip(1).toList();
-    final maxCount = activeFilters.fold<int>(
-      1,
-      (max, filter) => (filter.count ?? 0) > max ? filter.count! : max,
-    );
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'LEAD PIPELINE',
-          style: GoogleFonts.manrope(
-            color: const Color(0xFF706368),
-            fontSize: 14.sp,
-            fontWeight: FontWeight.w900,
-            letterSpacing: .6,
-          ),
-        ),
-        SizedBox(height: 10.h),
-        for (final filter in activeFilters) ...[
-          _PipelineStageCard(
-            filter: filter,
-            progress: (filter.count ?? 0) / maxCount,
-          ),
-          SizedBox(height: 12.h),
-        ],
-      ],
-    );
-  }
-}
-
-class _PipelineStageCard extends StatelessWidget {
-  const _PipelineStageCard({required this.filter, required this.progress});
-
-  final _StageFilter filter;
-  final double progress;
-
-  @override
-  Widget build(BuildContext context) {
-    final count = filter.count ?? 0;
-    final accent = filter.dotColor ?? AppColors.rmPrimary;
-
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.all(14.r),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(10.r),
-        border: Border.all(color: const Color(0xFFEECAD4)),
-        boxShadow: const [
-          BoxShadow(
-            color: AppColors.rmCardShadow,
-            blurRadius: 14,
-            offset: Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 10.w,
-                height: 10.w,
-                decoration: BoxDecoration(
-                  color: accent,
-                  shape: BoxShape.circle,
-                ),
-              ),
-              SizedBox(width: 10.w),
-              Expanded(
-                child: Text(
-                  filter.label,
-                  style: GoogleFonts.manrope(
-                    color: AppColors.rmHeading,
-                    fontSize: 17.sp,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ),
-              Text(
-                '$count leads',
-                style: GoogleFonts.manrope(
-                  color: AppColors.rmPrimary,
-                  fontSize: 15.sp,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: 12.h),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(6.r),
-            child: LinearProgressIndicator(
-              value: progress.clamp(0, 1).toDouble(),
-              minHeight: 8.h,
-              backgroundColor: const Color(0xFFF4E6EB),
-              valueColor: AlwaysStoppedAnimation<Color>(accent),
-            ),
-          ),
-        ],
-      ),
+    return _LeadQueuePreviewSection(
+      isLoading: isLoading,
+      error: error,
+      emptyMessage: 'No pipeline leads found.',
+      leads: leads,
+      onFiltersPressed: onFiltersPressed,
+      onViewAllPressed: onViewAllPressed,
+      onRetry: onRetry,
     );
   }
 }
@@ -1490,12 +1706,49 @@ class _LeadsHubContent extends StatelessWidget {
     required this.isLoading,
     required this.error,
     required this.leads,
+    required this.onFiltersPressed,
+    required this.onViewAllPressed,
     required this.onRetry,
   });
 
   final bool isLoading;
   final String? error;
   final List<LeadRegistryItem> leads;
+  final VoidCallback onFiltersPressed;
+  final VoidCallback onViewAllPressed;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return _LeadQueuePreviewSection(
+      isLoading: isLoading,
+      error: error,
+      emptyMessage: 'No communication leads found.',
+      leads: leads,
+      onFiltersPressed: onFiltersPressed,
+      onViewAllPressed: onViewAllPressed,
+      onRetry: onRetry,
+    );
+  }
+}
+
+class _LeadQueuePreviewSection extends StatelessWidget {
+  const _LeadQueuePreviewSection({
+    required this.isLoading,
+    required this.error,
+    required this.emptyMessage,
+    required this.leads,
+    required this.onFiltersPressed,
+    required this.onViewAllPressed,
+    required this.onRetry,
+  });
+
+  final bool isLoading;
+  final String? error;
+  final String emptyMessage;
+  final List<LeadRegistryItem> leads;
+  final VoidCallback onFiltersPressed;
+  final VoidCallback onViewAllPressed;
   final VoidCallback onRetry;
 
   @override
@@ -1516,132 +1769,297 @@ class _LeadsHubContent extends StatelessWidget {
     }
 
     if (leads.isEmpty) {
-      return const _LeadsMessage(message: 'No lead hub activity found.');
+      return _LeadsMessage(message: emptyMessage);
     }
 
-    final groups = <String, List<LeadRegistryItem>>{};
-    for (final lead in leads) {
-      final owner = lead.assignedTo == '-' ? 'Unassigned' : lead.assignedTo;
-      groups.putIfAbsent(owner, () => <LeadRegistryItem>[]).add(lead);
-    }
-    final entries = groups.entries.toList()
-      ..sort((a, b) => b.value.length.compareTo(a.value.length));
+    final previewLeads = leads.take(2).toList(growable: false);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'LEAD HUB',
-          style: GoogleFonts.manrope(
-            color: const Color(0xFF706368),
-            fontSize: 14.sp,
-            fontWeight: FontWeight.w900,
-            letterSpacing: .6,
-          ),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'FILTER BY STAGE',
+                style: GoogleFonts.inter(
+                  color: AppColors.titleColor,
+                  fontSize: 13.sp,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0.7,
+                ),
+              ),
+            ),
+            SizedBox(
+              height: 34.h,
+              child: OutlinedButton.icon(
+                onPressed: onFiltersPressed,
+                icon: Icon(
+                  Icons.tune_rounded,
+                  size: 17.sp,
+                  color: AppColors.titleColor,
+                ),
+                label: Text(
+                  'Filters',
+                  style: GoogleFonts.inter(
+                    color: AppColors.titleColor,
+                    fontSize: 12.sp,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                style: OutlinedButton.styleFrom(
+                  padding: EdgeInsets.symmetric(horizontal: 12.w),
+                  side: const BorderSide(color: AppColors.primary),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8.r),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
-        SizedBox(height: 10.h),
-        for (final entry in entries) ...[
-          _LeadHubCard(owner: entry.key, leads: entry.value),
-          SizedBox(height: 12.h),
+        SizedBox(height: 12.h),
+        for (var index = 0; index < previewLeads.length; index++) ...[
+          _LeadQueuePreviewCard(lead: previewLeads[index]),
+          if (index != previewLeads.length - 1) SizedBox(height: 14.h),
+        ],
+        if (leads.length > previewLeads.length) ...[
+          SizedBox(height: 14.h),
+          SizedBox(
+            width: double.infinity,
+            height: 46.h,
+            child: OutlinedButton(
+              onPressed: onViewAllPressed,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                side: const BorderSide(color: AppColors.primary),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10.r),
+                ),
+              ),
+              child: Text(
+                'View All Leads ->',
+                style: GoogleFonts.inter(
+                  fontSize: 14.sp,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.2,
+                ),
+              ),
+            ),
+          ),
         ],
       ],
     );
   }
 }
 
-class _LeadHubCard extends StatelessWidget {
-  const _LeadHubCard({required this.owner, required this.leads});
+class _LeadQueuePreviewCard extends StatelessWidget {
+  const _LeadQueuePreviewCard({required this.lead});
 
-  final String owner;
-  final List<LeadRegistryItem> leads;
+  final LeadRegistryItem lead;
 
   @override
   Widget build(BuildContext context) {
-    final latestLead = leads.first;
+    final initial = lead.initials.isEmpty ? 'M' : lead.initials[0];
+    final reason = lead.reason.trim();
 
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.all(14.r),
+      padding: EdgeInsets.fromLTRB(10.w, 10.h, 10.w, 10.h),
       decoration: BoxDecoration(
         color: AppColors.white,
-        borderRadius: BorderRadius.circular(10.r),
-        border: Border.all(color: const Color(0xFFEECAD4)),
+        borderRadius: BorderRadius.circular(12.r),
+        border: Border.all(color: const Color(0xFFE5DAD3)),
         boxShadow: const [
           BoxShadow(
-            color: AppColors.rmCardShadow,
-            blurRadius: 14,
-            offset: Offset(0, 6),
+            color: Color(0x10000000),
+            blurRadius: 10,
+            offset: Offset(0, 4),
           ),
         ],
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          CircleAvatar(
-            radius: 22.r,
-            backgroundColor: const Color(0xFFF7D9E3),
-            child: Icon(
-              Icons.support_agent_rounded,
-              color: AppColors.rmPrimary,
-              size: 22.sp,
-            ),
-          ),
-          SizedBox(width: 12.w),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  owner,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 40.r,
+                height: 40.r,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF7EFE8),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: const Color(0xFFE8DDD4)),
+                ),
+                child: Text(
+                  initial,
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF8A4A1C),
+                    fontSize: 15.sp,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              SizedBox(width: 10.w),
+              Expanded(
+                child: Text(
+                  lead.name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.manrope(
-                    color: AppColors.rmHeading,
-                    fontSize: 17.sp,
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF1F1E1D),
+                    fontSize: 19.sp,
                     fontWeight: FontWeight.w900,
+                    height: 1.1,
                   ),
                 ),
-                SizedBox(height: 4.h),
-                Text(
-                  'Latest: ${latestLead.name} - ${latestLead.stage}',
+              ),
+              SizedBox(width: 8.w),
+              _StatusPill(
+                style: _LeadStageStyle.fromStage(lead.stage),
+                label: lead.stage.toUpperCase(),
+              ),
+            ],
+          ),
+          SizedBox(height: 13.h),
+          Row(
+            children: [
+              Icon(
+                Icons.phone_outlined,
+                color: const Color(0xFF1F1E1D),
+                size: 13.sp,
+              ),
+              SizedBox(width: 4.w),
+              Expanded(
+                child: Text(
+                  lead.phone,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.manrope(
-                    color: const Color(0xFF6F5F64),
-                    fontSize: 14.sp,
-                    fontWeight: FontWeight.w700,
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF1F1E1D),
+                    fontSize: 13.sp,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-          SizedBox(width: 12.w),
-          Text(
-            '${leads.length}',
-            style: GoogleFonts.manrope(
-              color: AppColors.rmPrimary,
-              fontSize: 24.sp,
-              fontWeight: FontWeight.w900,
-            ),
+          SizedBox(height: 12.h),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: _LeadQueueInfo(label: 'Source', value: lead.source),
+              ),
+              SizedBox(width: 16.w),
+              Expanded(
+                child: _LeadQueueInfo(label: 'City', value: lead.city),
+              ),
+            ],
           ),
+          SizedBox(height: 10.h),
+          _LeadQueueInfo(label: 'Email', value: lead.email),
+          SizedBox(height: 10.h),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: _LeadQueueInfo(
+                  label: 'Assigned To',
+                  value: lead.assignedTo,
+                ),
+              ),
+              SizedBox(width: 16.w),
+              Expanded(
+                child: _LeadQueueInfo(label: 'Created', value: lead.createdOn),
+              ),
+            ],
+          ),
+          if (reason.isNotEmpty && reason != '-') ...[
+            SizedBox(height: 13.h),
+            Container(
+              width: double.infinity,
+              padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 11.h),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF2ED),
+                borderRadius: BorderRadius.circular(8.r),
+              ),
+              child: Text(
+                'Reason: $reason',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF3A3330),
+                  fontSize: 13.sp,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
   }
 }
 
-class _FilterHeader extends StatelessWidget {
-  const _FilterHeader({required this.onFilterPressed});
+class _LeadQueueInfo extends StatelessWidget {
+  const _LeadQueueInfo({required this.label, required this.value});
 
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: GoogleFonts.inter(
+            color: const Color(0xFF6C6460),
+            fontSize: 12.sp,
+            fontWeight: FontWeight.w500,
+            height: 1.1,
+          ),
+        ),
+        SizedBox(height: 3.h),
+        Text(
+          value,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: GoogleFonts.inter(
+            color: const Color(0xFF1F1E1D),
+            fontSize: 13.sp,
+            fontWeight: FontWeight.w900,
+            height: 1.15,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _FilterHeader extends StatelessWidget {
+  const _FilterHeader({
+    required this.activeFilterCount,
+    required this.onFilterPressed,
+  });
+
+  final int activeFilterCount;
   final VoidCallback onFilterPressed;
 
   @override
   Widget build(BuildContext context) {
+    final filterLabel = activeFilterCount == 0
+        ? 'Filters'
+        : 'Filters ($activeFilterCount)';
+
     return Row(
       children: [
         Expanded(
           child: Text(
             'FILTER BY STAGE',
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: const Color(0xFF2F2C29),
               fontSize: 14.sp,
               fontWeight: FontWeight.w800,
@@ -1652,8 +2070,8 @@ class _FilterHeader extends StatelessWidget {
           onPressed: onFilterPressed,
           icon: Icon(Icons.tune_rounded, size: 18.sp),
           label: Text(
-            'Filters',
-            style: GoogleFonts.manrope(
+            filterLabel,
+            style: GoogleFonts.inter(
               fontSize: 14.sp,
               fontWeight: FontWeight.w800,
             ),
@@ -1669,6 +2087,783 @@ class _FilterHeader extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _LeadsInlineFilters extends StatelessWidget {
+  const _LeadsInlineFilters({
+    required this.sourceOptions,
+    required this.cityOptions,
+    required this.assigneeOptions,
+    required this.selectedSource,
+    required this.selectedCity,
+    required this.selectedAssignee,
+    required this.onSourceChanged,
+    required this.onCityChanged,
+    required this.onAssigneeChanged,
+  });
+
+  final List<String> sourceOptions;
+  final List<String> cityOptions;
+  final List<String> assigneeOptions;
+  final String? selectedSource;
+  final String? selectedCity;
+  final String? selectedAssignee;
+  final ValueChanged<String?> onSourceChanged;
+  final ValueChanged<String?> onCityChanged;
+  final ValueChanged<String?> onAssigneeChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth >= 680.w;
+        final itemWidth = isWide
+            ? (constraints.maxWidth - 24.w) / 3
+            : constraints.maxWidth;
+
+        return Wrap(
+          spacing: 12.w,
+          runSpacing: 12.h,
+          children: [
+            SizedBox(
+              width: itemWidth,
+              child: _LeadInlineDropdown(
+                label: 'Source',
+                hintText: 'All Sources',
+                value: selectedSource,
+                options: sourceOptions,
+                onChanged: onSourceChanged,
+              ),
+            ),
+            SizedBox(
+              width: itemWidth,
+              child: _LeadInlineDropdown(
+                label: 'City',
+                hintText: 'Any City',
+                value: selectedCity,
+                options: cityOptions,
+                onChanged: onCityChanged,
+              ),
+            ),
+            SizedBox(
+              width: itemWidth,
+              child: _LeadInlineDropdown(
+                label: 'Executive',
+                hintText: 'All Executives',
+                value: selectedAssignee,
+                options: assigneeOptions,
+                onChanged: onAssigneeChanged,
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _LeadInlineDropdown extends StatelessWidget {
+  const _LeadInlineDropdown({
+    required this.label,
+    required this.hintText,
+    required this.value,
+    required this.options,
+    required this.onChanged,
+  });
+
+  final String label;
+  final String hintText;
+  final String? value;
+  final List<String> options;
+  final ValueChanged<String?> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final currentValue = options.contains(value) ? value : null;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: GoogleFonts.inter(
+            color: const Color(0xFF1F1C19),
+            fontSize: 13.sp,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        SizedBox(height: 7.h),
+        DropdownButtonFormField<String>(
+          initialValue: currentValue,
+          isExpanded: true,
+          dropdownColor: AppColors.white,
+          style: GoogleFonts.inter(
+            color: const Color(0xFF1F1C19),
+            fontSize: 12.sp,
+            fontWeight: FontWeight.w700,
+          ),
+          icon: Icon(
+            Icons.keyboard_arrow_down_rounded,
+            color: const Color(0xFF8B8784),
+            size: 18.sp,
+          ),
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: AppColors.white,
+            isDense: true,
+            contentPadding: EdgeInsets.symmetric(
+              horizontal: 13.w,
+              vertical: 12.h,
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8.r),
+              borderSide: const BorderSide(color: Color(0xFFEEDFD5)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8.r),
+              borderSide: const BorderSide(color: AppColors.primary),
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8.r),
+              borderSide: const BorderSide(color: Color(0xFFEEDFD5)),
+            ),
+          ),
+          hint: Text(
+            hintText,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF77716C),
+              fontSize: 12.sp,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          items: [
+            DropdownMenuItem<String>(
+              value: '',
+              child: Text(
+                hintText,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF77716C),
+                  fontSize: 12.sp,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            ...options.map(
+              (option) => DropdownMenuItem<String>(
+                value: option,
+                child: Text(
+                  option,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF1F1C19),
+                    fontSize: 12.sp,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+          ],
+          onChanged: (value) =>
+              onChanged(value == null || value.isEmpty ? null : value),
+        ),
+      ],
+    );
+  }
+}
+
+enum _LeadDateRange { any, today, last7Days, last30Days, custom }
+
+class _LeadFilterSelection {
+  const _LeadFilterSelection({
+    required this.selectedStage,
+    required this.source,
+    required this.city,
+    required this.assignee,
+    required this.dateRange,
+    required this.customDateFrom,
+    required this.customDateTo,
+  });
+
+  final int selectedStage;
+  final String? source;
+  final String? city;
+  final String? assignee;
+  final _LeadDateRange dateRange;
+  final DateTime? customDateFrom;
+  final DateTime? customDateTo;
+}
+
+class _LeadFiltersBottomSheet extends StatefulWidget {
+  const _LeadFiltersBottomSheet({
+    required this.stageFilters,
+    required this.sourceOptions,
+    required this.cityOptions,
+    required this.assigneeOptions,
+    required this.initialSelection,
+  });
+
+  final List<_StageFilter> stageFilters;
+  final List<String> sourceOptions;
+  final List<String> cityOptions;
+  final List<String> assigneeOptions;
+  final _LeadFilterSelection initialSelection;
+
+  @override
+  State<_LeadFiltersBottomSheet> createState() =>
+      _LeadFiltersBottomSheetState();
+}
+
+class _LeadFiltersBottomSheetState extends State<_LeadFiltersBottomSheet> {
+  late int _selectedStage;
+  String? _selectedSource;
+  String? _selectedCity;
+  String? _selectedAssignee;
+  late _LeadDateRange _selectedDateRange;
+  DateTime? _customDateFrom;
+  DateTime? _customDateTo;
+
+  @override
+  void initState() {
+    super.initState();
+    final selection = widget.initialSelection;
+    _selectedStage = selection.selectedStage;
+    _selectedSource = selection.source;
+    _selectedCity = selection.city;
+    _selectedAssignee = selection.assignee;
+    _selectedDateRange = selection.dateRange;
+    _customDateFrom = selection.customDateFrom;
+    _customDateTo = selection.customDateTo;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.88,
+      minChildSize: 0.5,
+      maxChildSize: 0.94,
+      expand: false,
+      builder: (context, scrollController) {
+        return Container(
+          decoration: BoxDecoration(
+            color: AppColors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(22.r)),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x24000000),
+                blurRadius: 26,
+                offset: Offset(0, -10),
+              ),
+            ],
+          ),
+          child: SafeArea(
+            top: false,
+            child: Column(
+              children: [
+                Expanded(
+                  child: SingleChildScrollView(
+                    controller: scrollController,
+                    padding: EdgeInsets.fromLTRB(22.w, 18.h, 22.w, 18.h),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                'Filter',
+                                style: GoogleFonts.inter(
+                                  color: const Color(0xFF1F1C19),
+                                  fontSize: 24.sp,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                            IconButton(
+                              tooltip: 'Close',
+                              onPressed: () => Navigator.of(context).pop(),
+                              icon: Icon(
+                                Icons.close_rounded,
+                                color: const Color(0xFF5F5753),
+                                size: 24.sp,
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 26.h),
+                        _FilterSectionTitle(
+                          icon: Icons.flag_outlined,
+                          label: 'Stage',
+                        ),
+                        SizedBox(height: 14.h),
+                        Wrap(
+                          spacing: 8.w,
+                          runSpacing: 10.h,
+                          children: [
+                            for (
+                              int index = 0;
+                              index < widget.stageFilters.length;
+                              index++
+                            )
+                              _FilterChoiceChip(
+                                label: index == 0
+                                    ? 'All'
+                                    : widget.stageFilters[index].label,
+                                selected: _selectedStage == index,
+                                onTap: () =>
+                                    setState(() => _selectedStage = index),
+                              ),
+                          ],
+                        ),
+                        SizedBox(height: 30.h),
+                        _FilterSectionTitle(
+                          icon: Icons.source_outlined,
+                          label: 'Source',
+                        ),
+                        SizedBox(height: 12.h),
+                        _FilterDropdown(
+                          value: _selectedSource,
+                          hintText: 'All Sources',
+                          options: widget.sourceOptions,
+                          onChanged: (value) =>
+                              setState(() => _selectedSource = value),
+                        ),
+                        SizedBox(height: 28.h),
+                        _FilterSectionTitle(
+                          icon: Icons.location_on_outlined,
+                          label: 'City',
+                        ),
+                        SizedBox(height: 12.h),
+                        _FilterDropdown(
+                          value: _selectedCity,
+                          hintText: 'Any City',
+                          options: widget.cityOptions,
+                          onChanged: (value) =>
+                              setState(() => _selectedCity = value),
+                        ),
+                        SizedBox(height: 28.h),
+                        _FilterSectionTitle(
+                          icon: Icons.manage_accounts_outlined,
+                          label: 'Assigned To',
+                        ),
+                        SizedBox(height: 12.h),
+                        _FilterDropdown(
+                          value: _selectedAssignee,
+                          hintText: 'All Executives',
+                          options: widget.assigneeOptions,
+                          onChanged: (value) =>
+                              setState(() => _selectedAssignee = value),
+                        ),
+                        SizedBox(height: 30.h),
+                        _FilterSectionTitle(
+                          icon: Icons.calendar_month_outlined,
+                          label: 'Date Range',
+                        ),
+                        SizedBox(height: 14.h),
+                        Wrap(
+                          spacing: 8.w,
+                          runSpacing: 10.h,
+                          children: [
+                            _DateRangeChip(
+                              label: 'Today',
+                              range: _LeadDateRange.today,
+                              selectedRange: _selectedDateRange,
+                              onSelected: _selectDateRange,
+                            ),
+                            _DateRangeChip(
+                              label: 'Last 7 Days',
+                              range: _LeadDateRange.last7Days,
+                              selectedRange: _selectedDateRange,
+                              onSelected: _selectDateRange,
+                            ),
+                            _DateRangeChip(
+                              label: 'Last 30 Days',
+                              range: _LeadDateRange.last30Days,
+                              selectedRange: _selectedDateRange,
+                              onSelected: _selectDateRange,
+                            ),
+                            _FilterChoiceChip(
+                              label: 'Custom',
+                              trailingIcon: Icons.chevron_right_rounded,
+                              selected:
+                                  _selectedDateRange == _LeadDateRange.custom,
+                              onTap: () => _pickCustomDateRange(context),
+                            ),
+                          ],
+                        ),
+                        if (_selectedDateRange == _LeadDateRange.custom) ...[
+                          SizedBox(height: 12.h),
+                          Text(
+                            _customRangeLabel,
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFF6F6661),
+                              fontSize: 13.sp,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+                Container(
+                  padding: EdgeInsets.fromLTRB(22.w, 14.h, 22.w, 16.h),
+                  decoration: const BoxDecoration(
+                    color: AppColors.white,
+                    border: Border(top: BorderSide(color: Color(0xFFF0E2DA))),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: _clearFilters,
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.primary,
+                            side: const BorderSide(color: AppColors.primary),
+                            minimumSize: Size.fromHeight(54.h),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12.r),
+                            ),
+                          ),
+                          child: Text(
+                            'Clear All',
+                            style: GoogleFonts.inter(
+                              fontSize: 14.sp,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: 16.w),
+                      Expanded(
+                        flex: 2,
+                        child: ElevatedButton(
+                          onPressed: _applyFilters,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: AppColors.white,
+                            elevation: 0,
+                            minimumSize: Size.fromHeight(54.h),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12.r),
+                            ),
+                          ),
+                          child: Text(
+                            'Apply Filters',
+                            style: GoogleFonts.inter(
+                              fontSize: 15.sp,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  String get _customRangeLabel {
+    if (_customDateFrom == null && _customDateTo == null) {
+      return 'Select custom dates';
+    }
+
+    return '${_formatFilterDate(_customDateFrom) ?? 'Any'} - ${_formatFilterDate(_customDateTo) ?? 'Any'}';
+  }
+
+  void _selectDateRange(_LeadDateRange range) {
+    setState(() {
+      _selectedDateRange = range;
+      if (range != _LeadDateRange.custom) {
+        _customDateFrom = null;
+        _customDateTo = null;
+      }
+    });
+  }
+
+  Future<void> _pickCustomDateRange(BuildContext context) async {
+    final now = DateTime.now();
+    final initialRange = _customDateFrom == null || _customDateTo == null
+        ? null
+        : DateTimeRange(start: _customDateFrom!, end: _customDateTo!);
+    final pickedRange = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(now.year - 5),
+      lastDate: DateTime(now.year + 1),
+      initialDateRange: initialRange,
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: Theme.of(context).colorScheme.copyWith(
+              primary: AppColors.primary,
+              onPrimary: AppColors.white,
+            ),
+          ),
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
+    );
+
+    if (pickedRange == null) {
+      setState(() => _selectedDateRange = _LeadDateRange.custom);
+      return;
+    }
+
+    setState(() {
+      _selectedDateRange = _LeadDateRange.custom;
+      _customDateFrom = pickedRange.start;
+      _customDateTo = pickedRange.end;
+    });
+  }
+
+  void _clearFilters() {
+    Navigator.of(context).pop(
+      const _LeadFilterSelection(
+        selectedStage: 0,
+        source: null,
+        city: null,
+        assignee: null,
+        dateRange: _LeadDateRange.any,
+        customDateFrom: null,
+        customDateTo: null,
+      ),
+    );
+  }
+
+  void _applyFilters() {
+    Navigator.of(context).pop(
+      _LeadFilterSelection(
+        selectedStage: _selectedStage,
+        source: _selectedSource,
+        city: _selectedCity,
+        assignee: _selectedAssignee,
+        dateRange: _selectedDateRange,
+        customDateFrom: _customDateFrom,
+        customDateTo: _customDateTo,
+      ),
+    );
+  }
+
+  String? _formatFilterDate(DateTime? date) {
+    if (date == null) {
+      return null;
+    }
+
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+
+    return '${date.day} ${months[date.month - 1]} ${date.year}';
+  }
+}
+
+class _FilterSectionTitle extends StatelessWidget {
+  const _FilterSectionTitle({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 16.sp, color: const Color(0xFF1F1C19)),
+        SizedBox(width: 8.w),
+        Text(
+          label,
+          style: GoogleFonts.inter(
+            color: const Color(0xFF1F1C19),
+            fontSize: 16.sp,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _FilterChoiceChip extends StatelessWidget {
+  const _FilterChoiceChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    this.trailingIcon,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  final IconData? trailingIcon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18.r),
+        child: Container(
+          height: 38.h,
+          padding: EdgeInsets.symmetric(horizontal: 16.w),
+          decoration: BoxDecoration(
+            color: selected ? AppColors.primary : AppColors.white,
+            borderRadius: BorderRadius.circular(18.r),
+            border: Border.all(
+              color: selected ? AppColors.primary : const Color(0xFFD95F26),
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                style: GoogleFonts.inter(
+                  color: selected ? AppColors.white : const Color(0xFF1F1C19),
+                  fontSize: 14.sp,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              if (trailingIcon != null) ...[
+                SizedBox(width: 4.w),
+                Icon(
+                  trailingIcon,
+                  size: 18.sp,
+                  color: selected ? AppColors.white : const Color(0xFF1F1C19),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DateRangeChip extends StatelessWidget {
+  const _DateRangeChip({
+    required this.label,
+    required this.range,
+    required this.selectedRange,
+    required this.onSelected,
+  });
+
+  final String label;
+  final _LeadDateRange range;
+  final _LeadDateRange selectedRange;
+  final ValueChanged<_LeadDateRange> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return _FilterChoiceChip(
+      label: label,
+      selected: range == selectedRange,
+      onTap: () => onSelected(range),
+    );
+  }
+}
+
+class _FilterDropdown extends StatelessWidget {
+  const _FilterDropdown({
+    required this.value,
+    required this.hintText,
+    required this.options,
+    required this.onChanged,
+  });
+
+  final String? value;
+  final String hintText;
+  final List<String> options;
+  final ValueChanged<String?> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final currentValue = options.contains(value) ? value : null;
+
+    return DropdownButtonFormField<String>(
+      initialValue: currentValue,
+      isExpanded: true,
+      dropdownColor: AppColors.white,
+      style: GoogleFonts.inter(
+        color: const Color(0xFF1F1C19),
+        fontSize: 14.sp,
+        fontWeight: FontWeight.w600,
+      ),
+      icon: Icon(
+        Icons.keyboard_arrow_down_rounded,
+        color: const Color(0xFF71757F),
+        size: 24.sp,
+      ),
+      decoration: InputDecoration(
+        filled: true,
+        fillColor: AppColors.white,
+        contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 13.h),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8.r),
+          borderSide: const BorderSide(color: Color(0xFFD3D3D3)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8.r),
+          borderSide: const BorderSide(color: AppColors.primary),
+        ),
+      ),
+      hint: Text(
+        hintText,
+        style: GoogleFonts.inter(
+          color: const Color(0xFF1F1C19),
+          fontSize: 14.sp,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      items: [
+        DropdownMenuItem<String>(
+          value: '',
+          child: Text(
+            hintText,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF1F1C19),
+              fontSize: 14.sp,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        ...options.map(
+          (option) => DropdownMenuItem<String>(
+            value: option,
+            child: Text(
+              option,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.inter(
+                color: const Color(0xFF1F1C19),
+                fontSize: 14.sp,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ),
+      ],
+      onChanged: (value) =>
+          onChanged(value == null || value.isEmpty ? null : value),
     );
   }
 }
@@ -1718,6 +2913,7 @@ class _StageChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasDot = filter.dotColor != null;
+    final icon = filter.icon;
 
     return Material(
       color: AppColors.transparent,
@@ -1739,19 +2935,22 @@ class _StageChip extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               if (!selected && hasDot) ...[
-                Container(
-                  width: 8.w,
-                  height: 8.w,
-                  decoration: BoxDecoration(
-                    color: filter.dotColor,
-                    shape: BoxShape.circle,
-                  ),
-                ),
+                if (icon == null)
+                  Container(
+                    width: 8.w,
+                    height: 8.w,
+                    decoration: BoxDecoration(
+                      color: filter.dotColor,
+                      shape: BoxShape.circle,
+                    ),
+                  )
+                else
+                  Icon(icon, color: filter.dotColor, size: 13.sp),
                 SizedBox(width: 8.w),
               ],
               Text(
                 filter.label,
-                style: GoogleFonts.manrope(
+                style: GoogleFonts.inter(
                   color: selected ? AppColors.white : const Color(0xFF4C4744),
                   fontSize: 14.sp,
                   fontWeight: FontWeight.w800,
@@ -1767,7 +2966,7 @@ class _StageChip extends StatelessWidget {
                   ),
                   child: Text(
                     '${filter.count}',
-                    style: GoogleFonts.manrope(
+                    style: GoogleFonts.inter(
                       color: selected
                           ? AppColors.primary
                           : const Color(0xFF6B6662),
@@ -1820,7 +3019,7 @@ class _LeadCard extends StatelessWidget {
                   lead.name,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     color: const Color(0xFF201D1A),
                     fontSize: 20.sp,
                     fontWeight: FontWeight.w800,
@@ -1874,7 +3073,7 @@ class _LeadCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   'Created: ${lead.createdOn}',
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     color: const Color(0xFF2A2825),
                     fontSize: 14.sp,
                     fontWeight: FontWeight.w700,
@@ -1978,7 +3177,7 @@ class _LeadDetailBlock extends StatelessWidget {
       children: [
         Text(
           label,
-          style: GoogleFonts.manrope(
+          style: GoogleFonts.inter(
             color: const Color(0xFF66615D),
             fontSize: 13.sp,
             fontWeight: FontWeight.w500,
@@ -1989,7 +3188,7 @@ class _LeadDetailBlock extends StatelessWidget {
           value,
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
-          style: GoogleFonts.manrope(
+          style: GoogleFonts.inter(
             color: const Color(0xFF1D1B18),
             fontSize: 15.sp,
             fontWeight: FontWeight.w800,
@@ -2022,7 +3221,7 @@ class _StatusPill extends StatelessWidget {
       child: Center(
         child: Text(
           label,
-          style: GoogleFonts.manrope(
+          style: GoogleFonts.inter(
             color: colors.text,
             fontSize: 14.sp,
             fontWeight: FontWeight.w700,
@@ -2057,7 +3256,7 @@ class _ArchiveInsightCard extends StatelessWidget {
         children: [
           Text(
             'Archive Insight',
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: const Color(0xFF22201D),
               fontSize: 18.sp,
               fontWeight: FontWeight.w800,
@@ -2066,7 +3265,7 @@ class _ArchiveInsightCard extends StatelessWidget {
           SizedBox(height: 8.h),
           Text(
             'Lead Distribution Snapshot',
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: const Color(0xFF272420),
               fontSize: 14.sp,
               fontWeight: FontWeight.w600,
@@ -2075,7 +3274,7 @@ class _ArchiveInsightCard extends StatelessWidget {
           SizedBox(height: 10.h),
           Text(
             'The registry now reflects actual lead records from the backend. Showing $filteredLeads curated lead${filteredLeads == 1 ? '' : 's'} from a live archive of $totalLeads records.',
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: const Color(0xFF5C5753),
               fontSize: 14.sp,
               fontWeight: FontWeight.w500,
@@ -2085,7 +3284,7 @@ class _ArchiveInsightCard extends StatelessWidget {
           SizedBox(height: 14.h),
           Text(
             'View Analysis ->',
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: AppColors.primary,
               fontSize: 16.sp,
               fontWeight: FontWeight.w800,
@@ -2126,7 +3325,7 @@ class _CuratorMilestoneCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   "Curator's Milestone",
-                  style: GoogleFonts.playfairDisplay(
+                  style: GoogleFonts.inter(
                     color: AppColors.white,
                     fontSize: 20.sp,
                     fontWeight: FontWeight.w700,
@@ -2143,7 +3342,7 @@ class _CuratorMilestoneCard extends StatelessWidget {
           SizedBox(height: 16.h),
           Text(
             'Lead intake is now mapped directly to the registry schema, ensuring archival fidelity across active branches.',
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: AppColors.white,
               fontSize: 14.sp,
               fontWeight: FontWeight.w500,
@@ -2156,7 +3355,7 @@ class _CuratorMilestoneCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   'Archive Goal',
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     color: AppColors.white,
                     fontSize: 14.sp,
                     fontWeight: FontWeight.w700,
@@ -2165,7 +3364,7 @@ class _CuratorMilestoneCard extends StatelessWidget {
               ),
               Text(
                 '$percentage%',
-                style: GoogleFonts.manrope(
+                style: GoogleFonts.inter(
                   color: AppColors.white,
                   fontSize: 16.sp,
                   fontWeight: FontWeight.w800,
@@ -2190,11 +3389,17 @@ class _CuratorMilestoneCard extends StatelessWidget {
 }
 
 class _StageFilter {
-  const _StageFilter({required this.label, this.count, this.dotColor});
+  const _StageFilter({
+    required this.label,
+    this.count,
+    this.dotColor,
+    this.icon,
+  });
 
   final String label;
   final int? count;
   final Color? dotColor;
+  final IconData? icon;
 }
 
 enum _LeadStageStyle {

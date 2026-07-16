@@ -381,9 +381,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     final profile = _profile;
     final profileId = profile.originalId.trim();
     if (profileId.isEmpty || profileId == '-') {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Profile id is missing.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Profile id is missing.')));
       return;
     }
 
@@ -394,11 +394,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       return;
     }
     final payload = _buildUpdateProfilePayload();
-    final updated = await context.read<RegistryProfilesProvider>().updateProfile(
-      accessToken: token,
-      profileId: profileId,
-      payload: payload,
-    );
+    final updated = await context
+        .read<RegistryProfilesProvider>()
+        .updateProfile(
+          accessToken: token,
+          profileId: profileId,
+          payload: payload,
+        );
 
     if (!mounted) {
       return;
@@ -592,7 +594,7 @@ class _EditProfileHeader extends StatelessWidget {
       children: [
         Text(
           'PROFILE DIGITIZATION > DATA ENTRY CORE',
-          style: GoogleFonts.manrope(
+          style: GoogleFonts.inter(
             color: const Color(0xFF7E737A),
             fontSize: 11.sp,
             fontWeight: FontWeight.w900,
@@ -604,7 +606,7 @@ class _EditProfileHeader extends StatelessWidget {
           'Editing Profile for ${profile.name}',
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
-          style: GoogleFonts.manrope(
+          style: GoogleFonts.inter(
             color: AppColors.rmPrimary,
             fontSize: 25.sp,
             fontWeight: FontWeight.w900,
@@ -661,7 +663,7 @@ class _StatusChip extends StatelessWidget {
           ],
           Text(
             label,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: foreground,
               fontSize: 12.sp,
               fontWeight: FontWeight.w800,
@@ -707,7 +709,7 @@ class _EditProfileTabs extends StatelessWidget {
                 ),
                 child: Text(
                   tabs[index],
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     color: selectedIndex == index
                         ? AppColors.rmPrimary
                         : const Color(0xFF625C61),
@@ -825,7 +827,7 @@ class _SourceDocumentCard extends StatelessWidget {
                 SizedBox(width: 8.w),
                 Text(
                   'Source Document',
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     color: const Color(0xFF343039),
                     fontSize: 16.sp,
                     fontWeight: FontWeight.w900,
@@ -834,7 +836,7 @@ class _SourceDocumentCard extends StatelessWidget {
                 const Spacer(),
                 Text(
                   'Reference Only',
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     color: const Color(0xFF7E737A),
                     fontSize: 11.sp,
                     fontWeight: FontWeight.w800,
@@ -1072,7 +1074,7 @@ class _AstroEditTab extends StatelessWidget {
         children: [
           Text(
             'MANGLIK STATUS',
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: AppColors.rmPrimary,
               fontSize: 20.sp,
               fontWeight: FontWeight.w800,
@@ -1166,7 +1168,7 @@ class _ManglikChoice extends StatelessWidget {
             SizedBox(width: 10.w),
             Text(
               label,
-              style: GoogleFonts.manrope(
+              style: GoogleFonts.inter(
                 color: selected ? AppColors.rmPrimary : const Color(0xFF343039),
                 fontSize: 15.sp,
                 fontWeight: FontWeight.w800,
@@ -1197,7 +1199,7 @@ class _PortfolioPhotos extends StatelessWidget {
             Expanded(
               child: Text(
                 'Portfolio Photos',
-                style: GoogleFonts.manrope(
+                style: GoogleFonts.inter(
                   color: AppColors.rmPrimary,
                   fontSize: 17.sp,
                   fontWeight: FontWeight.w900,
@@ -1209,7 +1211,7 @@ class _PortfolioPhotos extends StatelessWidget {
               icon: Icon(Icons.add, size: 14.sp),
               label: Text(
                 'Add Photo',
-                style: GoogleFonts.manrope(fontWeight: FontWeight.w900),
+                style: GoogleFonts.inter(fontWeight: FontWeight.w900),
               ),
               style: TextButton.styleFrom(
                 foregroundColor: AppColors.rmPrimary,
@@ -1262,7 +1264,7 @@ class _LinkedClientCard extends StatelessWidget {
                         profile.name,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.manrope(
+                        style: GoogleFonts.inter(
                           color: const Color(0xFF178347),
                           fontSize: 16.sp,
                           fontWeight: FontWeight.w900,
@@ -1281,7 +1283,7 @@ class _LinkedClientCard extends StatelessWidget {
                       ),
                       child: Text(
                         'VERIFIED',
-                        style: GoogleFonts.manrope(
+                        style: GoogleFonts.inter(
                           color: AppColors.white,
                           fontSize: 9.sp,
                           fontWeight: FontWeight.w900,
@@ -1293,7 +1295,7 @@ class _LinkedClientCard extends StatelessWidget {
                 SizedBox(height: 8.h),
                 Text(
                   '+91 9564215470 - PREMIUM Plan',
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     color: const Color(0xFF237A49),
                     fontSize: 12.sp,
                     fontWeight: FontWeight.w800,
@@ -1326,7 +1328,7 @@ class _LinkedClientCard extends StatelessWidget {
             onPressed: () {},
             child: Text(
               'Change',
-              style: GoogleFonts.manrope(
+              style: GoogleFonts.inter(
                 color: AppColors.rmPrimary,
                 fontSize: 13.sp,
                 fontWeight: FontWeight.w900,
@@ -1340,7 +1342,7 @@ class _LinkedClientCard extends StatelessWidget {
   }
 
   TextStyle _linkedMetaStyle() {
-    return GoogleFonts.manrope(
+    return GoogleFonts.inter(
       color: const Color(0xFF237A49),
       fontSize: 12.sp,
       fontWeight: FontWeight.w700,
@@ -1363,7 +1365,7 @@ class _BiographyCard extends StatelessWidget {
             Expanded(
               child: Text(
                 'Biography / About Me',
-                style: GoogleFonts.manrope(
+                style: GoogleFonts.inter(
                   color: AppColors.rmPrimary,
                   fontSize: 17.sp,
                   fontWeight: FontWeight.w900,
@@ -1378,7 +1380,7 @@ class _BiographyCard extends StatelessWidget {
               ),
               child: Text(
                 'AI Enhanced',
-                style: GoogleFonts.manrope(
+                style: GoogleFonts.inter(
                   color: const Color(0xFF6356CE),
                   fontSize: 11.sp,
                   fontWeight: FontWeight.w900,
@@ -1392,7 +1394,7 @@ class _BiographyCard extends StatelessWidget {
           controller: controller,
           minLines: 5,
           maxLines: 6,
-          style: GoogleFonts.manrope(
+          style: GoogleFonts.inter(
             color: const Color(0xFF443D42),
             fontSize: 15.sp,
             fontWeight: FontWeight.w600,
@@ -1435,7 +1437,7 @@ class _OutlinedEditButton extends StatelessWidget {
         side: const BorderSide(color: AppColors.rmPrimary),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9.r)),
         padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 12.h),
-        textStyle: GoogleFonts.manrope(
+        textStyle: GoogleFonts.inter(
           fontSize: 12.sp,
           fontWeight: FontWeight.w900,
         ),
@@ -1598,7 +1600,7 @@ class _EditSectionTitle extends StatelessWidget {
       children: [
         Text(
           title,
-          style: GoogleFonts.manrope(
+          style: GoogleFonts.inter(
             color: AppColors.rmPrimary,
             fontSize: 15.sp,
             fontWeight: FontWeight.w900,
@@ -1693,7 +1695,7 @@ class _EditFieldFrame extends StatelessWidget {
       children: [
         Text(
           label,
-          style: GoogleFonts.manrope(
+          style: GoogleFonts.inter(
             color: const Color(0xFF6B6470),
             fontSize: 10.sp,
             fontWeight: FontWeight.w900,
@@ -1749,7 +1751,7 @@ class _EditProfileFooter extends StatelessWidget {
                 ),
                 child: Text(
                   'Discard',
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     fontSize: 15.sp,
                     fontWeight: FontWeight.w900,
                   ),
@@ -1782,7 +1784,7 @@ class _EditProfileFooter extends StatelessWidget {
                         )
                       : Text(
                           'Update Profile',
-                          style: GoogleFonts.manrope(
+                          style: GoogleFonts.inter(
                             fontSize: 15.sp,
                             fontWeight: FontWeight.w900,
                           ),
@@ -1798,7 +1800,7 @@ class _EditProfileFooter extends StatelessWidget {
 }
 
 TextStyle _fieldTextStyle() {
-  return GoogleFonts.manrope(
+  return GoogleFonts.inter(
     color: const Color(0xFF343039),
     fontSize: 15.sp,
     fontWeight: FontWeight.w700,

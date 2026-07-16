@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:koniwalamatrimonial/constants/app_colors.dart';
 import 'package:koniwalamatrimonial/providers/auth_provider.dart';
@@ -125,8 +126,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         // Welcome Text
                         Text(
                           'Welcome back',
-                          style: GoogleFonts.manrope(
-                            fontSize: 22,
+                          style: GoogleFonts.inter(
+                            fontSize: 22.sp,
                             fontWeight: FontWeight.bold,
                             color: const Color(0xFF1D1B20),
                           ),
@@ -135,9 +136,9 @@ class _LoginScreenState extends State<LoginScreen> {
                         Text(
                           'Continue your journey toward a\ntimeless union.',
                           textAlign: TextAlign.center,
-                          style: GoogleFonts.manrope(
-                            fontSize: 14,
-                            color: Colors.grey[700],
+                          style: GoogleFonts.inter(
+                            fontSize: 14.sp,
+                            color: const Color(0xFF1E1F1F),
                             height: 1.4,
                           ),
                         ),
@@ -158,9 +159,9 @@ class _LoginScreenState extends State<LoginScreen> {
                               onTap: () {},
                               child: Text(
                                 'Forgotten credentials?',
-                                style: GoogleFonts.manrope(
-                                  color: Colors.grey[600],
-                                  fontSize: 11,
+                                style: GoogleFonts.inter(
+                                  color: const Color(0xFF1E1F1F),
+                                  fontSize: 11.sp,
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
@@ -197,8 +198,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                   )
                                 : Text(
                                     'Enter Your Archive',
-                                    style: GoogleFonts.manrope(
-                                      fontSize: 14,
+                                    style: GoogleFonts.inter(
+                                      fontSize: 14.sp,
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
@@ -221,9 +222,9 @@ class _LoginScreenState extends State<LoginScreen> {
       alignment: Alignment.centerLeft,
       child: Text(
         label,
-        style: GoogleFonts.manrope(
-          color: Colors.grey[600],
-          fontSize: 11,
+        style: GoogleFonts.inter(
+          color: const Color(0xFF1E1F1F),
+          fontSize: 11.sp,
           fontWeight: FontWeight.bold,
           letterSpacing: 0.5,
         ),
@@ -241,7 +242,7 @@ class _LoginScreenState extends State<LoginScreen> {
       child: TextField(
         controller: controller,
         obscureText: isPassword,
-        style: GoogleFonts.manrope(fontSize: 15, color: Colors.black87),
+        style: GoogleFonts.inter(fontSize: 15.sp, color: Colors.black87),
         decoration: const InputDecoration(
           border: InputBorder.none,
           contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),

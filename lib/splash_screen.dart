@@ -35,10 +35,14 @@ class _SplashScreenState extends State<SplashScreen> {
   Future<void> _checkAuth() async {
     final authProvider = context.read<AuthProvider>();
     final user = authProvider.userModel?.user;
-    
-    print('DEBUG: SplashScreen _checkAuth - User Model: ${authProvider.userModel != null}');
+
+    print(
+      'DEBUG: SplashScreen _checkAuth - User Model: ${authProvider.userModel != null}',
+    );
     if (user != null) {
-      print('DEBUG: SplashScreen _checkAuth - User ID: ${user.id}, Role: ${user.role}');
+      print(
+        'DEBUG: SplashScreen _checkAuth - User ID: ${user.id}, Role: ${user.role}',
+      );
     }
 
     if (user != null && user.id.isNotEmpty) {
@@ -48,15 +52,21 @@ class _SplashScreenState extends State<SplashScreen> {
       if (role == 'MANAGER') {
         Navigator.of(context).pushReplacementNamed(AppRoutes.dashboard);
       } else if (role == 'RELATIONSHIP_MANAGER') {
-        Navigator.of(context).pushReplacementNamed(AppRoutes.relationshipManagerDashboard);
+        Navigator.of(
+          context,
+        ).pushReplacementNamed(AppRoutes.relationshipManagerDashboard);
       } else if (role == 'ADMIN') {
         Navigator.of(context).pushReplacementNamed(AppRoutes.ownerDashboard);
       } else if (role == 'HR') {
         Navigator.of(context).pushReplacementNamed(AppRoutes.hrDashboard);
       } else if (role == 'DATA' || role == 'DATA_ENTRY') {
-        Navigator.of(context).pushReplacementNamed(AppRoutes.dataEntryDashboard);
+        Navigator.of(
+          context,
+        ).pushReplacementNamed(AppRoutes.dataEntryDashboard);
       } else {
-        Navigator.of(context).pushReplacementNamed(AppRoutes.plainRole, arguments: user.role);
+        Navigator.of(
+          context,
+        ).pushReplacementNamed(AppRoutes.plainRole, arguments: user.role);
       }
     } else {
       Navigator.of(context).pushReplacementNamed(AppRoutes.login);
@@ -70,20 +80,18 @@ class _SplashScreenState extends State<SplashScreen> {
       body: Stack(
         children: [
           Positioned.fill(
-            child: Image.asset(
-              'assets/wedding_hero 1.png',
-              fit: BoxFit.cover,
-            ),
+            child: Image.asset('assets/wedding_hero 1.png', fit: BoxFit.cover),
           ),
           Positioned.fill(
-            child: Container(
-              color: Colors.black.withOpacity(0.4),
-            ),
+            child: Container(color: Colors.black.withOpacity(0.4)),
           ),
 
           SafeArea(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 24.0,
+                vertical: 20.0,
+              ),
               child: Column(
                 children: [
                   // Logo
@@ -99,9 +107,9 @@ class _SplashScreenState extends State<SplashScreen> {
                   Text(
                     'The Wedding\nArchivist',
                     textAlign: TextAlign.center,
-                    style: GoogleFonts.manrope(
+                    style: GoogleFonts.inter(
                       color: Colors.white,
-                      fontSize: 42,
+                      fontSize: 42.sp,
                       fontWeight: FontWeight.bold,
                       height: 1.1,
                     ),
@@ -110,9 +118,9 @@ class _SplashScreenState extends State<SplashScreen> {
                   Text(
                     '"Curating timeless matches with the\ndignity of tradition and the grace of\nmodern luxury."',
                     textAlign: TextAlign.center,
-                    style: GoogleFonts.manrope(
+                    style: GoogleFonts.inter(
                       color: Colors.white,
-                      fontSize: 18,
+                      fontSize: 18.sp,
                       fontWeight: FontWeight.w500,
                       height: 1.5,
                       fontStyle: FontStyle.italic,
@@ -122,47 +130,53 @@ class _SplashScreenState extends State<SplashScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      Column(
-                        children: [
-                          Text(
-                            '150+',
-                            style: GoogleFonts.manrope(
-                              color: Colors.white,
-                              fontSize: 32.sp,
-                              fontWeight: FontWeight.bold,
+                      Expanded(
+                        child: Column(
+                          children: [
+                            Text(
+                              '150+',
+                              style: GoogleFonts.inter(
+                                color: Colors.white,
+                                fontSize: 32.sp,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
-                          ),
-                          Text(
-                            'PALATIAL UNIONS',
-                            style: GoogleFonts.manrope(
-                              color: Colors.white.withOpacity(0.8),
-                              fontSize: 12.sp,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 1.2,
+                            Text(
+                              'PALATIAL UNIONS',
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.inter(
+                                color: Colors.white.withOpacity(0.8),
+                                fontSize: 12.sp,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 1.2,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                      Column(
-                        children: [
-                          Text(
-                            'Elite',
-                            style: GoogleFonts.manrope(
-                              color: Colors.white,
-                              fontSize: 32.sp,
-                              fontWeight: FontWeight.bold,
+                      Expanded(
+                        child: Column(
+                          children: [
+                            Text(
+                              'Elite',
+                              style: GoogleFonts.inter(
+                                color: Colors.white,
+                                fontSize: 32.sp,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
-                          ),
-                          Text(
-                            'GLOBAL CIRCLES',
-                            style: GoogleFonts.manrope(
-                              color: Colors.white.withOpacity(0.8),
-                              fontSize: 12.sp,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 1.2,
+                            Text(
+                              'GLOBAL CIRCLES',
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.inter(
+                                color: Colors.white.withOpacity(0.8),
+                                fontSize: 12.sp,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 1.2,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ],
                   ),
@@ -176,7 +190,9 @@ class _SplashScreenState extends State<SplashScreen> {
                       height: 50.h,
                       child: ElevatedButton(
                         onPressed: () {
-                          Navigator.of(context).pushReplacementNamed(AppRoutes.login);
+                          Navigator.of(
+                            context,
+                          ).pushReplacementNamed(AppRoutes.login);
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.white,
@@ -188,7 +204,7 @@ class _SplashScreenState extends State<SplashScreen> {
                         ),
                         child: Text(
                           'Next',
-                          style: GoogleFonts.manrope(
+                          style: GoogleFonts.inter(
                             fontSize: 16.sp,
                             fontWeight: FontWeight.bold,
                           ),

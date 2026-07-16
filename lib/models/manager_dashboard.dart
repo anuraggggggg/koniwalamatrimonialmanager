@@ -171,42 +171,76 @@ class ManagerDashboardKpi {
   final int totalLeads;
   final int activeProfiles;
   final int matchesToday;
+  final int conversions;
   final int conversionRate;
   final int revenue;
   final int followUpsDue;
+  final int vipClients;
+  final int newLeadsTrendPercent;
 
   ManagerDashboardKpi({
     required this.totalLeads,
     required this.activeProfiles,
     required this.matchesToday,
+    required this.conversions,
     required this.conversionRate,
     required this.revenue,
     required this.followUpsDue,
+    required this.vipClients,
+    required this.newLeadsTrendPercent,
   });
 
   factory ManagerDashboardKpi.fromJson(Map<String, dynamic> json) {
     final kpi = ManagerDashboard._readMap(json['kpi']);
     final topKpis = ManagerDashboard._readMap(json['topKpis']);
     final totalLeads = ManagerDashboard._readMap(topKpis['totalLeads']);
+    final newLeads = ManagerDashboard._readMap(topKpis['newLeads']);
     final activeClients = ManagerDashboard._readMap(topKpis['activeClients']);
     final followUps = ManagerDashboard._readMap(topKpis['followUps']);
+    final conversions = ManagerDashboard._readMap(topKpis['conversions']);
+    final vipClients = ManagerDashboard._readMap(topKpis['vipClients']);
+    final premiumClients = ManagerDashboard._readMap(topKpis['premiumClients']);
 
     return ManagerDashboardKpi(
       totalLeads: ManagerDashboard.readInt(
-        kpi['totalLeads'],
-        fallback: ManagerDashboard.readInt(totalLeads['value']),
+        totalLeads['value'],
+        fallback: ManagerDashboard.readInt(kpi['totalLeads']),
       ),
       activeProfiles: ManagerDashboard.readInt(
-        kpi['activeProfiles'],
-        fallback: ManagerDashboard.readInt(activeClients['value']),
+        activeClients['value'],
+        fallback: ManagerDashboard.readInt(kpi['activeProfiles']),
       ),
-      matchesToday: ManagerDashboard.readInt(kpi['matchesToday']),
-      conversionRate: ManagerDashboard.readInt(kpi['conversionRate']),
+      matchesToday: ManagerDashboard.readInt(
+        newLeads['value'],
+        fallback: ManagerDashboard.readInt(kpi['matchesToday']),
+      ),
+      conversions: ManagerDashboard.readInt(
+        conversions['value'],
+        fallback: ManagerDashboard.readInt(kpi['conversions']),
+      ),
+      conversionRate: ManagerDashboard.readInt(
+        conversions['conversionRate'],
+        fallback: ManagerDashboard.readInt(kpi['conversionRate']),
+      ),
       revenue: ManagerDashboard.readInt(kpi['revenue']),
       followUpsDue: ManagerDashboard.readInt(
-        kpi['followUpsDue'],
-        fallback: ManagerDashboard.readInt(followUps['value']),
+        followUps['value'],
+        fallback: ManagerDashboard.readInt(kpi['followUpsDue']),
       ),
+      vipClients: ManagerDashboard.readInt(
+        vipClients['value'],
+        fallback: ManagerDashboard.readInt(
+          topKpis['vipClients'],
+          fallback: ManagerDashboard.readInt(
+            premiumClients['value'],
+            fallback: ManagerDashboard.readInt(
+              topKpis['premiumClients'],
+              fallback: ManagerDashboard.readInt(kpi['vipClients']),
+            ),
+          ),
+        ),
+      ),
+      newLeadsTrendPercent: ManagerDashboard.readInt(newLeads['trendPercent']),
     );
   }
 }
@@ -241,6 +275,7 @@ class ManagerFollowUpControlItem {
   final int pendingFollowUps;
   final int completedFollowUps;
   final int overdueFollowUps;
+  final String notificationId;
 
   ManagerFollowUpControlItem({
     required this.id,
@@ -250,17 +285,24 @@ class ManagerFollowUpControlItem {
     required this.pendingFollowUps,
     required this.completedFollowUps,
     required this.overdueFollowUps,
+    required this.notificationId,
   });
 
   factory ManagerFollowUpControlItem.fromJson(Map<String, dynamic> json) {
+    final id = ManagerDashboard.readText(json['id']);
+
     return ManagerFollowUpControlItem(
-      id: ManagerDashboard.readText(json['id']),
+      id: id,
       name: ManagerDashboard.readText(json['name'], fallback: 'Team Member'),
       role: ManagerDashboard.readText(json['role']),
       image: json['image']?.toString(),
       pendingFollowUps: ManagerDashboard.readInt(json['pendingFollowUps']),
       completedFollowUps: ManagerDashboard.readInt(json['completedFollowUps']),
       overdueFollowUps: ManagerDashboard.readInt(json['overdueFollowUps']),
+      notificationId: ManagerDashboard.readText(
+        json['notificationId'],
+        fallback: id,
+      ),
     );
   }
 }
@@ -490,10 +532,7 @@ class ManagerRecentActivityItem {
     return ManagerRecentActivityItem(
       id: ManagerDashboard.readText(json['id']),
       category: ManagerDashboard.readText(json['category']),
-      title: ManagerDashboard.readText(
-        json['title'],
-        fallback: 'Activity',
-      ),
+      title: ManagerDashboard.readText(json['title'], fallback: 'Activity'),
       description: ManagerDashboard.readText(json['description']),
       action: ManagerDashboard.readText(json['action']),
       icon: ManagerDashboard.readText(json['icon']),

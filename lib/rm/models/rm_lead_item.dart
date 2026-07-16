@@ -87,10 +87,9 @@ class RmLeadItem {
           .whereType<Map<String, dynamic>>()
           .map(RmCommunicationLog.fromJson)
           .toList(),
-      tasks: _readList(json['tasks'])
-          .whereType<Map<String, dynamic>>()
-          .map(RmLeadTask.fromJson)
-          .toList(),
+      tasks: _readList(
+        json['tasks'],
+      ).whereType<Map<String, dynamic>>().map(RmLeadTask.fromJson).toList(),
       resumeCount: count is Map<String, dynamic>
           ? _readInt(count['resumesReceived'])
           : 0,

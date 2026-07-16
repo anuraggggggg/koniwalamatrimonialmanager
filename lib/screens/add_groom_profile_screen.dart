@@ -20,7 +20,7 @@ class _AddGroomProfileScreenState extends State<AddGroomProfileScreen> {
       appBar: AppBar(
         title: Text(
           'Add Groom Profile',
-          style: GoogleFonts.manrope(
+          style: GoogleFonts.inter(
             fontWeight: FontWeight.bold,
             color: Colors.white,
           ),
@@ -38,7 +38,7 @@ class _AddGroomProfileScreenState extends State<AddGroomProfileScreen> {
             children: [
               Text(
                 'Create New Profile',
-                style: GoogleFonts.manrope(
+                style: GoogleFonts.inter(
                   fontSize: 24.sp,
                   fontWeight: FontWeight.w800,
                   color: AppColors.rmPrimary,
@@ -47,14 +47,18 @@ class _AddGroomProfileScreenState extends State<AddGroomProfileScreen> {
               SizedBox(height: 8.h),
               Text(
                 'Enter the details of the groom below.',
-                style: GoogleFonts.manrope(
+                style: GoogleFonts.inter(
                   fontSize: 14.sp,
                   color: AppColors.rmBodyText,
                 ),
               ),
               SizedBox(height: 30.h),
               _buildTextField('Full Name', Icons.person_outline),
-              _buildTextField('Age', Icons.calendar_today_outlined, keyboardType: TextInputType.number),
+              _buildTextField(
+                'Age',
+                Icons.calendar_today_outlined,
+                keyboardType: TextInputType.number,
+              ),
               _buildTextField('Height', Icons.height),
               _buildTextField('City', Icons.location_city_outlined),
               _buildTextField('Profession', Icons.work_outline),
@@ -67,7 +71,9 @@ class _AddGroomProfileScreenState extends State<AddGroomProfileScreen> {
                   onPressed: () {
                     if (_formKey.currentState!.validate()) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Profile Added Successfully')),
+                        const SnackBar(
+                          content: Text('Profile Added Successfully'),
+                        ),
                       );
                       Navigator.pop(context);
                     }
@@ -81,7 +87,7 @@ class _AddGroomProfileScreenState extends State<AddGroomProfileScreen> {
                   ),
                   child: Text(
                     'Save Profile',
-                    style: GoogleFonts.manrope(
+                    style: GoogleFonts.inter(
                       fontSize: 16.sp,
                       fontWeight: FontWeight.bold,
                     ),
@@ -95,7 +101,11 @@ class _AddGroomProfileScreenState extends State<AddGroomProfileScreen> {
     );
   }
 
-  Widget _buildTextField(String label, IconData icon, {TextInputType? keyboardType}) {
+  Widget _buildTextField(
+    String label,
+    IconData icon, {
+    TextInputType? keyboardType,
+  }) {
     return Padding(
       padding: EdgeInsets.only(bottom: 20.h),
       child: TextFormField(

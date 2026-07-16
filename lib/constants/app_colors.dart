@@ -6,9 +6,10 @@ class AppColors {
   static const Color backgroundLight = Color(0xFFF5F5F5);
   static const Color backgroundDark = Color(0xFF303030);
   static const Color textPrimary = Color(0xFF212121);
-  static const Color textSecondary = Color(0xFF757575);
+  static const Color titleColor = Color(0xFF1E1F1F);
+  static const Color textSecondary = titleColor;
   static const Color error = Color(0xFFB00020);
-  static const Color dashbaordcardtext = Color(0xFF4D4D4D);
+  static const Color dashbaordcardtext = titleColor;
   static const Color dashbaordsecoundcardtext = Color(0xFFCD6124);
   static const Color mutedBorderColor = Color.fromRGBO(205, 97, 36, 1);
   static const Color standardDarkTextColor = Color(0xFF1D1B20);
@@ -23,10 +24,8 @@ class AppColors {
   static const Color badgeReviewTextColor = Color(0xFFF5DDE6);
   static const Color neutralBorderColorLight = Color(0xFFCDD5E1);
   static const Color neutralDividerColor = Color(0xFFE1E6EF);
-  static const Color mutedTextColor = Color(
-    0xFF70758B,
-  );
-  static const Color activitySubtitleColor = Color(0xFF564146);
+  static const Color mutedTextColor = titleColor;
+  static const Color activitySubtitleColor = titleColor;
   static const Color contactButtonBg = Color(0xFFF8E8EF);
   static const Color white = Colors.white;
   static const Color black = Colors.black;
@@ -37,13 +36,13 @@ class AppColors {
   static const Color rmPrimary = Color(0xFFCD6124);
   static const Color rmBackground = Color(0xFFFFF7F8);
   static const Color rmHeading = Color(0xFF181C1F);
-  static const Color rmBodyText = Color(0xFF45464F);
+  static const Color rmBodyText = titleColor;
   static const Color rmBorder = Color(0xFFECEEF2);
-  static const Color rmMutedText = Color(0xFF727785);
-  static const Color rmHintText = Color(0xFFA0A4AB);
-  static const Color rmSubtleRoseText = Color(0xFF9E6375);
+  static const Color rmMutedText = titleColor;
+  static const Color rmHintText = titleColor;
+  static const Color rmSubtleRoseText = titleColor;
   static const Color rmStatValue = Color(0xFFCD6124);
-  static const Color rmStatCaption = Color(0xFF544246);
+  static const Color rmStatCaption = titleColor;
   static const Color rmStatShadow = Color(0x0F5F5F5F);
   static const Color rmCardShadow = Color(0x14323247);
   static const Color rmDarkMaroon = Color(0xFFCD6124);
@@ -74,15 +73,15 @@ class AppColors {
   static const Color rmStatusBorder = Color(0xFFFFF2CD);
   static const Color rmStatusText = Color(0xFFE65100);
   static const Color rmHeaderDivider = Color(0xFFF1E6EA);
-  static const Color rmModalClose = Color(0xFF6F6267);
-  static const Color rmComparisonBody = Color(0xFF5E5960);
-  static const Color rmComparisonCaption = Color(0xFF6B5D62);
-  static const Color rmComparisonMeta = Color(0xFF787179);
-  static const Color rmComparisonMuted = Color(0xFF716B70);
-  static const Color rmComparisonStrong = Color(0xFF38343A);
-  static const Color rmComparisonLabel = Color(0xFF70686E);
+  static const Color rmModalClose = titleColor;
+  static const Color rmComparisonBody = titleColor;
+  static const Color rmComparisonCaption = titleColor;
+  static const Color rmComparisonMeta = titleColor;
+  static const Color rmComparisonMuted = titleColor;
+  static const Color rmComparisonStrong = titleColor;
+  static const Color rmComparisonLabel = titleColor;
   static const Color rmComparisonChipBg = Color(0xFFF7EFF2);
-  static const Color rmComparisonChipText = Color(0xFF514B50);
+  static const Color rmComparisonChipText = titleColor;
   static const Color rmComparisonButtonBorder = Color(0xFFE8B8CA);
   static const Color rmComparisonIdBorder = Color(0xFFE8DADF);
   static const Color rmComparisonTealBg = Color(0xFFEFFFFD);
@@ -93,8 +92,8 @@ class AppColors {
   static const Color hrPrimary = Color(0xFFCD6124);
   static const Color hrBackground = Color(0xFFFFF7F8);
   static const Color hrText = Color(0xFF1F2430);
-  static const Color hrMuted = Color(0xFF76757E);
-  static const Color hrMetricLabel = Color(0xFF544246);
+  static const Color hrMuted = titleColor;
+  static const Color hrMetricLabel = titleColor;
   static const Color hrMetricBorder = Color(0x4CD9C0C5);
   static const Color hrMetricShadow = Color(0x0F323247);
   static const Color hrOpenTaskValue = Color(0xFF7E4B00);
@@ -110,12 +109,11 @@ class AppColors {
   static const Color whatsappGreen = Color(0xFF00A859);
   static const Color lightGray = Color(0xFFF3F4F5);
   static const Color darkGreen = Color(0xFF006E28);
-  static const Color darkGray = Color(0xFF454748) ;
-  static const Color reddishBrown = Color(0xFF584141) ;
+  static const Color darkGray = titleColor;
+  static const Color reddishBrown = titleColor;
   static const Color goldYellow = Color(0xFFFED65B);
   static const Color deepBurgundy = Color(0xFF780037);
   static const Color slateGray = Color(0xFF475569);
   static const Color deepBurgundy10 = Color(0x1A780037);
   static const Color maroonPrimary = Color(0xFF5B0B2D);
-  static const Color titleColor = Color(0xFF1E1F1F);
 }

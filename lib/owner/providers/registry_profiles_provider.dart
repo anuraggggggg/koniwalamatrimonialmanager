@@ -6,6 +6,51 @@ import 'package:http/http.dart' as http;
 import 'package:koniwalamatrimonial/constants/api_constants.dart';
 import 'package:koniwalamatrimonial/owner/models/registry_profile_item.dart';
 
+List<RegistryProfileItem> _parseRegistryProfilesResponse(String body) {
+  final decoded = jsonDecode(body);
+  final profileRows = _extractRegistryProfileRows(decoded);
+
+  return profileRows
+      .whereType<Map<String, dynamic>>()
+      .map(RegistryProfileItem.fromJson)
+      .toList();
+}
+
+List<dynamic> _extractRegistryProfileRows(dynamic payload) {
+  if (payload is List) {
+    return payload;
+  }
+
+  if (payload is Map<String, dynamic>) {
+    for (final key in const ['data', 'profiles', 'items', 'results']) {
+      final value = payload[key];
+
+      if (value is List) {
+        return value;
+      }
+
+      final nestedRows = _extractRegistryProfileRows(value);
+      if (nestedRows.isNotEmpty) {
+        return nestedRows;
+      }
+    }
+  }
+
+  return const [];
+}
+
+void _debugPrintCompact(String label, String value) {
+  if (!kDebugMode) {
+    return;
+  }
+
+  const maxChars = 1200;
+  final compactValue = value.length > maxChars
+      ? '${value.substring(0, maxChars)}... [truncated ${value.length} chars]'
+      : value;
+  debugPrint('$label$compactValue');
+}
+
 class RegistryProfilesProvider extends ChangeNotifier {
   bool _isLoading = false;
   bool _isCreating = false;
@@ -67,9 +112,9 @@ class RegistryProfilesProvider extends ChangeNotifier {
       }
 
       final response = await http.get(
-        Uri.parse('${ApiConstants.baseUrl}${ApiConstants.profiles}').replace(
-          queryParameters: queryParameters,
-        ),
+        Uri.parse(
+          '${ApiConstants.baseUrl}${ApiConstants.profiles}',
+        ).replace(queryParameters: queryParameters),
         headers: {
           'Accept': 'application/json',
           'Authorization': 'Bearer $accessToken',
@@ -80,13 +125,9 @@ class RegistryProfilesProvider extends ChangeNotifier {
         throw Exception('Profiles API failed with ${response.statusCode}');
       }
 
-      final decoded = jsonDecode(response.body);
-      final profileRows = _extractProfileRows(decoded);
-
-      _profiles = profileRows
-          .whereType<Map<String, dynamic>>()
-          .map(RegistryProfileItem.fromJson)
-          .toList();
+      // PERF: JSON decoding and RegistryProfileItem mapping can be expensive
+      // for large profile lists. Run it on a background isolate to avoid ANR.
+      _profiles = await compute(_parseRegistryProfilesResponse, response.body);
       _isLoading = false;
       _error = null;
       notifyListeners();
@@ -126,7 +167,9 @@ class RegistryProfilesProvider extends ChangeNotifier {
       final uri = Uri.parse(
         '${ApiConstants.baseUrl}${ApiConstants.profiles}',
       ).replace(queryParameters: filters);
-      debugPrint('Filter profiles API: GET $uri');
+      if (kDebugMode) {
+        debugPrint('Filter profiles API: GET $uri');
+      }
 
       final response = await http.get(
         uri,
@@ -135,8 +178,10 @@ class RegistryProfilesProvider extends ChangeNotifier {
           'Authorization': 'Bearer $token',
         },
       );
-      debugPrint('Filter profiles API response: ${response.statusCode}');
-      debugPrint('Filter profiles API body: ${response.body}');
+      if (kDebugMode) {
+        debugPrint('Filter profiles API response: ${response.statusCode}');
+      }
+      _debugPrintCompact('Filter profiles API body: ', response.body);
 
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
@@ -144,13 +189,8 @@ class RegistryProfilesProvider extends ChangeNotifier {
         );
       }
 
-      final decoded = jsonDecode(response.body);
-      final profileRows = _extractProfileRows(decoded);
-
-      _profiles = profileRows
-          .whereType<Map<String, dynamic>>()
-          .map(RegistryProfileItem.fromJson)
-          .toList();
+      // PERF: Keep large filter response parsing off the UI isolate too.
+      _profiles = await compute(_parseRegistryProfilesResponse, response.body);
       _isLoading = false;
       _error = null;
       _hasRequestedProfiles = true;
@@ -201,7 +241,9 @@ class RegistryProfilesProvider extends ChangeNotifier {
             );
 
       if (response.statusCode < 200 || response.statusCode >= 300) {
-        throw Exception('Create profile API failed with ${response.statusCode}');
+        throw Exception(
+          'Create profile API failed with ${response.statusCode}',
+        );
       }
 
       final decoded = jsonDecode(response.body);
@@ -256,7 +298,9 @@ class RegistryProfilesProvider extends ChangeNotifier {
     }
 
     for (final photo in photos) {
-      request.files.add(await http.MultipartFile.fromPath('images', photo.path));
+      request.files.add(
+        await http.MultipartFile.fromPath('images', photo.path),
+      );
     }
 
     final streamedResponse = await request.send();
@@ -319,7 +363,8 @@ class RegistryProfilesProvider extends ChangeNotifier {
         final updatedProfile = RegistryProfileItem.fromJson(profileJson);
         _profiles = _profiles
             .map(
-              (profile) => (profile.originalId == updatedProfile.originalId ||
+              (profile) =>
+                  (profile.originalId == updatedProfile.originalId ||
                       profile.originalId == id)
                   ? updatedProfile
                   : profile,
@@ -339,29 +384,6 @@ class RegistryProfilesProvider extends ChangeNotifier {
       notifyListeners();
       return false;
     }
-  }
-
-  List<dynamic> _extractProfileRows(dynamic payload) {
-    if (payload is List) {
-      return payload;
-    }
-
-    if (payload is Map<String, dynamic>) {
-      for (final key in const ['data', 'profiles', 'items', 'results']) {
-        final value = payload[key];
-
-        if (value is List) {
-          return value;
-        }
-
-        final nestedRows = _extractProfileRows(value);
-        if (nestedRows.isNotEmpty) {
-          return nestedRows;
-        }
-      }
-    }
-
-    return const [];
   }
 
   Map<String, dynamic>? _extractCreatedProfile(dynamic payload) {

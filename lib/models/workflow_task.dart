@@ -60,8 +60,12 @@ class WorkflowTask {
       dueAt: DateTime.parse(json['dueAt']),
       createdAt: DateTime.parse(json['createdAt']),
       updatedAt: DateTime.parse(json['updatedAt']),
-      lead: json['lead'] != null ? WorkflowTaskLead.fromJson(json['lead']) : null,
-      subjectDisplay: WorkflowTaskSubjectDisplay.fromJson(json['subjectDisplay'] ?? {}),
+      lead: json['lead'] != null
+          ? WorkflowTaskLead.fromJson(json['lead'])
+          : null,
+      subjectDisplay: WorkflowTaskSubjectDisplay.fromJson(
+        json['subjectDisplay'] ?? {},
+      ),
       displayTitle: json['displayTitle'] ?? '',
       displayReason: json['displayReason'] ?? '',
       displaySummary: json['displaySummary'] ?? '',

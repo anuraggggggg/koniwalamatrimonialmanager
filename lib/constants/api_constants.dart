@@ -4,13 +4,19 @@ class ApiConstants {
   static const String me = '/auth/me';
   static const String refresh = '/auth/refresh';
 
-
   static const String dashboardStats = '/profiles/dashboard/stats';
 
   static const String managerDashboard = '/dashboard/manager';
 
+  static const String followUpControlMessage =
+      '/dashboard/follow-up-control/message';
+  static const String followUpControlVoiceNote =
+      '/dashboard/follow-up-control/voice-note';
+
   static const String followUpControlMessageUrl =
-      'http://localhost:3001/api/v1/dashboard/follow-up-control/message';
+      '$baseUrl$followUpControlMessage';
+  static const String followUpControlVoiceNoteUrl =
+      '$baseUrl$followUpControlVoiceNote';
 
   static const String rmDashboardSummary = '/dashboard/rm/summary';
 

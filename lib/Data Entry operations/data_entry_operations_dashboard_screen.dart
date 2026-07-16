@@ -83,7 +83,7 @@ class _DataEntryDashboardDrawer extends StatelessWidget {
                         ),
                         child: Text(
                           userName.isNotEmpty ? userName[0].toUpperCase() : 'D',
-                          style: GoogleFonts.manrope(
+                          style: GoogleFonts.inter(
                             color: AppColors.white,
                             fontSize: 28.sp,
                             fontWeight: FontWeight.w800,
@@ -99,7 +99,7 @@ class _DataEntryDashboardDrawer extends StatelessWidget {
                               userName,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: GoogleFonts.manrope(
+                              style: GoogleFonts.inter(
                                 color: AppColors.white,
                                 fontSize: 21.sp,
                                 fontWeight: FontWeight.w800,
@@ -108,7 +108,7 @@ class _DataEntryDashboardDrawer extends StatelessWidget {
                             SizedBox(height: 3.h),
                             Text(
                               'Data Entry',
-                              style: GoogleFonts.manrope(
+                              style: GoogleFonts.inter(
                                 color: AppColors.white.withValues(alpha: 0.78),
                                 fontSize: 16.sp,
                                 fontWeight: FontWeight.w600,
@@ -155,7 +155,7 @@ class _DataEntryDashboardDrawer extends StatelessWidget {
                     padding: EdgeInsets.fromLTRB(6.w, 0, 6.w, 10.h),
                     child: Text(
                       'Main Menu',
-                      style: GoogleFonts.manrope(
+                      style: GoogleFonts.inter(
                         color: AppColors.rmMutedText,
                         fontSize: 17.sp,
                         fontWeight: FontWeight.w900,
@@ -181,7 +181,9 @@ class _DataEntryDashboardDrawer extends StatelessWidget {
                     selected: false,
                     onTap: () {
                       Navigator.of(context).maybePop();
-                      Navigator.of(context).pushNamed(AppRoutes.profileDigitizer);
+                      Navigator.of(
+                        context,
+                      ).pushNamed(AppRoutes.profileDigitizer);
                     },
                   ),
                   _DataEntryDrawerItem(
@@ -229,7 +231,7 @@ class _DataEntryDashboardDrawer extends StatelessWidget {
                         Expanded(
                           child: Text(
                             'Data entry workspace active',
-                            style: GoogleFonts.manrope(
+                            style: GoogleFonts.inter(
                               color: AppColors.rmBodyText,
                               fontSize: 17.sp,
                               fontWeight: FontWeight.w700,
@@ -263,7 +265,7 @@ class _DataEntryDashboardDrawer extends StatelessWidget {
                           SizedBox(width: 10.w),
                           Text(
                             'Logout',
-                            style: GoogleFonts.manrope(
+                            style: GoogleFonts.inter(
                               fontSize: 17.sp,
                               fontWeight: FontWeight.w800,
                             ),
@@ -301,7 +303,7 @@ class _DataEntryDrawerMetric extends StatelessWidget {
         children: [
           Text(
             value,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: AppColors.white,
               fontSize: 17.sp,
               fontWeight: FontWeight.w900,
@@ -313,7 +315,7 @@ class _DataEntryDrawerMetric extends StatelessWidget {
             label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: AppColors.white.withValues(alpha: 0.78),
               fontSize: 13.sp,
               fontWeight: FontWeight.w700,
@@ -363,7 +365,7 @@ class _DataEntryDrawerItem extends StatelessWidget {
                     label,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.manrope(
+                    style: GoogleFonts.inter(
                       color: color,
                       fontSize: 17.sp,
                       fontWeight: selected ? FontWeight.w800 : FontWeight.w700,
@@ -390,7 +392,11 @@ class _DataEntryOperationsDashboardScreenState
   void didChangeDependencies() {
     super.didChangeDependencies();
 
-    final accessToken = context.watch<AuthProvider>().userModel?.accessToken?.trim();
+    final accessToken = context
+        .watch<AuthProvider>()
+        .userModel
+        ?.accessToken
+        ?.trim();
     if (_hasRequestedDashboard && accessToken == _requestedAccessToken) {
       return;
     }
@@ -407,7 +413,9 @@ class _DataEntryOperationsDashboardScreenState
       }
 
       context.read<DataEntryDashboardProvider>().fetchDashboard(accessToken);
-      context.read<DataEntryDashboardProvider>().fetchDataEntryUsers(accessToken);
+      context.read<DataEntryDashboardProvider>().fetchDataEntryUsers(
+        accessToken,
+      );
     });
   }
 
@@ -457,7 +465,7 @@ class _DataEntryOperationsDashboardScreenState
               ),
               title: Text(
                 'Data Entry Dashboard',
-                style: GoogleFonts.manrope(
+                style: GoogleFonts.inter(
                   color: const Color(0xFF4A2334),
                   fontSize: 17.sp,
                   fontWeight: FontWeight.w800,
@@ -526,11 +534,11 @@ class _DataEntryOperationsDashboardScreenState
           unselectedItemColor: Colors.grey[400],
           selectedFontSize: 14.sp,
           unselectedFontSize: 14.sp,
-          selectedLabelStyle: GoogleFonts.manrope(
+          selectedLabelStyle: GoogleFonts.inter(
             fontSize: 13.sp,
             fontWeight: FontWeight.w700,
           ),
-          unselectedLabelStyle: GoogleFonts.manrope(
+          unselectedLabelStyle: GoogleFonts.inter(
             fontSize: 13.sp,
             fontWeight: FontWeight.w500,
           ),
@@ -566,7 +574,7 @@ class _DataEntryOperationsDashboardScreenState
         children: [
           Text(
             'Data Entry Operations',
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               fontSize: 30.sp,
               fontWeight: FontWeight.w800,
               color: const Color(0xFF1E1E22),
@@ -575,7 +583,7 @@ class _DataEntryOperationsDashboardScreenState
           SizedBox(height: 6.h),
           Text(
             'Manage and track profile digitization progress.',
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               fontSize: 16.sp,
               fontWeight: FontWeight.w500,
               color: const Color(0xFF6E6770),
@@ -595,7 +603,7 @@ class _DataEntryOperationsDashboardScreenState
               ),
               label: Text(
                 'New Client',
-                style: GoogleFonts.manrope(
+                style: GoogleFonts.inter(
                   fontSize: 13.sp,
                   fontWeight: FontWeight.w700,
                 ),
@@ -604,7 +612,9 @@ class _DataEntryOperationsDashboardScreenState
                 foregroundColor: AppColors.rmPrimary,
                 backgroundColor: Colors.white,
                 padding: EdgeInsets.symmetric(vertical: 14.h),
-                side: BorderSide(color: AppColors.rmPrimary.withValues(alpha: 0.75)),
+                side: BorderSide(
+                  color: AppColors.rmPrimary.withValues(alpha: 0.75),
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12.r),
                 ),
@@ -695,7 +705,7 @@ class _DataEntryOperationsDashboardScreenState
           Text(
             'No active drafts found',
             textAlign: TextAlign.center,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               fontSize: 13.sp,
               fontWeight: FontWeight.w600,
               color: const Color(0xFF1E1E22),
@@ -711,7 +721,8 @@ class _DataEntryOperationsDashboardScreenState
                 foregroundColor: AppColors.rmPrimary,
                 padding: EdgeInsets.symmetric(vertical: 12.h, horizontal: 16.w),
                 side: BorderSide(
-                    color: AppColors.rmPrimary.withValues(alpha: 0.75)),
+                  color: AppColors.rmPrimary.withValues(alpha: 0.75),
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10.r),
                 ),
@@ -721,22 +732,24 @@ class _DataEntryOperationsDashboardScreenState
                 children: [
                   Text(
                     'Continue Last Session',
-                    style: GoogleFonts.manrope(
+                    style: GoogleFonts.inter(
                       fontSize: 17.sp,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
                   SizedBox(width: 8.w),
                   Container(
-                    padding:
-                        EdgeInsets.symmetric(horizontal: 11.w, vertical: 5.h),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 11.w,
+                      vertical: 5.h,
+                    ),
                     decoration: BoxDecoration(
                       color: const Color(0xFFFFF2DA),
                       borderRadius: BorderRadius.circular(999.r),
                     ),
                     child: Text(
                       'PENDING',
-                      style: GoogleFonts.manrope(
+                      style: GoogleFonts.inter(
                         fontSize: 11.sp,
                         fontWeight: FontWeight.w800,
                         color: const Color(0xFFD59A18),
@@ -766,7 +779,7 @@ class _DataEntryOperationsDashboardScreenState
               Expanded(
                 child: Text(
                   'Recently Digitized Profiles',
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     fontSize: 16.sp,
                     fontWeight: FontWeight.w700,
                     color: const Color(0xFF1E1E22),
@@ -792,7 +805,7 @@ class _DataEntryOperationsDashboardScreenState
                     SizedBox(width: 5.w),
                     Text(
                       'LIVE FEED',
-                      style: GoogleFonts.manrope(
+                      style: GoogleFonts.inter(
                         fontSize: 13.sp,
                         fontWeight: FontWeight.w800,
                         color: const Color(0xFFFF4A4A),
@@ -835,7 +848,7 @@ class _DataEntryOperationsDashboardScreenState
                   SizedBox(height: 10.h),
                   Text(
                     'No profiles digitized yet.',
-                    style: GoogleFonts.manrope(
+                    style: GoogleFonts.inter(
                       fontSize: 13.sp,
                       fontWeight: FontWeight.w500,
                       color: const Color(0xFF6E6770),
@@ -866,7 +879,7 @@ class _DataEntryOperationsDashboardScreenState
                           profile.name,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.manrope(
+                          style: GoogleFonts.inter(
                             fontSize: 17.sp,
                             fontWeight: FontWeight.w600,
                             color: const Color(0xFF1E1E22),
@@ -878,7 +891,7 @@ class _DataEntryOperationsDashboardScreenState
                         child: Text(
                           _formatDate(profile.createdAt),
                           textAlign: TextAlign.right,
-                          style: GoogleFonts.manrope(
+                          style: GoogleFonts.inter(
                             fontSize: 13.sp,
                             fontWeight: FontWeight.w500,
                             color: const Color(0xFF6E6770),
@@ -917,7 +930,7 @@ class _DataEntryOperationsDashboardScreenState
         children: [
           Text(
             'Profile creation queue',
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               fontSize: 16.sp,
               fontWeight: FontWeight.w800,
               color: AppColors.rmPrimary,
@@ -929,7 +942,7 @@ class _DataEntryOperationsDashboardScreenState
               Expanded(
                 child: Text(
                   'Converted clients waiting for profile\ndigitization.',
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     fontSize: 13.sp,
                     fontWeight: FontWeight.w500,
                     color: const Color(0xFF6E6770),
@@ -959,7 +972,7 @@ class _DataEntryOperationsDashboardScreenState
                 ),
                 child: Text(
                   '$activeCount Active',
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     fontSize: 17.sp,
                     fontWeight: FontWeight.w700,
                     color: AppColors.rmPrimary,
@@ -994,7 +1007,7 @@ class _DataEntryOperationsDashboardScreenState
                       ),
                       child: Text(
                         queueActionLabel,
-                        style: GoogleFonts.manrope(
+                        style: GoogleFonts.inter(
                           fontSize: 13.sp,
                           fontWeight: FontWeight.w800,
                           color: AppColors.rmPrimary,
@@ -1013,7 +1026,7 @@ class _DataEntryOperationsDashboardScreenState
                       ),
                       child: Text(
                         'PENDING',
-                        style: GoogleFonts.manrope(
+                        style: GoogleFonts.inter(
                           fontSize: 13.sp,
                           fontWeight: FontWeight.w800,
                           color: const Color(0xFFD59A18),
@@ -1036,7 +1049,7 @@ class _DataEntryOperationsDashboardScreenState
                       ),
                       child: Text(
                         queueInitials,
-                        style: GoogleFonts.manrope(
+                        style: GoogleFonts.inter(
                           fontSize: 13.sp,
                           fontWeight: FontWeight.w800,
                           color: AppColors.rmPrimary,
@@ -1058,7 +1071,7 @@ class _DataEntryOperationsDashboardScreenState
                               SizedBox(width: 6.w),
                               Text(
                                 'Added $queueAge',
-                                style: GoogleFonts.manrope(
+                                style: GoogleFonts.inter(
                                   fontSize: 13.sp,
                                   fontWeight: FontWeight.w500,
                                   color: const Color(0xFF786E75),
@@ -1071,7 +1084,7 @@ class _DataEntryOperationsDashboardScreenState
                             queueTitle,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.manrope(
+                            style: GoogleFonts.inter(
                               fontSize: 33.sp,
                               fontWeight: FontWeight.w800,
                               color: AppColors.rmPrimary,
@@ -1132,7 +1145,7 @@ class _DataEntryOperationsDashboardScreenState
                 SizedBox(height: 14.h),
                 Text(
                   'REQUIREMENTS',
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     fontSize: 13.sp,
                     fontWeight: FontWeight.w800,
                     color: const Color(0xFFA39AA0),
@@ -1142,7 +1155,7 @@ class _DataEntryOperationsDashboardScreenState
                 SizedBox(height: 6.h),
                 Text(
                   queueRequirements,
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     fontSize: 17.sp,
                     fontWeight: FontWeight.w500,
                     color: const Color(0xFF665C63),
@@ -1195,9 +1208,9 @@ class _DataEntryOperationsDashboardScreenState
                         height: 42.h,
                         child: ElevatedButton(
                           onPressed: () {
-                            Navigator.of(context).pushNamed(
-                              AppRoutes.profileDigitizer,
-                            );
+                            Navigator.of(
+                              context,
+                            ).pushNamed(AppRoutes.profileDigitizer);
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.rmPrimary,
@@ -1209,7 +1222,7 @@ class _DataEntryOperationsDashboardScreenState
                           ),
                           child: Text(
                             'Start Digitizing',
-                            style: GoogleFonts.manrope(
+                            style: GoogleFonts.inter(
                               fontSize: 17.sp,
                               fontWeight: FontWeight.w700,
                             ),
@@ -1336,13 +1349,14 @@ class _DataEntryOperationsDashboardScreenState
   }) {
     final textAlign = alignEnd ? TextAlign.right : TextAlign.left;
     return Column(
-      crossAxisAlignment:
-          alignEnd ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      crossAxisAlignment: alignEnd
+          ? CrossAxisAlignment.end
+          : CrossAxisAlignment.start,
       children: [
         Text(
           label,
           textAlign: textAlign,
-          style: GoogleFonts.manrope(
+          style: GoogleFonts.inter(
             fontSize: 13.sp,
             fontWeight: FontWeight.w800,
             color: const Color(0xFFA39AA0),
@@ -1353,7 +1367,7 @@ class _DataEntryOperationsDashboardScreenState
         Text(
           value,
           textAlign: textAlign,
-          style: GoogleFonts.manrope(
+          style: GoogleFonts.inter(
             fontSize: 17.sp,
             fontWeight: FontWeight.w700,
             color: const Color(0xFF463D42),
@@ -1386,7 +1400,7 @@ class _DataEntryOperationsDashboardScreenState
           ],
           Text(
             label,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               fontSize: 13.sp,
               fontWeight: FontWeight.w800,
               color: foreground,
@@ -1403,7 +1417,7 @@ class _DataEntryOperationsDashboardScreenState
       child: Text(
         label,
         textAlign: alignEnd ? TextAlign.right : TextAlign.left,
-        style: GoogleFonts.manrope(
+        style: GoogleFonts.inter(
           fontSize: 13.sp,
           fontWeight: FontWeight.w700,
           color: const Color(0xFF6E6770),
@@ -1439,7 +1453,7 @@ class _DataEntryOperationsDashboardScreenState
           SizedBox(height: 10.h),
           Text(
             title.toUpperCase(),
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               fontSize: 15.sp,
               fontWeight: FontWeight.w700,
               color: const Color(0xFF5E545B),
@@ -1449,7 +1463,7 @@ class _DataEntryOperationsDashboardScreenState
           SizedBox(height: 6.h),
           Text(
             count,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               fontSize: 25.sp,
               fontWeight: FontWeight.w800,
               color: const Color(0xFF1E1E22),
@@ -1459,7 +1473,7 @@ class _DataEntryOperationsDashboardScreenState
           SizedBox(height: 6.h),
           Text(
             footerText,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               fontSize: 15.sp,
               fontWeight: FontWeight.w500,
               color: const Color(0xFF6E6770),
@@ -1485,4 +1499,3 @@ class _DataEntryOperationsDashboardScreenState
     );
   }
 }
-

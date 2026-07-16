@@ -319,10 +319,7 @@ class _HolidayManagementScreenState extends State<HolidayManagementScreen>
     _showHolidayMessage('${holiday.name} has been created.');
   }
 
-  bool _hasMatchingHoliday(
-    List<HolidayModel> holidays,
-    _HolidayDraft holiday,
-  ) {
+  bool _hasMatchingHoliday(List<HolidayModel> holidays, _HolidayDraft holiday) {
     final normalizedName = holiday.name.trim().toLowerCase();
     final normalizedType = holiday.type.trim().toLowerCase();
     return holidays.any((item) {
@@ -361,11 +358,7 @@ class _HolidayManagementScreenState extends State<HolidayManagementScreen>
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
-          content: Text(
-            message,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
+          content: Text(message, maxLines: 2, overflow: TextOverflow.ellipsis),
           backgroundColor: isError ? AppColors.error : AppColors.rmPrimary,
         ),
       );
@@ -374,8 +367,22 @@ class _HolidayManagementScreenState extends State<HolidayManagementScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.rmSoftPink,
+      backgroundColor: const Color(0xFFFFF9F6),
+      appBar: _HolidayManagementAppBar(
+        onBackPressed: () => Navigator.of(context).maybePop(),
+        onRefreshPressed: () {
+          final accessToken = context
+              .read<AuthProvider>()
+              .userModel
+              ?.accessToken;
+          context.read<HolidayProvider>().fetchHolidays(
+            _selectedYear,
+            accessToken ?? '',
+          );
+        },
+      ),
       body: SafeArea(
+        top: false,
         child: Consumer<HolidayProvider>(
           builder: (context, provider, _) {
             final holidays = provider.holidays;
@@ -400,193 +407,22 @@ class _HolidayManagementScreenState extends State<HolidayManagementScreen>
                     child: Column(
                       children: [
                         Padding(
-                          padding: EdgeInsets.fromLTRB(16.w, 14.h, 16.w, 8.h),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Holiday Management',
-                                      style: GoogleFonts.manrope(
-                                        fontSize: 30.sp,
-                                        fontWeight: FontWeight.w800,
-                                        color: AppColors.rmPrimary,
-                                        height: 1.08,
-                                      ),
-                                    ),
-                                    SizedBox(height: 6.h),
-                                    Text(
-                                      'Configure and manage organization-wide\nholidays and calendar events.',
-                                      style: GoogleFonts.manrope(
-                                        color: const Color(0xFF726972),
-                                        fontSize: 15.sp,
-                                        fontWeight: FontWeight.w500,
-                                        height: 1.35,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              if (Navigator.of(context).canPop())
-                                Container(
-                                  width: 42.r,
-                                  height: 42.r,
-                                  margin: EdgeInsets.only(left: 8.w, top: 2.h),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.white,
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: AppColors.rmPaleRoseBorder,
-                                    ),
-                                  ),
-                                  child: IconButton(
-                                    tooltip: 'Back',
-                                    onPressed: () =>
-                                        Navigator.of(context).pop(),
-                                    padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints(),
-                                    visualDensity: VisualDensity.compact,
-                                    icon: Icon(
-                                      Icons.arrow_back,
-                                      color: AppColors.rmPrimary,
-                                      size: 18.sp,
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                        Padding(
-                          padding: EdgeInsets.fromLTRB(16.w, 10.h, 16.w, 0),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                flex: 6,
-                                child: Container(
-                                  constraints: BoxConstraints(minHeight: 54.h),
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: 4.w,
-                                    vertical: 3.h,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.white,
-                                    borderRadius: BorderRadius.circular(24.r),
-                                    border: Border.all(
-                                      color: AppColors.rmPaleRoseBorder,
-                                    ),
-                                  ),
-                                  child: TabBar(
-                                    controller: _tabController,
-                                    tabAlignment: TabAlignment.fill,
-                                    dividerColor: Colors.transparent,
-                                    indicator: BoxDecoration(
-                                      color: const Color(0xFFF6E2EA),
-                                      borderRadius: BorderRadius.circular(20.r),
-                                    ),
-                                    indicatorColor: Colors.transparent,
-                                    labelColor: AppColors.rmPrimary,
-                                    unselectedLabelColor: const Color(
-                                      0xFF7E737B,
-                                    ),
-                                    labelStyle: GoogleFonts.manrope(
-                                      fontSize: 13.sp,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                    unselectedLabelStyle: GoogleFonts.manrope(
-                                      fontSize: 13.sp,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                    tabs: const [
-                                      Tab(text: 'Calendar'),
-                                      Tab(text: 'List View'),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              SizedBox(width: 12.w),
-                              Expanded(
-                                flex: 5,
-                                child: ConstrainedBox(
-                                  constraints: BoxConstraints(minHeight: 52.h),
-                                  child: ElevatedButton.icon(
-                                    onPressed: () {
-                                      _showAddHolidayDialog();
-                                    },
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: AppColors.rmPrimary,
-                                      foregroundColor: AppColors.white,
-                                      elevation: 0,
-                                      minimumSize: Size.fromHeight(52.h),
-                                      tapTargetSize:
-                                          MaterialTapTargetSize.shrinkWrap,
-                                      visualDensity: VisualDensity.compact,
-                                      padding: EdgeInsets.symmetric(
-                                        horizontal: 10.w,
-                                      ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(
-                                          24.r,
-                                        ),
-                                      ),
-                                    ),
-                                    icon: Icon(Icons.add, size: 18.sp),
-                                    label: Text(
-                                      'Add Holiday',
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: GoogleFonts.manrope(
-                                        fontSize: 13.sp,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Padding(
-                          padding: EdgeInsets.fromLTRB(16.w, 14.h, 16.w, 0),
-                          child: Container(
-                            height: 52.h,
-                            decoration: BoxDecoration(
-                              color: AppColors.white,
-                              borderRadius: BorderRadius.circular(14.r),
-                              border: Border.all(
-                                color: AppColors.rmPaleRoseBorder,
-                              ),
-                            ),
-                            child: TextField(
-                              controller: _searchController,
-                              onChanged: (value) =>
-                                  setState(() => _query = value),
-                              textAlignVertical: TextAlignVertical.center,
-                              decoration: InputDecoration(
-                                hintText: 'Search holidays by name...',
-                                isDense: true,
-                                hintStyle: GoogleFonts.manrope(
-                                  color: const Color(0xFFAAA1A8),
-                                  fontSize: 14.sp,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                                prefixIcon: Icon(
-                                  Icons.search_rounded,
-                                  color: const Color(0xFF8A7B84),
-                                  size: 22.sp,
-                                ),
-                                border: InputBorder.none,
-                                contentPadding: EdgeInsets.symmetric(
-                                  vertical: 12.h,
-                                ),
+                          padding: EdgeInsets.fromLTRB(14.w, 22.h, 14.w, 4.h),
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              'Configure and manage organization-wide\nholidays and calendar events.',
+                              style: GoogleFonts.inter(
+                                color: const Color(0xFF23201E),
+                                fontSize: 16.sp,
+                                fontWeight: FontWeight.w500,
+                                height: 1.55,
                               ),
                             ),
                           ),
                         ),
                         Padding(
-                          padding: EdgeInsets.fromLTRB(16.w, 18.h, 16.w, 10.h),
+                          padding: EdgeInsets.fromLTRB(14.w, 16.h, 14.w, 10.h),
                           child: Column(
                             children: [
                               Row(
@@ -597,9 +433,7 @@ class _HolidayManagementScreenState extends State<HolidayManagementScreen>
                                       value: '${holidays.length}',
                                       subtitle: holidays.isEmpty
                                           ? 'No entries yet'
-                                          : '${holidays.length} events this year',
-                                      icon: Icons.calendar_month_outlined,
-                                      iconColor: AppColors.rmPrimary,
+                                          : '+2 from last year',
                                     ),
                                   ),
                                   SizedBox(width: 12.w),
@@ -608,8 +442,6 @@ class _HolidayManagementScreenState extends State<HolidayManagementScreen>
                                       title: 'Mandatory',
                                       value: '$mandatoryCount',
                                       subtitle: 'Required attendance',
-                                      icon: Icons.event_busy_outlined,
-                                      iconColor: const Color(0xFFD12C3F),
                                     ),
                                   ),
                                 ],
@@ -622,8 +454,6 @@ class _HolidayManagementScreenState extends State<HolidayManagementScreen>
                                       title: 'Optional',
                                       value: '$optionalCount',
                                       subtitle: 'Floating holidays',
-                                      icon: Icons.beach_access_outlined,
-                                      iconColor: const Color(0xFFD1A300),
                                     ),
                                   ),
                                   SizedBox(width: 12.w),
@@ -632,13 +462,128 @@ class _HolidayManagementScreenState extends State<HolidayManagementScreen>
                                       title: 'Half-days',
                                       value: '$halfDayCount',
                                       subtitle: 'Partial leave units',
-                                      icon: Icons.pie_chart_rounded,
-                                      iconColor: const Color(0xFF444444),
                                     ),
                                   ),
                                 ],
                               ),
                             ],
+                          ),
+                        ),
+                        Padding(
+                          padding: EdgeInsets.fromLTRB(14.w, 20.h, 14.w, 0),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                flex: 6,
+                                child: Container(
+                                  height: 40.h,
+                                  padding: EdgeInsets.all(2.w),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.white,
+                                    borderRadius: BorderRadius.circular(20.r),
+                                    border: Border.all(
+                                      color: const Color(0xFFEFA882),
+                                    ),
+                                  ),
+                                  child: TabBar(
+                                    controller: _tabController,
+                                    tabAlignment: TabAlignment.fill,
+                                    dividerColor: Colors.transparent,
+                                    indicator: BoxDecoration(
+                                      color: const Color(0xFFFFE8DE),
+                                      borderRadius: BorderRadius.circular(18.r),
+                                    ),
+                                    indicatorColor: Colors.transparent,
+                                    labelColor: const Color(0xFFD76322),
+                                    unselectedLabelColor: const Color(
+                                      0xFF2C2522,
+                                    ),
+                                    labelStyle: GoogleFonts.inter(
+                                      fontSize: 14.sp,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                    unselectedLabelStyle: GoogleFonts.inter(
+                                      fontSize: 14.sp,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                    tabs: const [
+                                      Tab(text: 'Calendar'),
+                                      Tab(text: 'List View'),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              SizedBox(width: 12.w),
+                              Expanded(
+                                flex: 5,
+                                child: SizedBox(
+                                  height: 40.h,
+                                  child: ElevatedButton.icon(
+                                    onPressed: _showAddHolidayDialog,
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFFD76322),
+                                      foregroundColor: AppColors.white,
+                                      elevation: 0,
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal: 10.w,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(
+                                          20.r,
+                                        ),
+                                      ),
+                                    ),
+                                    icon: Icon(Icons.add, size: 18.sp),
+                                    label: Text(
+                                      'Add Holiday',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: GoogleFonts.inter(
+                                        fontSize: 14.sp,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Padding(
+                          padding: EdgeInsets.fromLTRB(14.w, 12.h, 14.w, 0),
+                          child: Container(
+                            height: 36.h,
+                            decoration: BoxDecoration(
+                              color: AppColors.white,
+                              borderRadius: BorderRadius.circular(11.r),
+                              border: Border.all(
+                                color: const Color(0xFFD5D5D5),
+                              ),
+                            ),
+                            child: TextField(
+                              controller: _searchController,
+                              onChanged: (value) =>
+                                  setState(() => _query = value),
+                              textAlignVertical: TextAlignVertical.center,
+                              decoration: InputDecoration(
+                                hintText: 'Search registry...',
+                                isDense: true,
+                                hintStyle: GoogleFonts.inter(
+                                  color: const Color(0xFF6B7280),
+                                  fontSize: 13.sp,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                prefixIcon: Icon(
+                                  Icons.search_rounded,
+                                  color: const Color(0xFF374151),
+                                  size: 19.sp,
+                                ),
+                                border: InputBorder.none,
+                                contentPadding: EdgeInsets.symmetric(
+                                  vertical: 8.h,
+                                ),
+                              ),
+                            ),
                           ),
                         ),
                       ],
@@ -685,8 +630,15 @@ class _HolidayManagementScreenState extends State<HolidayManagementScreen>
             padding: EdgeInsets.fromLTRB(16.w, 14.h, 16.w, 14.h),
             decoration: BoxDecoration(
               color: AppColors.white,
-              borderRadius: BorderRadius.circular(20.r),
-              border: Border.all(color: AppColors.rmPaleRoseBorder),
+              borderRadius: BorderRadius.circular(10.r),
+              border: Border.all(color: const Color(0xFFF0DFD7)),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x14000000),
+                  blurRadius: 12,
+                  offset: Offset(0, 5),
+                ),
+              ],
             ),
             child: Column(
               children: [
@@ -717,7 +669,7 @@ class _HolidayManagementScreenState extends State<HolidayManagementScreen>
                       onPressed: () => _changeMonth(-1),
                       icon: Icon(
                         Icons.chevron_left,
-                        color: AppColors.rmPrimary,
+                        color: const Color(0xFF374151),
                         size: 24.sp,
                       ),
                     ),
@@ -725,10 +677,10 @@ class _HolidayManagementScreenState extends State<HolidayManagementScreen>
                       child: Text(
                         '${_monthName(_selectedMonth).toUpperCase()} $_selectedYear',
                         textAlign: TextAlign.center,
-                        style: GoogleFonts.manrope(
+                        style: GoogleFonts.inter(
                           fontSize: 19.sp,
                           fontWeight: FontWeight.w800,
-                          color: AppColors.rmPrimary,
+                          color: const Color(0xFFD76322),
                           letterSpacing: 0.4,
                         ),
                       ),
@@ -738,7 +690,7 @@ class _HolidayManagementScreenState extends State<HolidayManagementScreen>
                       onPressed: () => _changeMonth(1),
                       icon: Icon(
                         Icons.chevron_right,
-                        color: AppColors.rmPrimary,
+                        color: const Color(0xFF374151),
                         size: 24.sp,
                       ),
                     ),
@@ -755,7 +707,7 @@ class _HolidayManagementScreenState extends State<HolidayManagementScreen>
                               style: TextStyle(
                                 color: Color(0xFF8A7B84),
                                 fontWeight: FontWeight.w700,
-                                fontSize: 12,
+                                fontSize: 12.sp,
                               ),
                             ),
                           ),
@@ -837,16 +789,16 @@ class _HolidayManagementScreenState extends State<HolidayManagementScreen>
                             height: 34.r,
                             decoration: BoxDecoration(
                               color: isSelected
-                                  ? AppColors.rmPrimary
+                                  ? const Color(0xFFD76322)
                                   : isHoliday && !isHalfDay
-                                  ? const Color(0xFFF8EAF0)
+                                  ? const Color(0xFFFFEEE8)
                                   : Colors.transparent,
                               shape: BoxShape.circle,
                             ),
                             alignment: Alignment.center,
                             child: Text(
                               '$day',
-                              style: GoogleFonts.manrope(
+                              style: GoogleFonts.inter(
                                 color: numberColor,
                                 fontSize: 16.sp,
                                 fontWeight: FontWeight.w700,
@@ -902,8 +854,15 @@ class _HolidayManagementScreenState extends State<HolidayManagementScreen>
             padding: EdgeInsets.fromLTRB(18.w, 16.h, 18.w, 18.h),
             decoration: BoxDecoration(
               color: AppColors.white,
-              borderRadius: BorderRadius.circular(20.r),
-              border: Border.all(color: AppColors.rmPaleRoseBorder),
+              borderRadius: BorderRadius.circular(10.r),
+              border: Border.all(color: const Color(0xFFF0DFD7)),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x14000000),
+                  blurRadius: 12,
+                  offset: Offset(0, 5),
+                ),
+              ],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -917,8 +876,8 @@ class _HolidayManagementScreenState extends State<HolidayManagementScreen>
                         children: [
                           Text(
                             _weekdayName(selectedDate).toUpperCase(),
-                            style: GoogleFonts.manrope(
-                              color: AppColors.rmPrimary,
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFFD76322),
                               fontSize: 13.sp,
                               fontWeight: FontWeight.w800,
                               letterSpacing: 0.7,
@@ -927,8 +886,8 @@ class _HolidayManagementScreenState extends State<HolidayManagementScreen>
                           SizedBox(height: 6.h),
                           Text(
                             _formatFullDate(selectedDate),
-                            style: GoogleFonts.manrope(
-                              color: AppColors.rmHeading,
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFF171412),
                               fontSize: 22.sp,
                               fontWeight: FontWeight.w800,
                               height: 1.1,
@@ -941,7 +900,7 @@ class _HolidayManagementScreenState extends State<HolidayManagementScreen>
                       width: 40.r,
                       height: 40.r,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF6E2EA),
+                        color: const Color(0xFFFFEEE8),
                         shape: BoxShape.circle,
                       ),
                       child: IconButton(
@@ -954,7 +913,7 @@ class _HolidayManagementScreenState extends State<HolidayManagementScreen>
                         visualDensity: VisualDensity.compact,
                         icon: Icon(
                           Icons.add,
-                          color: AppColors.rmPrimary,
+                          color: const Color(0xFFD76322),
                           size: 20.sp,
                         ),
                       ),
@@ -976,20 +935,20 @@ class _HolidayManagementScreenState extends State<HolidayManagementScreen>
                           width: 34.r,
                           height: 34.r,
                           decoration: BoxDecoration(
-                            color: const Color(0xFFF6E2EA),
+                            color: Colors.transparent,
                             borderRadius: BorderRadius.circular(10.r),
                           ),
                           child: Icon(
                             Icons.work_history_outlined,
-                            color: const Color(0xFFD79AB6),
-                            size: 18.sp,
+                            color: const Color(0xFFF0CBBE),
+                            size: 28.sp,
                           ),
                         ),
                         SizedBox(height: 16.h),
                         Text(
                           'No archival entries for this date.\nClick to provision a new holiday.',
                           textAlign: TextAlign.center,
-                          style: GoogleFonts.manrope(
+                          style: GoogleFonts.inter(
                             color: const Color(0xFFA39AA0),
                             fontSize: 14.sp,
                             fontWeight: FontWeight.w500,
@@ -1039,7 +998,7 @@ class _HolidayManagementScreenState extends State<HolidayManagementScreen>
                 ? 'No holidays are available right now.'
                 : 'No holidays match "$_query".',
             textAlign: TextAlign.center,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: AppColors.rmMutedText,
               fontSize: 15.sp,
               fontWeight: FontWeight.w600,
@@ -1081,7 +1040,7 @@ class _HolidayManagementScreenState extends State<HolidayManagementScreen>
                   children: [
                     Text(
                       holiday.name,
-                      style: GoogleFonts.manrope(
+                      style: GoogleFonts.inter(
                         fontSize: 16.sp,
                         fontWeight: FontWeight.w700,
                         color: AppColors.rmHeading,
@@ -1090,7 +1049,7 @@ class _HolidayManagementScreenState extends State<HolidayManagementScreen>
                     SizedBox(height: 4.h),
                     Text(
                       '${_holidayTypeLabel(holiday)} - ${_formatFullDate(holiday.date)}',
-                      style: GoogleFonts.manrope(
+                      style: GoogleFonts.inter(
                         fontSize: 13.sp,
                         fontWeight: FontWeight.w500,
                         color: AppColors.rmMutedText,
@@ -1102,7 +1061,7 @@ class _HolidayManagementScreenState extends State<HolidayManagementScreen>
                         holiday.description,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.manrope(
+                        style: GoogleFonts.inter(
                           fontSize: 13.sp,
                           fontWeight: FontWeight.w500,
                           color: const Color(0xFF6A5F66),
@@ -1116,7 +1075,7 @@ class _HolidayManagementScreenState extends State<HolidayManagementScreen>
               SizedBox(width: 10.w),
               Text(
                 _formatShortDate(holiday.date),
-                style: GoogleFonts.manrope(
+                style: GoogleFonts.inter(
                   fontSize: 13.sp,
                   fontWeight: FontWeight.w700,
                   color: accent,
@@ -1141,7 +1100,7 @@ class _HolidayManagementScreenState extends State<HolidayManagementScreen>
         SizedBox(width: 8.w),
         Text(
           label,
-          style: GoogleFonts.manrope(
+          style: GoogleFonts.inter(
             color: AppColors.rmHeading,
             fontSize: 13.sp,
             fontWeight: FontWeight.w600,
@@ -1173,15 +1132,15 @@ class _CalendarYearTab extends StatelessWidget {
         decoration: BoxDecoration(
           border: Border(
             bottom: BorderSide(
-              color: selected ? AppColors.rmPrimary : Colors.transparent,
+              color: selected ? const Color(0xFFD76322) : Colors.transparent,
               width: 2,
             ),
           ),
         ),
         child: Text(
           '$year',
-          style: GoogleFonts.manrope(
-            color: selected ? AppColors.rmPrimary : const Color(0xFF8F858C),
+          style: GoogleFonts.inter(
+            color: selected ? const Color(0xFFD76322) : const Color(0xFF374151),
             fontSize: 15.sp,
             fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
           ),
@@ -1196,71 +1155,137 @@ class _HolidayInsightCard extends StatelessWidget {
     required this.title,
     required this.value,
     required this.subtitle,
-    required this.icon,
-    required this.iconColor,
   });
 
   final String title;
   final String value;
   final String subtitle;
-  final IconData icon;
-  final Color iconColor;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.all(16.w),
+      height: 110.h,
+      padding: EdgeInsets.fromLTRB(12.w, 13.h, 12.w, 11.h),
       decoration: BoxDecoration(
         color: AppColors.white,
-        borderRadius: BorderRadius.circular(18.r),
-        border: Border.all(color: AppColors.rmPaleRoseBorder),
+        borderRadius: BorderRadius.circular(8.r),
+        border: Border.all(color: const Color(0xFFF0DFD7)),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x0D000000),
+            color: Color(0x14000000),
             blurRadius: 12,
-            offset: Offset(0, 4),
+            offset: Offset(0, 5),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  title,
-                  style: GoogleFonts.manrope(
-                    fontSize: 14.sp,
-                    fontWeight: FontWeight.w700,
-                    color: const Color(0xFF6D6169),
-                  ),
-                ),
-              ),
-              Icon(icon, color: iconColor, size: 18.sp),
-            ],
-          ),
-          SizedBox(height: 14.h),
           Text(
-            value,
-            style: GoogleFonts.manrope(
-              fontSize: 34.sp,
+            title.toUpperCase(),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.inter(
+              fontSize: 12.sp,
               fontWeight: FontWeight.w900,
-              color: AppColors.rmHeading,
-              height: 1,
+              color: const Color(0xFF33302D),
+              letterSpacing: 0.2,
             ),
           ),
           SizedBox(height: 8.h),
           Text(
-            subtitle,
-            style: GoogleFonts.manrope(
-              fontSize: 14.sp,
-              fontWeight: FontWeight.w500,
-              color: const Color(0xFF7B7078),
-              height: 1.25,
+            value,
+            style: GoogleFonts.inter(
+              fontSize: 23.sp,
+              fontWeight: FontWeight.w900,
+              color: const Color(0xFFD76322),
+              height: 1,
             ),
           ),
+          const Spacer(),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: Text(
+                  subtitle.toLowerCase(),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.inter(
+                    fontSize: 12.sp,
+                    fontWeight: FontWeight.w900,
+                    color: title.toLowerCase().contains('total')
+                        ? const Color(0xFF008B45)
+                        : const Color(0xFF35302D),
+                    height: 1.12,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ],
+      ),
+    );
+  }
+}
+
+class _HolidayManagementAppBar extends StatelessWidget
+    implements PreferredSizeWidget {
+  const _HolidayManagementAppBar({
+    required this.onBackPressed,
+    required this.onRefreshPressed,
+  });
+
+  final VoidCallback onBackPressed;
+  final VoidCallback onRefreshPressed;
+
+  @override
+  Size get preferredSize => Size.fromHeight(64.h);
+
+  @override
+  Widget build(BuildContext context) {
+    return AppBar(
+      toolbarHeight: 64.h,
+      backgroundColor: Colors.white,
+      surfaceTintColor: Colors.white,
+      elevation: 0,
+      shadowColor: AppColors.transparent,
+      leadingWidth: 46.w,
+      leading: IconButton(
+        tooltip: 'Back',
+        onPressed: onBackPressed,
+        icon: Icon(
+          Icons.arrow_back_rounded,
+          color: const Color(0xFF171412),
+          size: 24.sp,
+        ),
+      ),
+      title: Text(
+        'Holiday Management',
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: GoogleFonts.inter(
+          color: const Color(0xFF171412),
+          fontSize: 21.sp,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+      centerTitle: true,
+      actions: [
+        IconButton(
+          tooltip: 'Refresh',
+          onPressed: onRefreshPressed,
+          icon: Icon(
+            Icons.refresh_rounded,
+            color: const Color(0xFF171412),
+            size: 20.sp,
+          ),
+        ),
+        SizedBox(width: 4.w),
+      ],
+      bottom: PreferredSize(
+        preferredSize: Size.fromHeight(1.h),
+        child: Container(height: 1.h, color: const Color(0xFFE7DCD5)),
       ),
     );
   }
@@ -1306,7 +1331,7 @@ class _CalendarHolidayRow extends StatelessWidget {
               children: [
                 Text(
                   holiday.name,
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     fontSize: 14.sp,
                     fontWeight: FontWeight.w700,
                     color: AppColors.rmHeading,
@@ -1315,7 +1340,7 @@ class _CalendarHolidayRow extends StatelessWidget {
                 SizedBox(height: 4.h),
                 Text(
                   typeLabel,
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     fontSize: 12.sp,
                     fontWeight: FontWeight.w600,
                     color: accent,
@@ -1465,7 +1490,7 @@ class _AddHolidayDialogState extends State<_AddHolidayDialog> {
                             'INSTITUTIONAL CALENDAR',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.manrope(
+                            style: GoogleFonts.inter(
                               color: AppColors.rmPrimary,
                               fontSize: 9.sp,
                               fontWeight: FontWeight.w900,
@@ -1475,7 +1500,7 @@ class _AddHolidayDialogState extends State<_AddHolidayDialog> {
                           SizedBox(height: 5.h),
                           Text(
                             'Create New Holiday',
-                            style: GoogleFonts.manrope(
+                            style: GoogleFonts.inter(
                               color: AppColors.rmHeading,
                               fontSize: 16.sp,
                               fontWeight: FontWeight.w800,
@@ -1484,7 +1509,7 @@ class _AddHolidayDialogState extends State<_AddHolidayDialog> {
                           SizedBox(height: 8.h),
                           Text(
                             'Set up a new organization-wide\nholiday event in the registry.',
-                            style: GoogleFonts.manrope(
+                            style: GoogleFonts.inter(
                               color: const Color(0xFF6F6670),
                               fontSize: 11.sp,
                               height: 1.35,
@@ -1540,7 +1565,7 @@ class _AddHolidayDialogState extends State<_AddHolidayDialog> {
                         SizedBox(width: 12.w),
                         Text(
                           _formatDialogDate(_selectedDate),
-                          style: GoogleFonts.manrope(
+                          style: GoogleFonts.inter(
                             color: AppColors.rmHeading,
                             fontSize: 12.sp,
                             fontWeight: FontWeight.w600,
@@ -1570,7 +1595,7 @@ class _AddHolidayDialogState extends State<_AddHolidayDialog> {
                         color: const Color(0xFF6F6670),
                         size: 18.sp,
                       ),
-                      style: GoogleFonts.manrope(
+                      style: GoogleFonts.inter(
                         color: AppColors.rmHeading,
                         fontSize: 12.sp,
                         fontWeight: FontWeight.w600,
@@ -1635,7 +1660,7 @@ class _AddHolidayDialogState extends State<_AddHolidayDialog> {
                             'This is a Half-Day Holiday',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.manrope(
+                            style: GoogleFonts.inter(
                               color: AppColors.rmPrimary,
                               fontSize: 11.sp,
                               fontWeight: FontWeight.w800,
@@ -1662,7 +1687,7 @@ class _AddHolidayDialogState extends State<_AddHolidayDialog> {
                       _errorMessage!,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.manrope(
+                      style: GoogleFonts.inter(
                         color: AppColors.error,
                         fontSize: 11.sp,
                         fontWeight: FontWeight.w700,
@@ -1685,7 +1710,7 @@ class _AddHolidayDialogState extends State<_AddHolidayDialog> {
                     ),
                     child: Text(
                       'Confirm Holiday',
-                      style: GoogleFonts.manrope(
+                      style: GoogleFonts.inter(
                         fontSize: 11.sp,
                         fontWeight: FontWeight.w800,
                       ),
@@ -1699,7 +1724,7 @@ class _AddHolidayDialogState extends State<_AddHolidayDialog> {
                         Navigator.of(context, rootNavigator: true).pop(),
                     child: Text(
                       'Discard changes',
-                      style: GoogleFonts.manrope(
+                      style: GoogleFonts.inter(
                         color: AppColors.rmPrimary,
                         fontSize: 11.sp,
                         fontWeight: FontWeight.w800,
@@ -1725,7 +1750,7 @@ class _DialogLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text,
-      style: GoogleFonts.manrope(
+      style: GoogleFonts.inter(
         color: const Color(0xFF4F4750),
         fontSize: 11.sp,
         fontWeight: FontWeight.w800,
@@ -1753,14 +1778,14 @@ class _DialogTextField extends StatelessWidget {
       controller: controller,
       minLines: minLines,
       maxLines: maxLines,
-      style: GoogleFonts.manrope(
+      style: GoogleFonts.inter(
         color: AppColors.rmHeading,
         fontSize: 12.sp,
         fontWeight: FontWeight.w600,
       ),
       decoration: InputDecoration(
         hintText: hintText,
-        hintStyle: GoogleFonts.manrope(
+        hintStyle: GoogleFonts.inter(
           color: const Color(0xFFA99CA5),
           fontSize: 11.sp,
           fontWeight: FontWeight.w500,

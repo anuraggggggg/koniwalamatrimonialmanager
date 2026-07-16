@@ -24,10 +24,8 @@ class HrAttendanceCalendar {
   int get absentCount => _countStatus('absent');
   int get leaveCount => _countStatus('leave');
   int get holidayCount => _countStatus('holiday');
-  int get totalEntries => employees.fold<int>(
-        0,
-        (total, employee) => total + employee.days.length,
-      );
+  int get totalEntries =>
+      employees.fold<int>(0, (total, employee) => total + employee.days.length);
 
   int _countStatus(String status) {
     return employees.fold<int>(

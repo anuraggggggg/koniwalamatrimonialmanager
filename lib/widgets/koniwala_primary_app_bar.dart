@@ -34,25 +34,27 @@ class KoniwalaPrimaryAppBar extends StatelessWidget
       automaticallyImplyLeading: false,
       leadingWidth: showMenuButton ? 56.w : null,
 
-
-      // leading: showMenuButton
-      //     ? Builder(
-      //         builder: (context) => IconButton(
-      //           tooltip: 'Menu',
-      //           onPressed:
-      //               onMenuPressed ??
-      //               () => Scaffold.maybeOf(context)?.openDrawer(),
-      //           icon: const Icon(Icons.menu, color: Colors.white),
-      //         ),
-      //       )
-      //     : null,
+      leading: showMenuButton
+          ? Builder(
+              builder: (context) => IconButton(
+                tooltip: 'Menu',
+                onPressed:
+                    onMenuPressed ??
+                    () => Scaffold.maybeOf(context)?.openDrawer(),
+                icon: const Icon(Icons.menu, color: Colors.white),
+              ),
+            )
+          : null,
       title: null,
       flexibleSpace: SafeArea(
         child: IgnorePointer(
           child: Align(
             alignment: Alignment.centerLeft,
             child: Padding(
-              padding: EdgeInsets.only(right: 20.w),
+              padding: EdgeInsets.only(
+                left: showMenuButton ? 56.w : 0,
+                right: 20.w,
+              ),
               child: Image.asset(
                 'assets/app.logo.png',
                 height: 51.h,

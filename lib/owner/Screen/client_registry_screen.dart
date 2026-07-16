@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -9,10 +11,17 @@ import 'package:provider/provider.dart';
 
 enum _ClientRegistryAction { viewLedger, delete }
 
+enum ClientRegistryInitialFilter { all, standard, vip }
+
 class ClientRegistryScreen extends StatefulWidget {
-  const ClientRegistryScreen({super.key, this.onMenuPressed});
+  const ClientRegistryScreen({
+    super.key,
+    this.onMenuPressed,
+    this.initialFilter = ClientRegistryInitialFilter.all,
+  });
 
   final VoidCallback? onMenuPressed;
+  final ClientRegistryInitialFilter initialFilter;
 
   @override
   State<ClientRegistryScreen> createState() => _ClientRegistryScreenState();
@@ -23,13 +32,37 @@ class _ClientRegistryScreenState extends State<ClientRegistryScreen> {
   String _searchQuery = '';
   bool _hasRequestedCustomers = false;
   String? _requestedAccessToken;
+  Timer? _searchDebounce;
 
   final TextEditingController _searchController = TextEditingController();
 
   @override
+  void initState() {
+    super.initState();
+    _selectedFilter = widget.initialFilter.index;
+  }
+
+  @override
   void dispose() {
+    _searchDebounce?.cancel();
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _handleSearchChanged(String value) {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 220), () {
+      if (!mounted) {
+        return;
+      }
+
+      final normalized = value.trim();
+      if (normalized == _searchQuery) {
+        return;
+      }
+
+      setState(() => _searchQuery = normalized);
+    });
   }
 
   List<_RegistryMetric> _metrics(List<CustomerRegistryItem> customers) => [
@@ -79,7 +112,7 @@ class _ClientRegistryScreenState extends State<ClientRegistryScreen> {
       selected: _selectedFilter == 1,
     ),
     _RegistryFilter(
-      label: 'Priority Registry',
+      label: 'VIP Registry',
       count: _premiumCustomersCount(customers),
       selected: _selectedFilter == 2,
     ),
@@ -95,15 +128,19 @@ class _ClientRegistryScreenState extends State<ClientRegistryScreen> {
           .where((customer) => customer.packageType.toUpperCase() == 'STANDARD')
           .toList();
     } else if (_selectedFilter == 2) {
-      filtered = filtered.where((customer) => customer.isPremium).toList();
+      filtered = filtered.where(_isVipCustomer).toList();
     }
 
     if (_searchQuery.isNotEmpty) {
       final query = _searchQuery.toLowerCase();
-      filtered = filtered.where((customer) =>
-          customer.name.toLowerCase().contains(query) ||
-          customer.phone.contains(query) ||
-          customer.email.toLowerCase().contains(query)).toList();
+      filtered = filtered
+          .where(
+            (customer) =>
+                customer.name.toLowerCase().contains(query) ||
+                customer.phone.contains(query) ||
+                customer.email.toLowerCase().contains(query),
+          )
+          .toList();
     }
 
     return filtered;
@@ -121,7 +158,14 @@ class _ClientRegistryScreenState extends State<ClientRegistryScreen> {
   }
 
   int _premiumCustomersCount(List<CustomerRegistryItem> customers) {
-    return customers.where((customer) => customer.isPremium).length;
+    return customers.where(_isVipCustomer).length;
+  }
+
+  bool _isVipCustomer(CustomerRegistryItem customer) {
+    final packageType = customer.packageType.trim().toUpperCase();
+    return packageType == 'PREMIUM' ||
+        packageType == 'ELITE' ||
+        packageType == 'VIP';
   }
 
   Future<void> _showClientActions(CustomerRegistryItem customer) async {
@@ -159,7 +203,7 @@ class _ClientRegistryScreenState extends State<ClientRegistryScreen> {
         return AlertDialog(
           title: Text(
             'Client Details',
-            style: GoogleFonts.manrope(fontWeight: FontWeight.w800),
+            style: GoogleFonts.inter(fontWeight: FontWeight.w800),
           ),
           content: SingleChildScrollView(
             child: Column(
@@ -169,7 +213,10 @@ class _ClientRegistryScreenState extends State<ClientRegistryScreen> {
                 _DetailRow(label: 'Phone', value: customer.phone),
                 _DetailRow(label: 'Email', value: customer.email),
                 _DetailRow(label: 'Package', value: customer.packageType),
-                _DetailRow(label: 'Assigned RM', value: customer.assignedRmName),
+                _DetailRow(
+                  label: 'Assigned RM',
+                  value: customer.assignedRmName,
+                ),
                 _DetailRow(label: 'Created', value: customer.createdOn),
               ],
             ),
@@ -177,7 +224,10 @@ class _ClientRegistryScreenState extends State<ClientRegistryScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(),
-              child: Text('Close', style: GoogleFonts.manrope(fontWeight: FontWeight.w700)),
+              child: Text(
+                'Close',
+                style: GoogleFonts.inter(fontWeight: FontWeight.w700),
+              ),
             ),
           ],
         );
@@ -211,13 +261,13 @@ class _ClientRegistryScreenState extends State<ClientRegistryScreen> {
         return AlertDialog(
           title: Text(
             'Delete Client',
-            style: GoogleFonts.manrope(fontWeight: FontWeight.w800),
+            style: GoogleFonts.inter(fontWeight: FontWeight.w800),
           ),
           content: Text(
             customer.id.isNotEmpty
                 ? 'Are you sure you want to delete ${customer.name}? This action cannot be undone.'
                 : 'This client does not include an id yet, so the delete API cannot be called.',
-            style: GoogleFonts.manrope(height: 1.45),
+            style: GoogleFonts.inter(height: 1.45),
           ),
           actions: [
             OutlinedButton(
@@ -228,7 +278,7 @@ class _ClientRegistryScreenState extends State<ClientRegistryScreen> {
               ),
               child: Text(
                 'No, Cancel',
-                style: GoogleFonts.manrope(fontWeight: FontWeight.w700),
+                style: GoogleFonts.inter(fontWeight: FontWeight.w700),
               ),
             ),
             ElevatedButton(
@@ -240,7 +290,7 @@ class _ClientRegistryScreenState extends State<ClientRegistryScreen> {
               ),
               child: Text(
                 customer.id.isNotEmpty ? 'Yes, Delete' : 'Close',
-                style: GoogleFonts.manrope(fontWeight: FontWeight.w800),
+                style: GoogleFonts.inter(fontWeight: FontWeight.w800),
               ),
             ),
           ],
@@ -281,8 +331,16 @@ class _ClientRegistryScreenState extends State<ClientRegistryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final registryProvider = context.watch<CustomerRegistryProvider>();
-    final customers = registryProvider.customers;
+    final customers = context
+        .select<CustomerRegistryProvider, List<CustomerRegistryItem>>(
+          (provider) => provider.customers,
+        );
+    final isLoading = context.select<CustomerRegistryProvider, bool>(
+      (provider) => provider.isLoading,
+    );
+    final error = context.select<CustomerRegistryProvider, String?>(
+      (provider) => provider.error,
+    );
     final metrics = _metrics(customers);
     final filters = _registryFilters(customers);
     final visibleCustomers = _visibleCustomers(customers);
@@ -291,86 +349,80 @@ class _ClientRegistryScreenState extends State<ClientRegistryScreen> {
       backgroundColor: AppColors.rmSoftPink,
       body: SafeArea(
         bottom: false,
-        child: SingleChildScrollView(
-          padding: EdgeInsets.fromLTRB(16.w, 14.h, 16.w, 20.h),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  if (widget.onMenuPressed != null) ...[
-                    IconButton(
-                      onPressed: widget.onMenuPressed,
-                      icon: Icon(
-                        Icons.menu,
-                        color: AppColors.rmPrimary,
-                        size: 28.sp,
-                      ),
-                    ),
-                    SizedBox(width: 8.w),
-                  ],
-                  Expanded(
-                    child: Text(
-                      'Client Registry',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.manrope(
-                        color: AppColors.rmPrimary,
-                        fontSize: 40.sp,
-                        fontWeight: FontWeight.w900,
-                        height: 1.08,
-                      ),
-                    ),
+        child: RefreshIndicator(
+          color: AppColors.rmPrimary,
+          onRefresh: () => context.read<CustomerRegistryProvider>().retry(),
+          child: CustomScrollView(
+            cacheExtent: 700.h,
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            slivers: [
+              SliverPadding(
+                padding: EdgeInsets.fromLTRB(16.w, 12.h, 16.w, 0),
+                sliver: SliverToBoxAdapter(
+                  child: _ClientRegistryHeader(
+                    onMenuPressed: widget.onMenuPressed,
+                    onRefresh: () =>
+                        context.read<CustomerRegistryProvider>().retry(),
+                    isLoading: isLoading,
                   ),
-                ],
-              ),
-              SizedBox(height: 4.h),
-              Text(
-                'Track converted clients and inherited RM\nownership from a single registry.',
-                style: GoogleFonts.manrope(
-                  color: const Color(0xFF6F6267),
-                  fontSize: 17.sp,
-                  fontWeight: FontWeight.w500,
-                  height: 1.28,
                 ),
               ),
-              SizedBox(height: 14.h),
-              _RefreshRegistryButton(
-                onPressed: () =>
-                    context.read<CustomerRegistryProvider>().retry(),
-              ),
-              SizedBox(height: 18.h),
-              GridView.builder(
-                itemCount: metrics.length,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 12.w,
-                  mainAxisSpacing: 12.h,
-                  childAspectRatio: 1.14,
+              if (isLoading && customers.isNotEmpty)
+                SliverPadding(
+                  padding: EdgeInsets.fromLTRB(16.w, 12.h, 16.w, 0),
+                  sliver: const SliverToBoxAdapter(
+                    child: LinearProgressIndicator(minHeight: 2),
+                  ),
                 ),
-                itemBuilder: (context, index) =>
-                    _MetricCard(metric: metrics[index]),
+              SliverPadding(
+                padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 0),
+                sliver: SliverLayoutBuilder(
+                  builder: (context, constraints) {
+                    final crossAxisCount = constraints.crossAxisExtent >= 620
+                        ? 4
+                        : 2;
+                    return SliverGrid(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) => _MetricCard(metric: metrics[index]),
+                        childCount: metrics.length,
+                      ),
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: crossAxisCount,
+                        crossAxisSpacing: 8.w,
+                        mainAxisSpacing: 8.h,
+                        childAspectRatio: crossAxisCount == 4 ? 1.55 : 1.28,
+                      ),
+                    );
+                  },
+                ),
               ),
-              SizedBox(height: 18.h),
-              _RegistryFilterRow(
-                filters: filters,
-                onSelected: (index) => setState(() => _selectedFilter = index),
+              SliverPadding(
+                padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 0),
+                sliver: SliverToBoxAdapter(
+                  child: _RegistryFilterRow(
+                    filters: filters,
+                    onSelected: (index) =>
+                        setState(() => _selectedFilter = index),
+                  ),
+                ),
               ),
-              SizedBox(height: 14.h),
-              _RegistryToolsRow(
-                controller: _searchController,
-                onSearchChanged: (value) => setState(() => _searchQuery = value),
+              SliverPadding(
+                padding: EdgeInsets.fromLTRB(16.w, 12.h, 16.w, 0),
+                sliver: SliverToBoxAdapter(
+                  child: _RegistryToolsRow(
+                    controller: _searchController,
+                    onSearchChanged: _handleSearchChanged,
+                  ),
+                ),
               ),
-              SizedBox(height: 10.h),
-              _RegistryListContent(
-                isLoading: registryProvider.isLoading,
-                error: registryProvider.error,
+              _RegistryListSliver(
+                isLoading: isLoading,
+                error: error,
                 customers: visibleCustomers,
                 onRetry: () => context.read<CustomerRegistryProvider>().retry(),
                 onClientActionsPressed: _showClientActions,
               ),
+              SliverToBoxAdapter(child: SizedBox(height: 20.h)),
             ],
           ),
         ),
@@ -379,34 +431,99 @@ class _ClientRegistryScreenState extends State<ClientRegistryScreen> {
   }
 }
 
+class _ClientRegistryHeader extends StatelessWidget {
+  const _ClientRegistryHeader({
+    required this.onRefresh,
+    required this.isLoading,
+    this.onMenuPressed,
+  });
+
+  final VoidCallback? onMenuPressed;
+  final VoidCallback onRefresh;
+  final bool isLoading;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (onMenuPressed != null) ...[
+          SizedBox(
+            width: 34.r,
+            height: 34.r,
+            child: IconButton(
+              tooltip: 'Menu',
+              visualDensity: VisualDensity.compact,
+              padding: EdgeInsets.zero,
+              onPressed: onMenuPressed,
+              icon: Icon(
+                Icons.menu_rounded,
+                color: AppColors.rmPrimary,
+                size: 23.sp,
+              ),
+            ),
+          ),
+          SizedBox(width: 8.w),
+        ],
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Client Registry',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.inter(
+                  color: AppColors.black,
+                  fontSize: 24.sp,
+                  fontWeight: FontWeight.w900,
+                  height: 1.08,
+                ),
+              ),
+              SizedBox(height: 5.h),
+              Text(
+                'Track converted clients, RM ownership, and registry status.',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF6F6267),
+                  fontSize: 12.5.sp,
+                  fontWeight: FontWeight.w600,
+                  height: 1.28,
+                ),
+              ),
+            ],
+          ),
+        ),
+        SizedBox(width: 8.w),
+        _RefreshRegistryButton(onPressed: isLoading ? null : onRefresh),
+      ],
+    );
+  }
+}
+
 class _RefreshRegistryButton extends StatelessWidget {
   const _RefreshRegistryButton({required this.onPressed});
 
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: double.infinity,
-      height: 50.h,
-      child: ElevatedButton.icon(
+      height: 34.h,
+      child: ElevatedButton(
         onPressed: onPressed,
-        icon: Icon(Icons.refresh_rounded, size: 20.sp),
-        label: Text(
-          'Refresh Registry',
-          style: GoogleFonts.manrope(
-            fontSize: 18.sp,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.rmPrimary,
           foregroundColor: AppColors.white,
           elevation: 0,
+          minimumSize: Size(38.w, 34.h),
+          padding: EdgeInsets.symmetric(horizontal: 11.w),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(7.r),
           ),
         ),
+        child: Icon(Icons.refresh_rounded, size: 17.sp),
       ),
     );
   }
@@ -420,16 +537,16 @@ class _MetricCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.fromLTRB(12.w, 10.h, 12.w, 10.h),
+      padding: EdgeInsets.fromLTRB(10.w, 9.h, 10.w, 9.h),
       decoration: BoxDecoration(
         color: AppColors.white,
-        borderRadius: BorderRadius.circular(12.r),
+        borderRadius: BorderRadius.circular(8.r),
         border: Border.all(color: metric.accent.withValues(alpha: 0.28)),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x0C323247),
-            blurRadius: 12,
-            offset: Offset(0, 5),
+            color: Color(0x12323247),
+            blurRadius: 8,
+            offset: Offset(0, 2),
           ),
         ],
       ),
@@ -440,40 +557,43 @@ class _MetricCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-              child: Text(
-                metric.label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.manrope(
-                  color: const Color(0xFF70656A),
-                  fontSize: 18.sp,
-                  fontWeight: FontWeight.w800,
+                child: Text(
+                  metric.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF70656A),
+                    fontSize: 10.8.sp,
+                    fontWeight: FontWeight.w800,
+                    height: 1.08,
+                  ),
                 ),
               ),
-              ),
-              Icon(metric.icon, color: metric.accent, size: 24.sp),
-              ],
-              ),
-              SizedBox(height: 10.h),
-              Text(
-              metric.value,
-              style: GoogleFonts.manrope(
+              Icon(metric.icon, color: metric.accent, size: 17.sp),
+            ],
+          ),
+          SizedBox(height: 8.h),
+          Text(
+            metric.value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.inter(
               color: const Color(0xFF24191D),
-              fontSize: 34.sp,
+              fontSize: 22.sp,
               fontWeight: FontWeight.w900,
               height: 1,
-              ),
-              ),
+            ),
+          ),
           const Spacer(),
           Text(
             metric.caption,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: metric.accent,
-              fontSize: 14.sp,
+              fontSize: 10.5.sp,
               fontWeight: FontWeight.w600,
-              height: 1.24,
+              height: 1.2,
             ),
           ),
         ],
@@ -525,11 +645,11 @@ class _RegistryFilterChip extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(20.r),
         child: Container(
-          height: 44.h,
-          padding: EdgeInsets.symmetric(horizontal: 14.w),
+          height: 36.h,
+          padding: EdgeInsets.symmetric(horizontal: 11.w),
           decoration: BoxDecoration(
             color: AppColors.white,
-            borderRadius: BorderRadius.circular(20.r),
+            borderRadius: BorderRadius.circular(18.r),
             border: Border.all(
               color: filter.selected
                   ? const Color(0xFFE4AFC3)
@@ -541,27 +661,27 @@ class _RegistryFilterChip extends StatelessWidget {
             children: [
               Text(
                 filter.label,
-                style: GoogleFonts.manrope(
+                style: GoogleFonts.inter(
                   color: foreground,
-                  fontSize: 19.sp,
+                  fontSize: 12.sp,
                   fontWeight: FontWeight.w800,
                 ),
               ),
-              SizedBox(width: 8.w),
+              SizedBox(width: 6.w),
               Container(
-                height: 24.h,
-                constraints: BoxConstraints(minWidth: 24.w),
+                height: 20.h,
+                constraints: BoxConstraints(minWidth: 20.w),
                 alignment: Alignment.center,
-                padding: EdgeInsets.symmetric(horizontal: 6.w),
+                padding: EdgeInsets.symmetric(horizontal: 5.w),
                 decoration: BoxDecoration(
                   color: const Color(0xFFF6EEF2),
                   borderRadius: BorderRadius.circular(10.r),
                 ),
                 child: Text(
                   '${filter.count}',
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     color: foreground,
-                    fontSize: 15.sp,
+                    fontSize: 10.5.sp,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
@@ -589,7 +709,7 @@ class _RegistryToolsRow extends StatelessWidget {
       children: [
         Expanded(
           child: Container(
-            height: 46.h,
+            height: 40.h,
             padding: EdgeInsets.symmetric(horizontal: 11.w),
             decoration: BoxDecoration(
               color: AppColors.white,
@@ -600,7 +720,7 @@ class _RegistryToolsRow extends StatelessWidget {
               children: [
                 Icon(
                   Icons.search_rounded,
-                  size: 20.sp,
+                  size: 17.sp,
                   color: const Color(0xFF797178),
                 ),
                 SizedBox(width: 8.w),
@@ -610,17 +730,17 @@ class _RegistryToolsRow extends StatelessWidget {
                     onChanged: onSearchChanged,
                     decoration: InputDecoration(
                       hintText: 'Search registry...',
-                      hintStyle: GoogleFonts.manrope(
+                      hintStyle: GoogleFonts.inter(
                         color: const Color(0xFF7A7379),
-                        fontSize: 17.sp,
+                        fontSize: 12.5.sp,
                         fontWeight: FontWeight.w600,
                       ),
                       border: InputBorder.none,
                       contentPadding: EdgeInsets.zero,
                     ),
-                    style: GoogleFonts.manrope(
+                    style: GoogleFonts.inter(
                       color: const Color(0xFF272429),
-                      fontSize: 17.sp,
+                      fontSize: 12.5.sp,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -631,8 +751,8 @@ class _RegistryToolsRow extends StatelessWidget {
         ),
         SizedBox(width: 8.w),
         Container(
-          height: 46.h,
-          padding: EdgeInsets.symmetric(horizontal: 12.w),
+          height: 40.h,
+          padding: EdgeInsets.symmetric(horizontal: 10.w),
           decoration: BoxDecoration(
             color: AppColors.white,
             borderRadius: BorderRadius.circular(9.r),
@@ -643,16 +763,16 @@ class _RegistryToolsRow extends StatelessWidget {
             children: [
               Text(
                 'Newest',
-                style: GoogleFonts.manrope(
+                style: GoogleFonts.inter(
                   color: const Color(0xFF6E6369),
-                  fontSize: 17.sp,
+                  fontSize: 12.sp,
                   fontWeight: FontWeight.w800,
                 ),
               ),
-              SizedBox(width: 8.w),
+              SizedBox(width: 5.w),
               Icon(
                 Icons.keyboard_arrow_down_rounded,
-                size: 20.sp,
+                size: 17.sp,
                 color: const Color(0xFF6E6369),
               ),
             ],
@@ -663,8 +783,8 @@ class _RegistryToolsRow extends StatelessWidget {
   }
 }
 
-class _RegistryListContent extends StatelessWidget {
-  const _RegistryListContent({
+class _RegistryListSliver extends StatelessWidget {
+  const _RegistryListSliver({
     required this.isLoading,
     required this.error,
     required this.customers,
@@ -680,40 +800,56 @@ class _RegistryListContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final registryProvider = context.watch<CustomerRegistryProvider>();
-
-    if (isLoading) {
-      return Padding(
-        padding: EdgeInsets.symmetric(vertical: 28.h),
-        child: const Center(child: CircularProgressIndicator()),
+    if (isLoading && customers.isEmpty) {
+      return SliverPadding(
+        padding: EdgeInsets.symmetric(vertical: 34.h),
+        sliver: const SliverToBoxAdapter(
+          child: Center(child: CircularProgressIndicator()),
+        ),
       );
     }
 
     if (error != null) {
-      return _RegistryMessage(
-        message: error!,
-        actionLabel: 'Retry',
-        onActionPressed: onRetry,
+      return SliverPadding(
+        padding: EdgeInsets.fromLTRB(16.w, 12.h, 16.w, 0),
+        sliver: SliverToBoxAdapter(
+          child: _RegistryMessage(
+            message: error!,
+            actionLabel: 'Retry',
+            onActionPressed: onRetry,
+          ),
+        ),
       );
     }
 
     if (customers.isEmpty) {
-      return const _RegistryMessage(message: 'No clients found.');
+      return SliverPadding(
+        padding: EdgeInsets.fromLTRB(16.w, 12.h, 16.w, 0),
+        sliver: const SliverToBoxAdapter(
+          child: _RegistryMessage(message: 'No clients found.'),
+        ),
+      );
     }
 
-    return ListView.separated(
-      itemCount: customers.length,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      separatorBuilder: (context, index) => SizedBox(height: 12.h),
-      itemBuilder: (context, index) {
-        final customer = customers[index];
-        return _ClientRegistryCard(
-          customer: customer,
-          isDeleting: registryProvider.isRemovingCustomer(customer.id),
-          onActionsPressed: () => onClientActionsPressed(customer),
-        );
-      },
+    return SliverPadding(
+      padding: EdgeInsets.fromLTRB(16.w, 12.h, 16.w, 0),
+      sliver: SliverList.separated(
+        itemCount: customers.length,
+        separatorBuilder: (context, index) => SizedBox(height: 8.h),
+        itemBuilder: (context, index) {
+          final customer = customers[index];
+          return Selector<CustomerRegistryProvider, bool>(
+            selector: (_, provider) => provider.isRemovingCustomer(customer.id),
+            builder: (context, isDeleting, _) {
+              return _ClientRegistryCard(
+                customer: customer,
+                isDeleting: isDeleting,
+                onActionsPressed: () => onClientActionsPressed(customer),
+              );
+            },
+          );
+        },
+      ),
     );
   }
 }
@@ -751,7 +887,7 @@ class _RegistryMessage extends StatelessWidget {
           Text(
             message,
             textAlign: TextAlign.center,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: const Color(0xFF6F6267),
               fontSize: 17.sp,
               fontWeight: FontWeight.w700,
@@ -770,7 +906,7 @@ class _RegistryMessage extends StatelessWidget {
               ),
               child: Text(
                 actionLabel!,
-                style: GoogleFonts.manrope(fontWeight: FontWeight.w800),
+                style: GoogleFonts.inter(fontWeight: FontWeight.w800),
               ),
             ),
           ],
@@ -793,18 +929,24 @@ class _ClientRegistryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final packageType = customer.packageType.trim().toUpperCase();
+    final isPriorityPackage =
+        packageType == 'PREMIUM' ||
+        packageType == 'ELITE' ||
+        packageType == 'VIP';
+
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.fromLTRB(12.w, 11.h, 8.w, 12.h),
+      padding: EdgeInsets.fromLTRB(10.w, 10.h, 8.w, 10.h),
       decoration: BoxDecoration(
         color: AppColors.white,
-        borderRadius: BorderRadius.circular(11.r),
+        borderRadius: BorderRadius.circular(8.r),
         border: Border.all(color: const Color(0xFFEECFD9)),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x0F323247),
-            blurRadius: 12,
-            offset: Offset(0, 5),
+            color: Color(0x10323247),
+            blurRadius: 8,
+            offset: Offset(0, 2),
           ),
         ],
       ),
@@ -815,13 +957,13 @@ class _ClientRegistryCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               CircleAvatar(
-                radius: 23.r,
+                radius: 20.r,
                 backgroundColor: const Color(0xFFFFDDE8),
                 child: Text(
                   customer.initials,
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     color: AppColors.rmPrimary,
-                    fontSize: 22.sp,
+                    fontSize: 16.sp,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
@@ -835,9 +977,9 @@ class _ClientRegistryCard extends StatelessWidget {
                       customer.name,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.manrope(
+                      style: GoogleFonts.inter(
                         color: const Color(0xFF272429),
-                        fontSize: 22.sp,
+                        fontSize: 15.sp,
                         fontWeight: FontWeight.w900,
                         height: 1.12,
                       ),
@@ -847,7 +989,7 @@ class _ClientRegistryCard extends StatelessWidget {
                       children: [
                         Icon(
                           Icons.phone_rounded,
-                          size: 15.sp,
+                          size: 12.sp,
                           color: const Color(0xFF777077),
                         ),
                         SizedBox(width: 4.w),
@@ -856,9 +998,9 @@ class _ClientRegistryCard extends StatelessWidget {
                             customer.phone,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.manrope(
+                            style: GoogleFonts.inter(
                               color: const Color(0xFF6F6870),
-                              fontSize: 16.sp,
+                              fontSize: 11.5.sp,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
@@ -869,7 +1011,7 @@ class _ClientRegistryCard extends StatelessWidget {
                 ),
               ),
               IconButton(
-                constraints: BoxConstraints.tight(Size(30.w, 30.h)),
+                constraints: BoxConstraints.tight(Size(30.r, 30.r)),
                 padding: EdgeInsets.zero,
                 onPressed: isDeleting ? null : onActionsPressed,
                 icon: isDeleting
@@ -881,19 +1023,27 @@ class _ClientRegistryCard extends StatelessWidget {
                     : Icon(
                         Icons.more_vert_rounded,
                         color: const Color(0xFF6E656B),
-                        size: 22.sp,
+                        size: 20.sp,
                       ),
               ),
             ],
           ),
-          SizedBox(height: 14.h),
-          _PackageBadge(
-            label: customer.packageLabel,
-            isPremium: customer.isPremium,
+          SizedBox(height: 10.h),
+          Row(
+            children: [
+              Flexible(
+                child: _PackageBadge(
+                  label: customer.packageLabel,
+                  isPremium: isPriorityPackage,
+                ),
+              ),
+              SizedBox(width: 7.w),
+              Expanded(
+                child: _AssignedChip(assignedTo: customer.assignedRmName),
+              ),
+            ],
           ),
-          SizedBox(height: 8.h),
-          _AssignedChip(assignedTo: customer.assignedRmName),
-          SizedBox(height: 12.h),
+          SizedBox(height: 9.h),
           _ProfileStatusBox(customer: customer),
         ],
       ),
@@ -934,7 +1084,7 @@ class _ClientActionSheet extends StatelessWidget {
                 customer.name,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.manrope(
+                style: GoogleFonts.inter(
                   color: AppColors.rmHeading,
                   fontSize: 18.sp,
                   fontWeight: FontWeight.w900,
@@ -976,7 +1126,7 @@ class _DetailRow extends StatelessWidget {
         children: [
           Text(
             '$label: ',
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               fontWeight: FontWeight.w800,
               color: const Color(0xFF6E656B),
             ),
@@ -984,7 +1134,7 @@ class _DetailRow extends StatelessWidget {
           Expanded(
             child: Text(
               value,
-              style: GoogleFonts.manrope(fontWeight: FontWeight.w600),
+              style: GoogleFonts.inter(fontWeight: FontWeight.w600),
             ),
           ),
         ],
@@ -1034,7 +1184,7 @@ class _ClientActionTile extends StatelessWidget {
             Expanded(
               child: Text(
                 label,
-                style: GoogleFonts.manrope(
+                style: GoogleFonts.inter(
                   color: AppColors.rmHeading,
                   fontSize: 15.sp,
                   fontWeight: FontWeight.w800,
@@ -1062,11 +1212,11 @@ class _PackageBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 28.h,
-      padding: EdgeInsets.symmetric(horizontal: 9.w),
+      height: 26.h,
+      padding: EdgeInsets.symmetric(horizontal: 8.w),
       decoration: BoxDecoration(
         color: isPremium ? const Color(0xFFFFF6CE) : const Color(0xFFF6EEF2),
-        borderRadius: BorderRadius.circular(12.r),
+        borderRadius: BorderRadius.circular(10.r),
         border: Border.all(
           color: isPremium ? const Color(0xFFFFE69B) : const Color(0xFFE5D8DE),
         ),
@@ -1078,9 +1228,9 @@ class _PackageBadge extends StatelessWidget {
           label,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: GoogleFonts.manrope(
+          style: GoogleFonts.inter(
             color: isPremium ? const Color(0xFF9B6B00) : AppColors.rmPrimary,
-            fontSize: 13.sp,
+            fontSize: 10.5.sp,
             fontWeight: FontWeight.w900,
           ),
         ),
@@ -1098,18 +1248,18 @@ class _AssignedChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      height: 30.h,
-      padding: EdgeInsets.symmetric(horizontal: 9.w),
+      height: 26.h,
+      padding: EdgeInsets.symmetric(horizontal: 8.w),
       decoration: BoxDecoration(
         color: AppColors.white,
-        borderRadius: BorderRadius.circular(13.r),
+        borderRadius: BorderRadius.circular(10.r),
         border: Border.all(color: const Color(0xFFE2D9DE)),
       ),
       child: Row(
         children: [
           Icon(
             Icons.person_outline_rounded,
-            size: 14.sp,
+            size: 12.sp,
             color: const Color(0xFF6D646A),
           ),
           SizedBox(width: 4.w),
@@ -1118,9 +1268,9 @@ class _AssignedChip extends StatelessWidget {
               'Assigned to $assignedTo',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.manrope(
+              style: GoogleFonts.inter(
                 color: const Color(0xFF4A4449),
-                fontSize: 14.sp,
+                fontSize: 10.5.sp,
                 fontWeight: FontWeight.w800,
               ),
             ),
@@ -1144,10 +1294,10 @@ class _ProfileStatusBox extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.fromLTRB(10.w, 10.h, 10.w, 9.h),
+      padding: EdgeInsets.fromLTRB(9.w, 8.h, 9.w, 8.h),
       decoration: BoxDecoration(
         color: const Color(0xFFFFF8FB),
-        borderRadius: BorderRadius.circular(9.r),
+        borderRadius: BorderRadius.circular(8.r),
         border: Border.all(color: const Color(0xFFF0DDE4)),
       ),
       child: Column(
@@ -1157,7 +1307,7 @@ class _ProfileStatusBox extends StatelessWidget {
             children: [
               Icon(
                 Icons.hourglass_top_rounded,
-                size: 15.sp,
+                size: 12.sp,
                 color: const Color(0xFFD1213E),
               ),
               SizedBox(width: 5.w),
@@ -1166,21 +1316,21 @@ class _ProfileStatusBox extends StatelessWidget {
                   profileLabel,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     color: const Color(0xFF2F2930),
-                    fontSize: 16.sp,
+                    fontSize: 11.5.sp,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
               ),
             ],
           ),
-          SizedBox(height: 6.h),
+          SizedBox(height: 5.h),
           Row(
             children: [
               Icon(
                 Icons.calendar_today_outlined,
-                size: 14.sp,
+                size: 11.sp,
                 color: const Color(0xFF81777E),
               ),
               SizedBox(width: 5.w),
@@ -1189,9 +1339,9 @@ class _ProfileStatusBox extends StatelessWidget {
                   'Added on ${customer.createdOn} by ${customer.assignedRmName}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     color: const Color(0xFF6E656B),
-                    fontSize: 14.sp,
+                    fontSize: 10.5.sp,
                     fontWeight: FontWeight.w700,
                   ),
                 ),

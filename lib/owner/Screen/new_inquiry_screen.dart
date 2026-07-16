@@ -236,22 +236,22 @@ class _NewInquiryScreenState extends State<NewInquiryScreen> {
     }
 
     if (_leadFor == _leadForOptions.first) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select lead for.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Please select lead for.')));
       return;
     }
 
     final accessToken = context.read<AuthProvider>().userModel?.accessToken;
     final message = await context.read<LeadsProvider>().createLead(
-          accessToken: accessToken,
-          name: _nameController.text,
-          phone: _phoneController.text,
-          email: _emailController.text,
-          source: _source,
-          leadFor: _leadFor,
-          city: _cityController.text,
-        );
+      accessToken: accessToken,
+      name: _nameController.text,
+      phone: _phoneController.text,
+      email: _emailController.text,
+      source: _source,
+      leadFor: _leadFor,
+      city: _cityController.text,
+    );
 
     if (!mounted) {
       return;
@@ -329,7 +329,7 @@ class _InquiryHeader extends StatelessWidget {
             children: [
               Text(
                 'INSTITUTIONAL ONBOARDING',
-                style: GoogleFonts.manrope(
+                style: GoogleFonts.inter(
                   color: AppColors.rmPrimary,
                   fontSize: 12.sp,
                   fontWeight: FontWeight.w900,
@@ -339,7 +339,7 @@ class _InquiryHeader extends StatelessWidget {
               SizedBox(height: 3.h),
               Text(
                 'Register New\nInquiry',
-                style: GoogleFonts.manrope(
+                style: GoogleFonts.inter(
                   color: const Color(0xFF202024),
                   fontSize: 30.sp,
                   fontWeight: FontWeight.w800,
@@ -349,7 +349,7 @@ class _InquiryHeader extends StatelessWidget {
               SizedBox(height: 14.h),
               Text(
                 'Record a new lead into the matrimonial registry for curation and departmental assignment.',
-                style: GoogleFonts.manrope(
+                style: GoogleFonts.inter(
                   color: const Color(0xFF4D4548),
                   fontSize: 16.sp,
                   fontWeight: FontWeight.w500,
@@ -362,11 +362,7 @@ class _InquiryHeader extends StatelessWidget {
         IconButton(
           tooltip: 'Close',
           onPressed: () => Navigator.of(context).maybePop(),
-          icon: Icon(
-            Icons.close,
-            color: const Color(0xFF8F8489),
-            size: 22.sp,
-          ),
+          icon: Icon(Icons.close, color: const Color(0xFF8F8489), size: 22.sp),
         ),
       ],
     );
@@ -386,7 +382,7 @@ class _InquirySection extends StatelessWidget {
       children: [
         Text(
           title,
-          style: GoogleFonts.manrope(
+          style: GoogleFonts.inter(
             color: AppColors.rmPrimary,
             fontSize: 18.sp,
             fontWeight: FontWeight.w900,
@@ -446,7 +442,7 @@ class _InquiryTextField extends StatelessWidget {
           textInputAction: textInputAction,
           minLines: minLines,
           maxLines: maxLines,
-          style: GoogleFonts.manrope(
+          style: GoogleFonts.inter(
             color: const Color(0xFF2F292C),
             fontSize: 16.sp,
             fontWeight: FontWeight.w700,
@@ -493,7 +489,7 @@ class _InquiryDropdownField extends StatelessWidget {
           hint: hintText != null
               ? Text(
                   hintText!,
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     color: const Color(0xFFC1B8BD),
                     fontSize: 16.sp,
                     fontWeight: FontWeight.w700,
@@ -506,12 +502,13 @@ class _InquiryDropdownField extends StatelessWidget {
             size: 20.sp,
           ),
           decoration: _fieldDecoration(),
-          style: GoogleFonts.manrope(
+          style: GoogleFonts.inter(
             color: const Color(0xFF2F292C),
             fontSize: 16.sp,
             fontWeight: FontWeight.w700,
           ),
-          items: dropdownItems ??
+          items:
+              dropdownItems ??
               items
                   ?.map(
                     (item) => DropdownMenuItem<String?>(
@@ -538,7 +535,7 @@ class _FieldLabel extends StatelessWidget {
     return RichText(
       text: TextSpan(
         text: label,
-        style: GoogleFonts.manrope(
+        style: GoogleFonts.inter(
           color: const Color(0xFF302A2D),
           fontSize: 14.sp,
           fontWeight: FontWeight.w800,
@@ -547,7 +544,7 @@ class _FieldLabel extends StatelessWidget {
           if (isRequired)
             TextSpan(
               text: ' *',
-              style: GoogleFonts.manrope(
+              style: GoogleFonts.inter(
                 color: AppColors.error,
                 fontSize: 14.sp,
                 fontWeight: FontWeight.w900,
@@ -578,6 +575,7 @@ class _InquiryFooter extends StatelessWidget {
       child: Row(
         children: [
           Expanded(
+            flex: 4,
             child: SizedBox(
               height: 48.h,
               child: OutlinedButton(
@@ -591,7 +589,7 @@ class _InquiryFooter extends StatelessWidget {
                 ),
                 child: Text(
                   'Cancel',
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     fontSize: 16.sp,
                     fontWeight: FontWeight.w800,
                   ),
@@ -601,6 +599,7 @@ class _InquiryFooter extends StatelessWidget {
           ),
           SizedBox(width: 12.w),
           Expanded(
+            flex: 7,
             child: SizedBox(
               height: 48.h,
               child: ElevatedButton(
@@ -608,7 +607,9 @@ class _InquiryFooter extends StatelessWidget {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.rmPrimary,
                   foregroundColor: AppColors.white,
-                  disabledBackgroundColor: AppColors.rmPrimary.withValues(alpha: .55),
+                  disabledBackgroundColor: AppColors.rmPrimary.withValues(
+                    alpha: .55,
+                  ),
                   elevation: 0,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(9.r),
@@ -631,16 +632,17 @@ class _InquiryFooter extends StatelessWidget {
                         children: [
                           Flexible(
                             child: Text(
-                              'Register in Archive',
-                              style: GoogleFonts.manrope(
-                                fontSize: 16.sp,
+                              'Register New Inquiry',
+                              maxLines: 1,
+                              style: GoogleFonts.inter(
+                                fontSize: 13.sp,
                                 fontWeight: FontWeight.w900,
                               ),
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          SizedBox(width: 8.w),
-                          Icon(Icons.arrow_forward, size: 17.sp),
+                          SizedBox(width: 5.w),
+                          Icon(Icons.arrow_forward, size: 15.sp),
                         ],
                       ),
               ),
@@ -655,7 +657,7 @@ class _InquiryFooter extends StatelessWidget {
 InputDecoration _fieldDecoration({String? hintText, Widget? prefixIcon}) {
   return InputDecoration(
     hintText: hintText,
-    hintStyle: GoogleFonts.manrope(
+    hintStyle: GoogleFonts.inter(
       color: const Color(0xFFC1B8BD),
       fontSize: 16.sp,
       fontWeight: FontWeight.w700,
@@ -665,7 +667,7 @@ InputDecoration _fieldDecoration({String? hintText, Widget? prefixIcon}) {
     filled: true,
     fillColor: AppColors.white,
     contentPadding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 12.h),
-    errorStyle: GoogleFonts.manrope(
+    errorStyle: GoogleFonts.inter(
       color: AppColors.error,
       fontSize: 13.sp,
       fontWeight: FontWeight.w700,

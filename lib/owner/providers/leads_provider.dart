@@ -47,7 +47,9 @@ class LeadsProvider extends ChangeNotifier {
 
     try {
       final response = await http.get(
-        Uri.parse('${ApiConstants.baseUrl}${ApiConstants.relationshipManagers}'),
+        Uri.parse(
+          '${ApiConstants.baseUrl}${ApiConstants.relationshipManagers}',
+        ),
         headers: {
           'Accept': 'application/json',
           'Authorization': 'Bearer $accessToken',
@@ -80,7 +82,13 @@ class LeadsProvider extends ChangeNotifier {
     }
 
     if (payload is Map<String, dynamic>) {
-      for (final key in const ['data', 'users', 'items', 'results', 'managers']) {
+      for (final key in const [
+        'data',
+        'users',
+        'items',
+        'results',
+        'managers',
+      ]) {
         final value = payload[key];
         if (value is List) {
           return value;
@@ -134,13 +142,7 @@ class LeadsProvider extends ChangeNotifier {
         throw Exception('Leads API failed with ${response.statusCode}');
       }
 
-      final decoded = jsonDecode(response.body);
-      final leadRows = _extractLeadRows(decoded);
-
-      _leads = leadRows
-          .whereType<Map<String, dynamic>>()
-          .map(LeadRegistryItem.fromJson)
-          .toList();
+      _leads = await compute(_parseLeadRegistryItems, response.body);
       _isLoading = false;
       _error = null;
       notifyListeners();
@@ -198,11 +200,13 @@ class LeadsProvider extends ChangeNotifier {
         return _extractErrorMessage(response.body) ?? 'Unable to create lead.';
       }
 
-      final decoded = response.body.trim().isEmpty ? null : jsonDecode(response.body);
+      final decoded = response.body.trim().isEmpty
+          ? null
+          : jsonDecode(response.body);
       final responseLead = decoded is List
           ? (decoded.isNotEmpty && decoded.first is Map<String, dynamic>
-              ? _extractLeadMap(decoded.first as Map<String, dynamic>)
-              : null)
+                ? _extractLeadMap(decoded.first as Map<String, dynamic>)
+                : null)
           : (decoded is Map<String, dynamic> ? _extractLeadMap(decoded) : null);
 
       if (responseLead != null) {
@@ -229,7 +233,9 @@ class LeadsProvider extends ChangeNotifier {
 
     try {
       final response = await http.get(
-        Uri.parse('${ApiConstants.baseUrl}${ApiConstants.relationshipManagers}'),
+        Uri.parse(
+          '${ApiConstants.baseUrl}${ApiConstants.relationshipManagers}',
+        ),
         headers: {
           'Accept': 'application/json',
           'Authorization': 'Bearer $accessToken',
@@ -322,8 +328,9 @@ class LeadsProvider extends ChangeNotifier {
       final decoded = response.body.trim().isEmpty
           ? null
           : jsonDecode(response.body);
-      final responseLead =
-          decoded is Map<String, dynamic> ? _extractLeadMap(decoded) : null;
+      final responseLead = decoded is Map<String, dynamic>
+          ? _extractLeadMap(decoded)
+          : null;
       final updatedLead = responseLead == null
           ? lead.copyWith(
               name: name.trim(),
@@ -346,11 +353,7 @@ class LeadsProvider extends ChangeNotifier {
           : LeadRegistryItem.fromJson(responseLead);
 
       _leads = _leads
-          .map(
-            (item) => _leadKey(item) == _leadKey(lead)
-                ? updatedLead
-                : item,
-          )
+          .map((item) => _leadKey(item) == _leadKey(lead) ? updatedLead : item)
           .toList();
       notifyListeners();
       return null;
@@ -379,10 +382,7 @@ class LeadsProvider extends ChangeNotifier {
     return http.Response.fromStream(streamedResponse);
   }
 
-  Future<String?> deleteLead(
-    LeadRegistryItem lead,
-    String? accessToken,
-  ) async {
+  Future<String?> deleteLead(LeadRegistryItem lead, String? accessToken) async {
     if (accessToken == null || accessToken.isEmpty) {
       return 'Login required to delete lead.';
     }
@@ -560,4 +560,36 @@ class LeadsProvider extends ChangeNotifier {
 
     return null;
   }
+}
+
+List<LeadRegistryItem> _parseLeadRegistryItems(String responseBody) {
+  final decoded = jsonDecode(responseBody);
+  final leadRows = _extractLeadRowsForRegistry(decoded);
+  return leadRows
+      .whereType<Map<String, dynamic>>()
+      .map(LeadRegistryItem.fromJson)
+      .toList(growable: false);
+}
+
+List<dynamic> _extractLeadRowsForRegistry(dynamic payload) {
+  if (payload is List) {
+    return payload;
+  }
+
+  if (payload is Map<String, dynamic>) {
+    for (final key in const ['data', 'leads', 'items', 'results']) {
+      final value = payload[key];
+
+      if (value is List) {
+        return value;
+      }
+
+      final nestedRows = _extractLeadRowsForRegistry(value);
+      if (nestedRows.isNotEmpty) {
+        return nestedRows;
+      }
+    }
+  }
+
+  return const [];
 }

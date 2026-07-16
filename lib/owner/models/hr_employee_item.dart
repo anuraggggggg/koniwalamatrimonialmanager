@@ -88,8 +88,7 @@ class HrEmployeeItem {
       baseSalary: baseSalary ?? this.baseSalary,
       joiningDate: joiningDate ?? this.joiningDate,
       joiningDateText: joiningDateText ?? this.joiningDateText,
-      reportingManagerName:
-          reportingManagerName ?? this.reportingManagerName,
+      reportingManagerName: reportingManagerName ?? this.reportingManagerName,
       assignedLeads: assignedLeads ?? this.assignedLeads,
       dataEntryProfiles: dataEntryProfiles ?? this.dataEntryProfiles,
       assignedTasks: assignedTasks ?? this.assignedTasks,
@@ -135,14 +134,14 @@ class HrEmployeeItem {
       isPresentToday:
           json['isPresentToday'] == true ||
           _hasPresentAttendance(json['attendanceRecords']),
-      designation: _firstNonEmpty(
-        [json['designation'], employeeProfile?['designation']],
-        fallback: _formatRole(role),
-      ),
-      baseSalary: _firstNonEmpty(
-        [json['baseSalary'], employeeProfile?['baseSalary']],
-        fallback: '-',
-      ),
+      designation: _firstNonEmpty([
+        json['designation'],
+        employeeProfile?['designation'],
+      ], fallback: _formatRole(role)),
+      baseSalary: _firstNonEmpty([
+        json['baseSalary'],
+        employeeProfile?['baseSalary'],
+      ], fallback: '-'),
       joiningDate: joiningDate,
       joiningDateText: _formatDate(joiningDate),
       reportingManagerName: reportingManager is Map<String, dynamic>
@@ -245,7 +244,9 @@ class HrEmployeeItem {
         return '$qualifiedClosedLeads/$requiredTarget';
       }
 
-      final earnedPercentage = _readDouble(incentiveSummary['earnedPercentage']);
+      final earnedPercentage = _readDouble(
+        incentiveSummary['earnedPercentage'],
+      );
       if (earnedPercentage > 0) {
         return '${_formatPercent(earnedPercentage)}%';
       }

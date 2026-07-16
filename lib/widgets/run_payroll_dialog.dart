@@ -7,7 +7,11 @@ class RunPayrollDialog extends StatefulWidget {
   final dynamic payroll;
   final VoidCallback onRun;
 
-  const RunPayrollDialog({super.key, required this.payroll, required this.onRun});
+  const RunPayrollDialog({
+    super.key,
+    required this.payroll,
+    required this.onRun,
+  });
 
   @override
   State<RunPayrollDialog> createState() => _RunPayrollDialogState();
@@ -20,14 +24,26 @@ class _RunPayrollDialogState extends State<RunPayrollDialog> {
   @override
   void initState() {
     super.initState();
-    _selectedMonth = _getMonthName(widget.payroll?.month ?? DateTime.now().month);
+    _selectedMonth = _getMonthName(
+      widget.payroll?.month ?? DateTime.now().month,
+    );
     _selectedYear = (widget.payroll?.year ?? DateTime.now().year).toString();
   }
 
   String _getMonthName(int month) {
     const months = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December'
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
     ];
     return months[month - 1];
   }
@@ -51,7 +67,7 @@ class _RunPayrollDialogState extends State<RunPayrollDialog> {
               children: [
                 Text(
                   'Run Payroll',
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     fontSize: 22.sp,
                     fontWeight: FontWeight.w800,
                     color: const Color(0xFF1D1B20),
@@ -66,7 +82,7 @@ class _RunPayrollDialogState extends State<RunPayrollDialog> {
             SizedBox(height: 8.h),
             Text(
               'Finalize calculations and prepare payslips for the selected period. This will enable row-level processing.',
-              style: GoogleFonts.manrope(
+              style: GoogleFonts.inter(
                 fontSize: 14.sp,
                 color: const Color(0xFF727785),
                 height: 1.4,
@@ -75,7 +91,20 @@ class _RunPayrollDialogState extends State<RunPayrollDialog> {
             SizedBox(height: 24.h),
             _buildLabel('MONTH'),
             SizedBox(height: 8.h),
-            _buildDropdown(_selectedMonth, ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']),
+            _buildDropdown(_selectedMonth, [
+              'January',
+              'February',
+              'March',
+              'April',
+              'May',
+              'June',
+              'July',
+              'August',
+              'September',
+              'October',
+              'November',
+              'December',
+            ]),
             SizedBox(height: 16.h),
             _buildLabel('YEAR'),
             SizedBox(height: 8.h),
@@ -91,7 +120,10 @@ class _RunPayrollDialogState extends State<RunPayrollDialog> {
                 children: [
                   _buildSummaryRow('PERIOD', '$_selectedMonth $_selectedYear'),
                   SizedBox(height: 12.h),
-                  _buildSummaryRow('STAFF COUNT', '${widget.payroll?.entries.length ?? 0} records'),
+                  _buildSummaryRow(
+                    'STAFF COUNT',
+                    '${widget.payroll?.entries.length ?? 0} records',
+                  ),
                 ],
               ),
             ),
@@ -107,9 +139,14 @@ class _RunPayrollDialogState extends State<RunPayrollDialog> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12.r),
+                  ),
                 ),
-                child: Text('Run Payroll', style: GoogleFonts.manrope(fontWeight: FontWeight.w800)),
+                child: Text(
+                  'Run Payroll',
+                  style: GoogleFonts.inter(fontWeight: FontWeight.w800),
+                ),
               ),
             ),
             SizedBox(height: 12.h),
@@ -119,9 +156,17 @@ class _RunPayrollDialogState extends State<RunPayrollDialog> {
               child: OutlinedButton(
                 onPressed: () => Navigator.pop(context),
                 style: OutlinedButton.styleFrom(
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12.r),
+                  ),
                 ),
-                child: Text('Cancel', style: GoogleFonts.manrope(color: AppColors.primary, fontWeight: FontWeight.w800)),
+                child: Text(
+                  'Cancel',
+                  style: GoogleFonts.inter(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
               ),
             ),
           ],
@@ -133,7 +178,11 @@ class _RunPayrollDialogState extends State<RunPayrollDialog> {
   Widget _buildLabel(String label) {
     return Text(
       label,
-      style: GoogleFonts.manrope(fontSize: 10.sp, fontWeight: FontWeight.w800, color: const Color(0xFF727785)),
+      style: GoogleFonts.inter(
+        fontSize: 10.sp,
+        fontWeight: FontWeight.w800,
+        color: const Color(0xFF727785),
+      ),
     );
   }
 
@@ -148,8 +197,14 @@ class _RunPayrollDialogState extends State<RunPayrollDialog> {
         child: DropdownButton<String>(
           isExpanded: true,
           value: value,
-          onChanged: (val) => setState(() => val == '2026' || val == '2027' ? _selectedYear = val! : _selectedMonth = val!),
-          items: items.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+          onChanged: (val) => setState(
+            () => val == '2026' || val == '2027'
+                ? _selectedYear = val!
+                : _selectedMonth = val!,
+          ),
+          items: items
+              .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+              .toList(),
         ),
       ),
     );
@@ -159,8 +214,21 @@ class _RunPayrollDialogState extends State<RunPayrollDialog> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: GoogleFonts.manrope(fontSize: 13.sp, color: const Color(0xFF727785))),
-        Text(value, style: GoogleFonts.manrope(fontSize: 13.sp, fontWeight: FontWeight.w800, color: const Color(0xFF1D1B20))),
+        Text(
+          label,
+          style: GoogleFonts.inter(
+            fontSize: 13.sp,
+            color: const Color(0xFF727785),
+          ),
+        ),
+        Text(
+          value,
+          style: GoogleFonts.inter(
+            fontSize: 13.sp,
+            fontWeight: FontWeight.w800,
+            color: const Color(0xFF1D1B20),
+          ),
+        ),
       ],
     );
   }

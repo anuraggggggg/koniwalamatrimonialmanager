@@ -60,14 +60,7 @@ class LeadFollowUpsProvider extends ChangeNotifier {
         );
       }
 
-      final decoded = jsonDecode(response.body);
-      final rows = _extractLeadRows(decoded);
-
-      _leads = rows
-          .whereType<Map<String, dynamic>>()
-          .map(LeadFollowUpItem.fromJson)
-          .where((lead) => lead.followUpTasks.isNotEmpty)
-          .toList();
+      _leads = await compute(_parseLeadFollowUpItems, response.body);
       _isLoading = false;
       _error = null;
       notifyListeners();
@@ -81,27 +74,37 @@ class LeadFollowUpsProvider extends ChangeNotifier {
   Future<void> retry() {
     return fetchFollowUps(_requestedAccessToken, forceRefresh: true);
   }
+}
 
-  List<dynamic> _extractLeadRows(dynamic payload) {
-    if (payload is List) {
-      return payload;
-    }
+List<LeadFollowUpItem> _parseLeadFollowUpItems(String responseBody) {
+  final decoded = jsonDecode(responseBody);
+  final rows = _extractLeadRowsForFollowUps(decoded);
+  return rows
+      .whereType<Map<String, dynamic>>()
+      .map(LeadFollowUpItem.fromJson)
+      .where((lead) => lead.followUpTasks.isNotEmpty)
+      .toList(growable: false);
+}
 
-    if (payload is Map<String, dynamic>) {
-      for (final key in const ['data', 'leads', 'items', 'results']) {
-        final value = payload[key];
+List<dynamic> _extractLeadRowsForFollowUps(dynamic payload) {
+  if (payload is List) {
+    return payload;
+  }
 
-        if (value is List) {
-          return value;
-        }
+  if (payload is Map<String, dynamic>) {
+    for (final key in const ['data', 'leads', 'items', 'results']) {
+      final value = payload[key];
 
-        final nestedRows = _extractLeadRows(value);
-        if (nestedRows.isNotEmpty) {
-          return nestedRows;
-        }
+      if (value is List) {
+        return value;
+      }
+
+      final nestedRows = _extractLeadRowsForFollowUps(value);
+      if (nestedRows.isNotEmpty) {
+        return nestedRows;
       }
     }
-
-    return const [];
   }
+
+  return const [];
 }

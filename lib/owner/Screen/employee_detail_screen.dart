@@ -7,7 +7,11 @@ import 'package:koniwalamatrimonial/models/holiday_model.dart';
 import 'package:koniwalamatrimonial/models/manager_dashboard.dart';
 import 'package:koniwalamatrimonial/owner/models/hr_employee_detail.dart';
 import 'package:koniwalamatrimonial/owner/models/hr_employee_item.dart';
+import 'package:koniwalamatrimonial/owner/models/lead_follow_up_item.dart';
+import 'package:koniwalamatrimonial/owner/models/lead_registry_item.dart';
 import 'package:koniwalamatrimonial/owner/providers/hr_employees_provider.dart';
+import 'package:koniwalamatrimonial/owner/providers/lead_follow_ups_provider.dart';
+import 'package:koniwalamatrimonial/owner/providers/leads_provider.dart';
 import 'package:koniwalamatrimonial/providers/auth_provider.dart';
 import 'package:koniwalamatrimonial/providers/holiday_provider.dart';
 import 'package:provider/provider.dart';
@@ -41,6 +45,8 @@ class _EmployeeDetailScreenState extends State<EmployeeDetailScreen> {
   String? _requestedPayrollEmployeeId;
   String? _requestedHolidayAccessToken;
   int? _requestedHolidayYear;
+  String? _requestedLeadsAccessToken;
+  String? _requestedFollowUpsAccessToken;
 
   @override
   void initState() {
@@ -74,8 +80,14 @@ class _EmployeeDetailScreenState extends State<EmployeeDetailScreen> {
     final shouldFetchHolidays =
         _requestedHolidayAccessToken != accessToken ||
         _requestedHolidayYear != _visibleMonth.year;
+    final shouldFetchLeads = _requestedLeadsAccessToken != accessToken;
+    final shouldFetchFollowUps = _requestedFollowUpsAccessToken != accessToken;
 
-    if (!shouldFetchAttendance && !shouldFetchPayroll && !shouldFetchHolidays) {
+    if (!shouldFetchAttendance &&
+        !shouldFetchPayroll &&
+        !shouldFetchHolidays &&
+        !shouldFetchLeads &&
+        !shouldFetchFollowUps) {
       return;
     }
 
@@ -94,6 +106,12 @@ class _EmployeeDetailScreenState extends State<EmployeeDetailScreen> {
     if (shouldFetchHolidays) {
       _requestedHolidayAccessToken = accessToken;
       _requestedHolidayYear = _visibleMonth.year;
+    }
+    if (shouldFetchLeads) {
+      _requestedLeadsAccessToken = accessToken;
+    }
+    if (shouldFetchFollowUps) {
+      _requestedFollowUpsAccessToken = accessToken;
     }
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -118,6 +136,12 @@ class _EmployeeDetailScreenState extends State<EmployeeDetailScreen> {
           accessToken,
         );
       }
+      if (shouldFetchLeads) {
+        context.read<LeadsProvider>().fetchLeads(accessToken);
+      }
+      if (shouldFetchFollowUps) {
+        context.read<LeadFollowUpsProvider>().fetchFollowUps(accessToken);
+      }
     });
   }
 
@@ -128,6 +152,8 @@ class _EmployeeDetailScreenState extends State<EmployeeDetailScreen> {
 
     final employeesProvider = context.watch<HrEmployeesProvider>();
     final holidayProvider = context.watch<HolidayProvider>();
+    final leadsProvider = context.watch<LeadsProvider>();
+    final followUpsProvider = context.watch<LeadFollowUpsProvider>();
     final attendance = _employeeId.isEmpty
         ? null
         : employeesProvider.employeeAttendance(
@@ -172,6 +198,15 @@ class _EmployeeDetailScreenState extends State<EmployeeDetailScreen> {
       reportingManager: reportingManager,
       email: email,
     );
+    final activitySummary = _buildActivitySummary(
+      leads: leadsProvider.leads,
+      followUpLeads: followUpsProvider.leads,
+      employeeName: name,
+      employeeEmail: email,
+    );
+    final isActivityLoading =
+        (leadsProvider.isLoading && leadsProvider.leads.isEmpty) ||
+        (followUpsProvider.isLoading && followUpsProvider.leads.isEmpty);
 
     return Scaffold(
       backgroundColor: _pageBackground,
@@ -186,18 +221,18 @@ class _EmployeeDetailScreenState extends State<EmployeeDetailScreen> {
         ),
         title: Text(
           'Employee',
-          style: GoogleFonts.playfairDisplay(
+          style: GoogleFonts.inter(
             color: const Color(0xFF1F1D1D),
             fontSize: 22.sp,
             fontWeight: FontWeight.w800,
           ),
         ),
-        actions: [
-          IconButton(
-            onPressed: () {},
-            icon: const Icon(Icons.more_vert, color: Colors.black),
-          ),
-        ],
+        // actions: [
+        //   IconButton(
+        //     onPressed: () {},
+        //     icon: const Icon(Icons.more_vert, color: Colors.black),
+        //   ),
+        // ],
       ),
       body: SafeArea(
         child: ListView(
@@ -247,6 +282,13 @@ class _EmployeeDetailScreenState extends State<EmployeeDetailScreen> {
               ],
             ),
             SizedBox(height: 14.h),
+            _EmployeeActivitySummaryCard(
+              summary: activitySummary,
+              isLoading: isActivityLoading,
+              leadsError: leadsProvider.error,
+              followUpsError: followUpsProvider.error,
+            ),
+            SizedBox(height: 14.h),
             _buildSegmentedTabs(),
             SizedBox(height: 14.h),
             if (_showHistory)
@@ -269,7 +311,7 @@ class _EmployeeDetailScreenState extends State<EmployeeDetailScreen> {
                 Text(
                   employeesProvider.employeeAttendanceError!,
                   textAlign: TextAlign.center,
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     color: AppColors.danger,
                     fontSize: 12.sp,
                     fontWeight: FontWeight.w600,
@@ -295,7 +337,7 @@ class _EmployeeDetailScreenState extends State<EmployeeDetailScreen> {
           Text(
             _formatRole(data.role),
             textAlign: TextAlign.center,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: _bodyText,
               fontSize: 13.sp,
               fontWeight: FontWeight.w700,
@@ -305,7 +347,7 @@ class _EmployeeDetailScreenState extends State<EmployeeDetailScreen> {
           Text(
             data.name,
             textAlign: TextAlign.center,
-            style: GoogleFonts.playfairDisplay(
+            style: GoogleFonts.inter(
               color: const Color(0xFF202020),
               fontSize: 30.sp,
               fontWeight: FontWeight.w800,
@@ -316,7 +358,7 @@ class _EmployeeDetailScreenState extends State<EmployeeDetailScreen> {
           Text(
             'Attendance and employment archival details for this employee are consolidated here for HR review.',
             textAlign: TextAlign.center,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: const Color(0xFF3F3C3C),
               fontSize: 14.sp,
               fontWeight: FontWeight.w400,
@@ -363,7 +405,7 @@ class _EmployeeDetailScreenState extends State<EmployeeDetailScreen> {
       children: [
         Text(
           'Attendance',
-          style: GoogleFonts.manrope(
+          style: GoogleFonts.inter(
             color: const Color(0xFF202020),
             fontSize: 20.sp,
             fontWeight: FontWeight.w800,
@@ -373,7 +415,7 @@ class _EmployeeDetailScreenState extends State<EmployeeDetailScreen> {
         SizedBox(height: 8.h),
         Text(
           DateFormat('MMMM yyyy').format(_visibleMonth).toUpperCase(),
-          style: GoogleFonts.manrope(
+          style: GoogleFonts.inter(
             color: const Color(0xFF6D5E5A),
             fontSize: 12.sp,
             fontWeight: FontWeight.w500,
@@ -464,7 +506,7 @@ class _EmployeeDetailScreenState extends State<EmployeeDetailScreen> {
                 child: Text(
                   DateFormat('MMMM yyyy').format(_visibleMonth),
                   textAlign: TextAlign.center,
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     color: const Color(0xFF202020),
                     fontSize: 16.sp,
                     fontWeight: FontWeight.w800,
@@ -544,7 +586,7 @@ class _EmployeeDetailScreenState extends State<EmployeeDetailScreen> {
       children: [
         Text(
           'History',
-          style: GoogleFonts.manrope(
+          style: GoogleFonts.inter(
             color: const Color(0xFF202020),
             fontSize: 20.sp,
             fontWeight: FontWeight.w800,
@@ -575,7 +617,7 @@ class _EmployeeDetailScreenState extends State<EmployeeDetailScreen> {
         SizedBox(height: 10.h),
         Text(
           'Payroll History',
-          style: GoogleFonts.manrope(
+          style: GoogleFonts.inter(
             color: const Color(0xFF202020),
             fontSize: 18.sp,
             fontWeight: FontWeight.w800,
@@ -595,6 +637,191 @@ class _EmployeeDetailScreenState extends State<EmployeeDetailScreen> {
           ),
       ],
     );
+  }
+
+  _EmployeeActivitySummary _buildActivitySummary({
+    required List<LeadRegistryItem> leads,
+    required List<LeadFollowUpItem> followUpLeads,
+    required String employeeName,
+    required String employeeEmail,
+  }) {
+    final assignedLeads = leads
+        .where(
+          (lead) => _matchesEmployeeAssignment(
+            assignedId: lead.assignedToId,
+            assignedName: lead.assignedTo,
+            employeeName: employeeName,
+            employeeEmail: employeeEmail,
+          ),
+        )
+        .toList(growable: false);
+
+    final todayLeads = assignedLeads
+        .where((lead) => _isToday(_parseRegistryDate(lead.createdOn)))
+        .length;
+    final conversions = assignedLeads
+        .where((lead) => _statusKey(lead.stage) == 'CONVERTED')
+        .length;
+    final totalAssignedLeads = assignedLeads.isNotEmpty
+        ? assignedLeads.length
+        : _firstPositive([
+            widget.employee?.assignedLeads,
+            widget.teamMember.leadsHandled,
+          ]);
+    final totalConversions = conversions > 0
+        ? conversions
+        : _firstPositive([widget.employee?.closedLeads]);
+
+    var todayCalls = 0;
+    var openFollowUps = 0;
+    var dueTodayFollowUps = 0;
+    var completedFollowUpsToday = 0;
+
+    for (final lead in followUpLeads) {
+      final leadMatches = _matchesEmployeeName(
+        lead.assignedToName,
+        employeeName,
+        employeeEmail,
+      );
+
+      for (final task in lead.tasks) {
+        final taskMatches =
+            leadMatches ||
+            _matchesEmployeeName(
+              task.assignedToName,
+              employeeName,
+              employeeEmail,
+            );
+        if (!taskMatches) {
+          continue;
+        }
+
+        if (_isCallTask(task) && task.isDone && _isToday(task.createdAt)) {
+          todayCalls++;
+        }
+
+        if (_isFollowUpTask(task)) {
+          if (task.isOpen) {
+            openFollowUps++;
+            if (_isToday(task.dueAt)) {
+              dueTodayFollowUps++;
+            }
+          } else if (task.isDone && _isToday(task.createdAt)) {
+            completedFollowUpsToday++;
+          }
+        }
+      }
+    }
+
+    if (todayCalls == 0 && followUpLeads.isEmpty) {
+      todayCalls = widget.teamMember.tasksCompleted;
+    }
+
+    return _EmployeeActivitySummary(
+      todayLeads: todayLeads,
+      todayCalls: todayCalls,
+      totalConversions: totalConversions,
+      openFollowUps: openFollowUps,
+      dueTodayFollowUps: dueTodayFollowUps,
+      completedFollowUpsToday: completedFollowUpsToday,
+      totalAssignedLeads: totalAssignedLeads,
+      profilesHandled: widget.teamMember.profilesHandled,
+    );
+  }
+
+  bool _matchesEmployeeAssignment({
+    required String assignedId,
+    required String assignedName,
+    required String employeeName,
+    required String employeeEmail,
+  }) {
+    final employeeId = _employeeId.trim();
+    if (employeeId.isNotEmpty && assignedId.trim() == employeeId) {
+      return true;
+    }
+
+    return _matchesEmployeeName(assignedName, employeeName, employeeEmail);
+  }
+
+  bool _matchesEmployeeName(
+    String assignedName,
+    String employeeName,
+    String employeeEmail,
+  ) {
+    final assigned = _normalizeMatchText(assignedName);
+    if (assigned.isEmpty || assigned == '-') {
+      return false;
+    }
+
+    final name = _normalizeMatchText(employeeName);
+    final email = _normalizeMatchText(employeeEmail);
+    return assigned == name ||
+        (email.isNotEmpty && assigned == email) ||
+        (name.isNotEmpty && assigned.contains(name)) ||
+        (name.isNotEmpty && name.contains(assigned));
+  }
+
+  bool _isCallTask(LeadFollowUpTask task) {
+    final type = _statusKey(task.type);
+    final title = task.title.toLowerCase();
+    return type == 'CALL' || title.contains('call');
+  }
+
+  bool _isFollowUpTask(LeadFollowUpTask task) {
+    final type = _statusKey(task.type);
+    final workflow = _statusKey(task.workflowStatus);
+    final title = task.title.toLowerCase();
+    return type == 'CALL' ||
+        type == 'FOLLOW_UP' ||
+        workflow.contains('FOLLOW_UP') ||
+        title.contains('follow');
+  }
+
+  bool _isToday(DateTime? value) {
+    if (value == null) {
+      return false;
+    }
+
+    final local = value.toLocal();
+    final now = DateTime.now();
+    return local.year == now.year &&
+        local.month == now.month &&
+        local.day == now.day;
+  }
+
+  DateTime? _parseRegistryDate(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty || trimmed == '-') {
+      return null;
+    }
+
+    final parsedIso = DateTime.tryParse(trimmed);
+    if (parsedIso != null) {
+      return parsedIso.toLocal();
+    }
+
+    try {
+      return DateFormat('d MMM yyyy').parseLoose(trimmed).toLocal();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  int _firstPositive(List<int?> values) {
+    for (final value in values) {
+      if (value != null && value > 0) {
+        return value;
+      }
+    }
+    return 0;
+  }
+
+  String _statusKey(String value) {
+    return value.trim().toUpperCase().replaceAll(RegExp(r'\s+'), '_');
+  }
+
+  String _normalizeMatchText(String value) {
+    return value.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
   }
 
   Widget _buildAvatar({required double radius}) {
@@ -771,7 +998,7 @@ class _InfoTile extends StatelessWidget {
             label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: const Color(0xFF2E2C2D),
               fontSize: 12.sp,
               fontWeight: FontWeight.w800,
@@ -782,7 +1009,7 @@ class _InfoTile extends StatelessWidget {
             value,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: AppColors.primary,
               fontSize: 17.sp,
               fontWeight: FontWeight.w800,
@@ -792,6 +1019,272 @@ class _InfoTile extends StatelessWidget {
       ),
     );
   }
+}
+
+class _EmployeeActivitySummaryCard extends StatelessWidget {
+  const _EmployeeActivitySummaryCard({
+    required this.summary,
+    required this.isLoading,
+    required this.leadsError,
+    required this.followUpsError,
+  });
+
+  final _EmployeeActivitySummary summary;
+  final bool isLoading;
+  final String? leadsError;
+  final String? followUpsError;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasError = leadsError != null || followUpsError != null;
+
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.fromLTRB(14.w, 14.h, 14.w, 14.h),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10.r),
+        border: Border.all(color: _EmployeeDetailScreenState._borderColor),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFB98770).withValues(alpha: 0.07),
+            blurRadius: 12,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  "TODAY'S WORK",
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF202020),
+                    fontSize: 13.sp,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+              if (isLoading)
+                SizedBox(
+                  width: 16.r,
+                  height: 16.r,
+                  child: const CircularProgressIndicator(strokeWidth: 2),
+                )
+              else
+                Icon(
+                  Icons.insights_rounded,
+                  color: AppColors.primary,
+                  size: 18.sp,
+                ),
+            ],
+          ),
+          SizedBox(height: 12.h),
+          Row(
+            children: [
+              Expanded(
+                child: _ActivityMetricCard(
+                  value: summary.todayLeads,
+                  label: 'TODAY LEADS',
+                  color: AppColors.primary,
+                  icon: Icons.person_add_alt_1_outlined,
+                ),
+              ),
+              SizedBox(width: 10.w),
+              Expanded(
+                child: _ActivityMetricCard(
+                  value: summary.todayCalls,
+                  label: 'TODAY CALLS',
+                  color: const Color(0xFF338AF3),
+                  icon: Icons.call_outlined,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 10.h),
+          Row(
+            children: [
+              Expanded(
+                child: _ActivityMetricCard(
+                  value: summary.totalConversions,
+                  label: 'CONVERSIONS',
+                  color: const Color(0xFF16A15F),
+                  icon: Icons.check_circle_outline_rounded,
+                ),
+              ),
+              SizedBox(width: 10.w),
+              Expanded(
+                child: _ActivityMetricCard(
+                  value: summary.openFollowUps,
+                  label: 'FOLLOW-UPS',
+                  color: const Color(0xFFFF8B2C),
+                  icon: Icons.event_available_outlined,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 12.h),
+          Wrap(
+            spacing: 8.w,
+            runSpacing: 8.h,
+            children: [
+              _ActivityMiniPill(
+                label: 'Assigned leads',
+                value: summary.totalAssignedLeads,
+              ),
+              _ActivityMiniPill(
+                label: 'Due today',
+                value: summary.dueTodayFollowUps,
+              ),
+              _ActivityMiniPill(
+                label: 'Done follow-ups',
+                value: summary.completedFollowUpsToday,
+              ),
+              _ActivityMiniPill(
+                label: 'Profiles',
+                value: summary.profilesHandled,
+              ),
+            ],
+          ),
+          if (hasError) ...[
+            SizedBox(height: 10.h),
+            Text(
+              'Some activity data could not be loaded.',
+              style: GoogleFonts.inter(
+                color: AppColors.danger,
+                fontSize: 11.sp,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ActivityMetricCard extends StatelessWidget {
+  const _ActivityMetricCard({
+    required this.value,
+    required this.label,
+    required this.color,
+    required this.icon,
+  });
+
+  final int value;
+  final String label;
+  final Color color;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 76.h,
+      padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 10.h),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(9.r),
+        border: Border.all(color: color.withValues(alpha: 0.18)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 30.r,
+            height: 30.r,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: color, size: 16.sp),
+          ),
+          SizedBox(width: 9.w),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '$value',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.inter(
+                    color: color,
+                    fontSize: 22.sp,
+                    fontWeight: FontWeight.w900,
+                    height: 1,
+                  ),
+                ),
+                SizedBox(height: 6.h),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF202020),
+                    fontSize: 10.5.sp,
+                    fontWeight: FontWeight.w800,
+                    height: 1,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ActivityMiniPill extends StatelessWidget {
+  const _ActivityMiniPill({required this.label, required this.value});
+
+  final String label;
+  final int value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 9.w, vertical: 6.h),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF8F4),
+        borderRadius: BorderRadius.circular(999.r),
+        border: Border.all(color: const Color(0xFFF0DFD8)),
+      ),
+      child: Text(
+        '$label: $value',
+        style: GoogleFonts.inter(
+          color: const Color(0xFF5E5559),
+          fontSize: 11.sp,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+  }
+}
+
+class _EmployeeActivitySummary {
+  const _EmployeeActivitySummary({
+    required this.todayLeads,
+    required this.todayCalls,
+    required this.totalConversions,
+    required this.openFollowUps,
+    required this.dueTodayFollowUps,
+    required this.completedFollowUpsToday,
+    required this.totalAssignedLeads,
+    required this.profilesHandled,
+  });
+
+  final int todayLeads;
+  final int todayCalls;
+  final int totalConversions;
+  final int openFollowUps;
+  final int dueTodayFollowUps;
+  final int completedFollowUpsToday;
+  final int totalAssignedLeads;
+  final int profilesHandled;
 }
 
 class _EmployeeDetailData {
@@ -837,7 +1330,7 @@ class _SegmentButton extends StatelessWidget {
         ),
         child: Text(
           label,
-          style: GoogleFonts.manrope(
+          style: GoogleFonts.inter(
             fontSize: 14.sp,
             fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
           ),
@@ -879,7 +1372,7 @@ class _AttendanceMetric extends StatelessWidget {
         children: [
           Text(
             value.toString().padLeft(2, '0'),
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: color,
               fontSize: 24.sp,
               fontWeight: FontWeight.w800,
@@ -889,7 +1382,7 @@ class _AttendanceMetric extends StatelessWidget {
           SizedBox(height: 8.h),
           Text(
             label,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: const Color(0xFF151515),
               fontSize: 12.sp,
               fontWeight: FontWeight.w700,
@@ -925,7 +1418,7 @@ class _LateDaysMetric extends StatelessWidget {
       child: Center(
         child: RichText(
           text: TextSpan(
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: const Color(0xFF151515),
               fontSize: 12.sp,
               fontWeight: FontWeight.w700,
@@ -933,7 +1426,7 @@ class _LateDaysMetric extends StatelessWidget {
             children: [
               TextSpan(
                 text: value.toString().padLeft(2, '0'),
-                style: GoogleFonts.manrope(
+                style: GoogleFonts.inter(
                   color: AppColors.primary,
                   fontSize: 24.sp,
                   fontWeight: FontWeight.w800,
@@ -958,7 +1451,7 @@ class _WeekdayLabel extends StatelessWidget {
     return Text(
       label,
       textAlign: TextAlign.center,
-      style: GoogleFonts.manrope(
+      style: GoogleFonts.inter(
         color: const Color(0xFF1F1F1F),
         fontSize: 12.sp,
         fontWeight: FontWeight.w800,
@@ -991,7 +1484,7 @@ class _CalendarDayCell extends StatelessWidget {
           ),
           child: Text(
             '${cell.date.day}',
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: cell.inCurrentMonth
                   ? (isHalfDay
                         ? const Color(0xFF2B76BC)
@@ -1052,7 +1545,7 @@ class _LegendItem extends StatelessWidget {
         SizedBox(width: 6.w),
         Text(
           label,
-          style: GoogleFonts.manrope(
+          style: GoogleFonts.inter(
             color: const Color(0xFF5E5559),
             fontSize: 13.sp,
             fontWeight: FontWeight.w500,
@@ -1086,7 +1579,7 @@ class _HistoryRow extends StatelessWidget {
               label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.manrope(
+              style: GoogleFonts.inter(
                 color: const Color(0xFF5E5559),
                 fontSize: 13.sp,
                 fontWeight: FontWeight.w600,
@@ -1100,7 +1593,7 @@ class _HistoryRow extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.right,
-              style: GoogleFonts.manrope(
+              style: GoogleFonts.inter(
                 color: AppColors.primary,
                 fontSize: 14.sp,
                 fontWeight: FontWeight.w800,
@@ -1131,7 +1624,7 @@ class _HistoryMessage extends StatelessWidget {
       child: Text(
         message,
         textAlign: TextAlign.center,
-        style: GoogleFonts.manrope(
+        style: GoogleFonts.inter(
           color: const Color(0xFF5E5559),
           fontSize: 13.sp,
           fontWeight: FontWeight.w700,
@@ -1175,7 +1668,7 @@ class _PayrollHistoryCard extends StatelessWidget {
                   period,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     color: const Color(0xFF202020),
                     fontSize: 15.sp,
                     fontWeight: FontWeight.w800,
@@ -1189,7 +1682,7 @@ class _PayrollHistoryCard extends StatelessWidget {
           SizedBox(height: 8.h),
           Text(
             currencyFormat.format(item.netSalary),
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: const Color(0xFF16A15F),
               fontSize: 16.sp,
               fontWeight: FontWeight.w900,
@@ -1233,7 +1726,7 @@ class _SmallPill extends StatelessWidget {
         label,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style: GoogleFonts.manrope(
+        style: GoogleFonts.inter(
           color: const Color(0xFF5E5559),
           fontSize: 11.sp,
           fontWeight: FontWeight.w800,
@@ -1261,7 +1754,7 @@ class _InitialsAvatar extends StatelessWidget {
       ),
       child: Text(
         initials,
-        style: GoogleFonts.manrope(
+        style: GoogleFonts.inter(
           color: AppColors.primary,
           fontSize: 18.sp,
           fontWeight: FontWeight.w800,

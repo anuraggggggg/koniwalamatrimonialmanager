@@ -49,7 +49,7 @@ class AuthProvider with ChangeNotifier {
 
     await _ensureInitialized();
     final result = await _authService.login(email, password);
-    
+
     _isLoading = false;
     if (result != null) {
       _userModel = result;
@@ -59,7 +59,7 @@ class AuthProvider with ChangeNotifier {
       notifyListeners();
       return true;
     }
-    
+
     notifyListeners();
     return false;
   }
@@ -70,7 +70,7 @@ class AuthProvider with ChangeNotifier {
 
     await _ensureInitialized();
     final result = await _authService.getCurrentUser();
-    
+
     if (result != null) {
       // Merge with existing tokens if current user result doesn't provide them
       _userModel = UserModel(
@@ -78,12 +78,12 @@ class AuthProvider with ChangeNotifier {
         accessToken: _userModel?.accessToken ?? result.accessToken,
         refreshToken: _userModel?.refreshToken ?? result.refreshToken,
       );
-      
+
       _authService.setAccessToken(_userModel?.accessToken);
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('user', jsonEncode(_userModel!.toJson()));
     }
-    
+
     _isLoading = false;
     notifyListeners();
   }
@@ -94,7 +94,7 @@ class AuthProvider with ChangeNotifier {
 
     await _ensureInitialized();
     final success = await _authService.refreshSession();
-    
+
     if (success) {
       // After a successful refresh, we might want to fetch the updated user profile
       // which often includes a new access token if the backend provides it via cookies
@@ -174,15 +174,9 @@ class AuthProvider with ChangeNotifier {
     return result;
   }
 
-  Future<bool> runPayroll({
-    required int month,
-    required int year,
-  }) async {
+  Future<bool> runPayroll({required int month, required int year}) async {
     await _ensureInitialized();
-    return await _authService.runPayroll(
-      month: month,
-      year: year,
-    );
+    return await _authService.runPayroll(month: month, year: year);
   }
 
   Future<List<dynamic>?> fetchProfiles({

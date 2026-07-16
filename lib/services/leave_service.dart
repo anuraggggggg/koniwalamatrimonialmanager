@@ -105,8 +105,7 @@ class LeaveService {
     required String leaveId,
     required String status,
   }) async {
-    final url =
-        '${ApiConstants.baseUrl}${ApiConstants.hrLeaveStatus(leaveId)}';
+    final url = '${ApiConstants.baseUrl}${ApiConstants.hrLeaveStatus(leaveId)}';
     final data = {'status': status};
     try {
       final response = await _postLeaveStatus(url: url, data: data);
@@ -120,7 +119,10 @@ class LeaveService {
       final statusCode = e.response?.statusCode;
       if (statusCode == 404 || statusCode == 405) {
         try {
-          final fallbackResponse = await _patchLeaveStatus(url: url, data: data);
+          final fallbackResponse = await _patchLeaveStatus(
+            url: url,
+            data: data,
+          );
           if (fallbackResponse.statusCode == 200 ||
               fallbackResponse.statusCode == 201 ||
               fallbackResponse.statusCode == 204) {

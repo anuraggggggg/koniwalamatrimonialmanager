@@ -18,8 +18,8 @@ class LeavesScreen extends StatefulWidget {
 }
 
 class _LeavesScreenState extends State<LeavesScreen> {
-  static const Color _maroon = AppColors.primary;
-  static const Color _surface = AppColors.rmSoftPink;
+  static const Color _orange = Color(0xFFD76322);
+  static const Color _surface = Color(0xFFFFF9F6);
 
   bool _showManagementQueue = true;
   String? _lastRoleForDefaultTab;
@@ -133,13 +133,239 @@ class _LeavesScreenState extends State<LeavesScreen> {
 
     return Scaffold(
       backgroundColor: _surface,
-      appBar: AppBar(
-        toolbarHeight: 70.h,
-        backgroundColor: AppColors.rmPrimary,
-        surfaceTintColor: AppColors.rmPrimary,
-        elevation: 0,
-        automaticallyImplyLeading: false,
-        leadingWidth: 56.w,
+      appBar: _PersonnelAttendanceAppBar(
+        onBackPressed: () {
+          final navigator = Navigator.of(context);
+          if (navigator.canPop()) {
+            navigator.pop();
+            return;
+          }
+          if (canOpenAdminDrawer) {
+            navigator.pushNamed(AppRoutes.adminDrawer);
+          }
+        },
+      ),
+      body: SafeArea(
+        top: false,
+        child: Consumer<LeaveProvider>(
+          builder: (context, provider, _) {
+            if (provider.isLoading) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            final leaves = provider.leaves.toList()..sort(_compareNewestLeaves);
+            final managementQueue = leaves
+                .where(
+                  (leave) =>
+                      _isPendingStatus(leave.status) ||
+                      (isHrRole && _isApprovedStatus(leave.status)),
+                )
+                .toList();
+            final myHistory = canManageLeaves
+                ? _myHistory(
+                    leaves,
+                    includeUnassignedLeaves: false,
+                    currentUserId: authUser?.id,
+                    currentUserEmail: authUser?.email,
+                    currentUserName: authUser?.name,
+                  )
+                : leaves;
+            final showManagementQueue = canManageLeaves && _showManagementQueue;
+            final visibleLeaves = showManagementQueue
+                ? managementQueue
+                : myHistory;
+            final statLeaves = canManageLeaves ? leaves : myHistory;
+            final pendingCount = _countByStatus(statLeaves, _isPendingStatus);
+            final approvedCount = _countByStatus(statLeaves, _isApprovedStatus);
+            final deniedCount = _countByStatus(statLeaves, _isDeniedStatus);
+
+            final stats = [
+              _ArchiveMetric(
+                value: '$pendingCount',
+                title: 'Pending Requests',
+                subtitle: 'up 12% from last\nmonth',
+                accent: _orange,
+                icon: Icons.hourglass_empty_rounded,
+              ),
+              _ArchiveMetric(
+                value: '$deniedCount',
+                title: 'Pending Requests',
+                subtitle: 'created by your\nteam',
+                accent: _orange,
+                icon: Icons.cancel_outlined,
+              ),
+              _ArchiveMetric(
+                value: '$approvedCount',
+                title: 'Approved Leaves',
+                subtitle: '10/433\ncompleted',
+                accent: _orange,
+                icon: Icons.check_circle_outline_rounded,
+              ),
+              _ArchiveMetric(
+                value: '${statLeaves.length}',
+                title: 'Total Ledger',
+                subtitle: 'review reasons',
+                accent: _orange,
+                icon: Icons.cancel_outlined,
+              ),
+            ];
+
+            return SingleChildScrollView(
+              padding: EdgeInsets.fromLTRB(14.w, 22.h, 14.w, 28.h),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Generate, review, and manage matches for your\nclients in one place.',
+                    style: GoogleFonts.inter(
+                      fontSize: 16.sp,
+                      fontWeight: FontWeight.w500,
+                      color: const Color(0xFF23201E),
+                      height: 1.55,
+                    ),
+                  ),
+                  SizedBox(height: 16.h),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 42.h,
+                    child: ElevatedButton.icon(
+                      onPressed: _openRequestNewLeave,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _orange,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(6.r),
+                        ),
+                      ),
+                      icon: Icon(Icons.add_rounded, size: 20.sp),
+                      label: Text(
+                        'REQUEST NEW LEAVE',
+                        style: GoogleFonts.inter(
+                          fontSize: 14.sp,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.2,
+                        ),
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: 16.h),
+                  GridView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: stats.length,
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 8.w,
+                      mainAxisSpacing: 8.h,
+                      mainAxisExtent: 116.h,
+                    ),
+                    itemBuilder: (context, index) {
+                      return _ArchiveStatCard(metric: stats[index]);
+                    },
+                  ),
+                  SizedBox(height: 22.h),
+                  Container(
+                    padding: EdgeInsets.all(8.w),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12.r),
+                      border: Border.all(color: const Color(0xFFF0DFD7)),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x12000000),
+                          blurRadius: 10,
+                          offset: Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _QueueTab(
+                                label: 'My Leave History',
+                                selected: !showManagementQueue,
+                                activeColor: _orange,
+                                onTap: () {
+                                  if (showManagementQueue) {
+                                    setState(
+                                      () => _showManagementQueue = false,
+                                    );
+                                  }
+                                },
+                              ),
+                            ),
+                            if (canManageLeaves) ...[
+                              SizedBox(width: 8.w),
+                              Expanded(
+                                child: _QueueTab(
+                                  label: 'Management queue',
+                                  selected: showManagementQueue,
+                                  activeColor: _orange,
+                                  onTap: () {
+                                    if (!_showManagementQueue) {
+                                      setState(
+                                        () => _showManagementQueue = true,
+                                      );
+                                    }
+                                  },
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        SizedBox(height: 12.h),
+                        if (visibleLeaves.isEmpty)
+                          _EmptyArchiveCard(
+                            title: showManagementQueue
+                                ? 'No pending leave requests available right now.'
+                                : 'No leave history available for this user.',
+                          )
+                        else
+                          Column(
+                            children: [
+                              for (
+                                int index = 0;
+                                index < visibleLeaves.length;
+                                index++
+                              ) ...[
+                                if (index > 0) SizedBox(height: 12.h),
+                                _LeaveArchiveCard(
+                                  leave: visibleLeaves[index],
+                                  statusForeground: _statusForeground(
+                                    visibleLeaves[index].status,
+                                  ),
+                                  statusBackground: _statusBackground(
+                                    visibleLeaves[index].status,
+                                  ),
+                                  onActionPressed:
+                                      showManagementQueue && canApproveLeaves
+                                      ? () => _showPendingLeaveActions(
+                                          visibleLeaves[index],
+                                        )
+                                      : null,
+                                  isActionLoading: provider.isProcessingLeave(
+                                    visibleLeaves[index].id,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  /*
         leading: IconButton(
           tooltip: canOpenAdminDrawer ? 'Menu' : 'Back',
           onPressed: () {
@@ -232,7 +458,7 @@ class _LeavesScreenState extends State<LeavesScreen> {
                 children: [
                   Text(
                     'Personnel Attendance\nArchives',
-                    style: GoogleFonts.manrope(
+                    style: GoogleFonts.inter(
                       fontSize: 29.sp,
                       fontWeight: FontWeight.w900,
                       color: _maroon,
@@ -242,7 +468,7 @@ class _LeavesScreenState extends State<LeavesScreen> {
                   SizedBox(height: 10.h),
                   Text(
                     'Manage and track institutional leave requests\nwith real-time oversight.',
-                    style: GoogleFonts.manrope(
+                    style: GoogleFonts.inter(
                       fontSize: 15.sp,
                       fontWeight: FontWeight.w500,
                       color: const Color(0xFF6E6268),
@@ -268,7 +494,7 @@ class _LeavesScreenState extends State<LeavesScreen> {
                       icon: Icon(Icons.add, size: 18.sp),
                       label: Text(
                         'Request New Leave',
-                        style: GoogleFonts.manrope(
+                        style: GoogleFonts.inter(
                           fontSize: 15.sp,
                           fontWeight: FontWeight.w700,
                         ),
@@ -363,6 +589,7 @@ class _LeavesScreenState extends State<LeavesScreen> {
       ),
     );
   }
+  */
 
   List<LeaveModel> _myHistory(
     List<LeaveModel> leaves, {
@@ -379,23 +606,21 @@ class _LeavesScreenState extends State<LeavesScreen> {
         normalizedName.isEmpty) {
       return const [];
     }
-    return leaves
-        .where((leave) {
-          if (normalizedId.isNotEmpty &&
-              leave.userId.trim().toLowerCase() == normalizedId) {
-            return true;
-          }
-          if (normalizedEmail.isNotEmpty &&
-              leave.userEmail.trim().toLowerCase() == normalizedEmail) {
-            return true;
-          }
-          if (normalizedName.isNotEmpty &&
-              leave.userName.trim().toLowerCase() == normalizedName) {
-            return true;
-          }
-          return includeUnassignedLeaves && !_hasOwnerIdentity(leave);
-        })
-        .toList();
+    return leaves.where((leave) {
+      if (normalizedId.isNotEmpty &&
+          leave.userId.trim().toLowerCase() == normalizedId) {
+        return true;
+      }
+      if (normalizedEmail.isNotEmpty &&
+          leave.userEmail.trim().toLowerCase() == normalizedEmail) {
+        return true;
+      }
+      if (normalizedName.isNotEmpty &&
+          leave.userName.trim().toLowerCase() == normalizedName) {
+        return true;
+      }
+      return includeUnassignedLeaves && !_hasOwnerIdentity(leave);
+    }).toList();
   }
 
   bool _hasOwnerIdentity(LeaveModel leave) {
@@ -408,9 +633,9 @@ class _LeavesScreenState extends State<LeavesScreen> {
   }
 
   Future<void> _openRequestNewLeave() async {
-    final result = await Navigator.of(context).pushNamed(
-      AppRoutes.requestNewLeave,
-    );
+    final result = await Navigator.of(
+      context,
+    ).pushNamed(AppRoutes.requestNewLeave);
     final submitted = result is bool && result;
     if (!mounted || submitted != true) {
       return;
@@ -473,62 +698,51 @@ class _LeavesScreenState extends State<LeavesScreen> {
     }
     return const Color(0xFFFFF5D6);
   }
+}
 
-  Color _avatarColor(int index) {
-    const colors = [
-      Color(0xFFFFE1EC),
-      Color(0xFFE8E7FF),
-      Color(0xFFFFF0DA),
-      Color(0xFFE4F6EA),
-    ];
-    return colors[index % colors.length];
-  }
+class _PersonnelAttendanceAppBar extends StatelessWidget
+    implements PreferredSizeWidget {
+  const _PersonnelAttendanceAppBar({required this.onBackPressed});
 
-  static String _initialsFor(String name) {
-    final parts = name
-        .split(RegExp(r'\s+'))
-        .where((part) => part.trim().isNotEmpty)
-        .toList();
-    if (parts.isEmpty) {
-      return 'NA';
-    }
-    if (parts.length == 1) {
-      return parts.first.substring(0, parts.first.length.clamp(0, 2)).toUpperCase();
-    }
-    return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
-  }
+  final VoidCallback onBackPressed;
 
-  static String _formatCardDate(LeaveModel leave) {
-    final start = _formatDateLabel(leave.startDate);
-    final end = _formatDateLabel(leave.endDate);
-    if (_sameDay(leave.startDate, leave.endDate)) {
-      return start;
-    }
-    return '$start - $end';
-  }
+  @override
+  Size get preferredSize => Size.fromHeight(64.h);
 
-  static bool _sameDay(DateTime left, DateTime right) {
-    return left.year == right.year &&
-        left.month == right.month &&
-        left.day == right.day;
-  }
-
-  static String _formatDateLabel(DateTime date) {
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
-    return '${months[date.month - 1]} ${date.day}, ${date.year}';
+  @override
+  Widget build(BuildContext context) {
+    return AppBar(
+      toolbarHeight: 64.h,
+      backgroundColor: Colors.white,
+      surfaceTintColor: Colors.white,
+      elevation: 0,
+      shadowColor: AppColors.transparent,
+      leadingWidth: 54.w,
+      leading: IconButton(
+        tooltip: 'Back',
+        onPressed: onBackPressed,
+        icon: Icon(
+          Icons.arrow_back_rounded,
+          color: const Color(0xFF171412),
+          size: 24.sp,
+        ),
+      ),
+      title: Text(
+        'Personnel Attendance',
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: GoogleFonts.inter(
+          color: const Color(0xFF171412),
+          fontSize: 21.sp,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+      centerTitle: true,
+      bottom: PreferredSize(
+        preferredSize: Size.fromHeight(1.h),
+        child: Container(height: 1.h, color: const Color(0xFFE7DCD5)),
+      ),
+    );
   }
 }
 
@@ -549,88 +763,87 @@ class _ArchiveMetric {
 }
 
 class _ArchiveStatCard extends StatelessWidget {
-  const _ArchiveStatCard({required this.metric, required this.maroon});
+  const _ArchiveStatCard({required this.metric});
 
   final _ArchiveMetric metric;
-  final Color maroon;
 
   @override
   Widget build(BuildContext context) {
     return Container(
+      padding: EdgeInsets.fromLTRB(14.w, 14.h, 12.w, 12.h),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16.r),
-        border: Border.all(color: AppColors.rmPaleRoseBorder),
+        borderRadius: BorderRadius.circular(8.r),
+        border: Border.all(color: const Color(0xFFF0DFD7)),
         boxShadow: const [
           BoxShadow(
-            color: AppColors.rmCardShadow,
-            blurRadius: 14,
-            offset: Offset(0, 6),
+            color: Color(0x14000000),
+            blurRadius: 12,
+            offset: Offset(0, 5),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            height: 3.h,
-            decoration: BoxDecoration(
-              color: metric.accent,
-              borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(16.r),
-                topRight: Radius.circular(16.r),
-              ),
+          Text(
+            metric.title.toUpperCase(),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF33302D),
+              fontSize: 12.sp,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0.2,
             ),
           ),
-          Expanded(
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(14.w, 14.h, 14.w, 12.h),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          metric.value,
-                          style: GoogleFonts.manrope(
-                            fontSize: 35.sp,
-                            fontWeight: FontWeight.w800,
-                            color: const Color(0xFF1F1B20),
-                            height: 1,
-                          ),
-                        ),
-                      ),
-                      Icon(metric.icon, size: 20.sp, color: metric.accent),
-                    ],
-                  ),
-                  SizedBox(height: 10.h),
-                  Text(
-                    metric.title,
-                    style: GoogleFonts.manrope(
-                      fontSize: 14.sp,
-                      fontWeight: FontWeight.w500,
-                      color: const Color(0xFF665A60),
-                      height: 1.2,
-                    ),
-                  ),
-                  SizedBox(height: 4.h),
-                  Text(
-                    metric.subtitle,
-                    style: GoogleFonts.manrope(
-                      fontSize: 10.sp,
-                      fontWeight: FontWeight.w700,
-                      color: metric.accent,
-                      letterSpacing: 0.4,
-                    ),
-                  ),
-                ],
-              ),
+          SizedBox(height: 8.h),
+          Text(
+            metric.value,
+            style: GoogleFonts.inter(
+              fontSize: 23.sp,
+              fontWeight: FontWeight.w900,
+              color: metric.accent,
+              height: 1,
             ),
+          ),
+          const Spacer(),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: Text(
+                  metric.subtitle,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.inter(
+                    fontSize: 12.sp,
+                    fontWeight: FontWeight.w900,
+                    color: const Color(0xFF35302D),
+                    height: 1.12,
+                  ),
+                ),
+              ),
+              Icon(
+                metric.icon,
+                size: 18.sp,
+                color: _metricIconColor(metric.icon),
+              ),
+            ],
           ),
         ],
       ),
     );
+  }
+
+  Color _metricIconColor(IconData icon) {
+    if (icon == Icons.check_circle_outline_rounded) {
+      return const Color(0xFF00A36A);
+    }
+    if (icon == Icons.hourglass_empty_rounded) {
+      return const Color(0xFFE5B428);
+    }
+    return const Color(0xFFE1222E);
   }
 }
 
@@ -649,25 +862,28 @@ class _QueueTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        padding: EdgeInsets.only(bottom: 11.h),
-        decoration: BoxDecoration(
-          border: Border(
-            bottom: BorderSide(
-              color: selected ? activeColor : const Color(0xFFE7D9E0),
-              width: selected ? 2.2 : 1.1,
-            ),
+    return SizedBox(
+      height: 38.h,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(11.r),
+        child: Container(
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: selected ? activeColor : Colors.white,
+            borderRadius: BorderRadius.circular(11.r),
+            border: Border.all(color: const Color(0xFFD76322)),
           ),
-        ),
-        child: Text(
-          label,
-          textAlign: TextAlign.center,
-          style: GoogleFonts.manrope(
-            fontSize: 14.sp,
-            fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-            color: selected ? activeColor : const Color(0xFF8A8086),
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: GoogleFonts.inter(
+              fontSize: 15.sp,
+              fontWeight: FontWeight.w800,
+              color: selected ? Colors.white : const Color(0xFF2C2522),
+            ),
           ),
         ),
       ),
@@ -678,224 +894,128 @@ class _QueueTab extends StatelessWidget {
 class _LeaveArchiveCard extends StatelessWidget {
   const _LeaveArchiveCard({
     required this.leave,
-    required this.footerLabel,
-    required this.dateText,
-    required this.initials,
     required this.statusForeground,
     required this.statusBackground,
-    required this.leadingColor,
     this.onActionPressed,
     this.isActionLoading = false,
   });
 
   final LeaveModel leave;
-  final String footerLabel;
-  final String dateText;
-  final String initials;
   final Color statusForeground;
   final Color statusBackground;
-  final Color leadingColor;
   final VoidCallback? onActionPressed;
   final bool isActionLoading;
 
   @override
   Widget build(BuildContext context) {
     return Container(
+      padding: EdgeInsets.fromLTRB(12.w, 14.h, 12.w, 12.h),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16.r),
-        border: Border.all(color: AppColors.rmPaleRoseBorder),
+        borderRadius: BorderRadius.circular(10.r),
+        border: Border.all(color: const Color(0xFFF0DFD7)),
         boxShadow: const [
           BoxShadow(
-            color: AppColors.rmCardShadow,
-            blurRadius: 14,
-            offset: Offset(0, 6),
+            color: Color(0x0F000000),
+            blurRadius: 9,
+            offset: Offset(0, 4),
           ),
         ],
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: EdgeInsets.fromLTRB(14.w, 14.h, 14.w, 12.h),
-            child: Column(
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: 40.r,
-                      height: 40.r,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: leadingColor,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Text(
-                        initials,
-                        style: GoogleFonts.manrope(
-                          fontSize: 15.sp,
-                          fontWeight: FontWeight.w800,
-                          color: const Color(0xFFA33C68),
-                        ),
-                      ),
-                    ),
-                    SizedBox(width: 12.w),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            leave.userName,
-                            style: GoogleFonts.manrope(
-                              fontSize: 16.sp,
-                              fontWeight: FontWeight.w600,
-                              color: const Color(0xFF433A3F),
-                            ),
-                          ),
-                          SizedBox(height: 2.h),
-                          Text(
-                            leave.userRole.replaceAll('_', ' ').toUpperCase(),
-                            style: GoogleFonts.manrope(
-                              fontSize: 10.sp,
-                              fontWeight: FontWeight.w600,
-                              color: const Color(0xFFA3989F),
-                              letterSpacing: 0.3,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Container(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 10.w,
-                        vertical: 5.h,
-                      ),
-                      decoration: BoxDecoration(
-                        color: statusBackground,
-                        borderRadius: BorderRadius.circular(999.r),
-                      ),
-                      child: Text(
-                        leave.status.toUpperCase(),
-                        style: GoogleFonts.manrope(
-                          fontSize: 10.sp,
-                          fontWeight: FontWeight.w800,
-                          color: statusForeground,
-                        ),
-                      ),
-                    ),
-                  ],
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Text(
+                  _typeLabel(leave),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.inter(
+                    fontSize: 18.sp,
+                    fontWeight: FontWeight.w900,
+                    color: const Color(0xFF1F1C19),
+                  ),
                 ),
-                SizedBox(height: 14.h),
-                Row(
-                  children: [
-                    Icon(
-                      Icons.calendar_today_outlined,
-                      size: 15.sp,
-                      color: const Color(0xFF9B9097),
-                    ),
-                    SizedBox(width: 6.w),
-                    Expanded(
-                      child: Text(
-                        _typeLabel(leave),
-                        style: GoogleFonts.manrope(
-                          fontSize: 13.sp,
-                          fontWeight: FontWeight.w500,
-                          color: const Color(0xFF72666D),
-                        ),
+              ),
+              Icon(
+                Icons.visibility_outlined,
+                color: const Color(0xFF4A4E5C),
+                size: 20.sp,
+              ),
+              SizedBox(width: 18.w),
+              InkWell(
+                onTap: isActionLoading ? null : onActionPressed,
+                borderRadius: BorderRadius.circular(8.r),
+                child: isActionLoading
+                    ? SizedBox(
+                        width: 18.sp,
+                        height: 18.sp,
+                        child: const CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Icon(
+                        Icons.edit_rounded,
+                        color: const Color(0xFF4A4E5C),
+                        size: 20.sp,
                       ),
-                    ),
-                    Icon(
-                      Icons.event_outlined,
-                      size: 15.sp,
-                      color: const Color(0xFF9B9097),
-                    ),
-                    SizedBox(width: 6.w),
-                    Text(
-                      dateText,
-                      style: GoogleFonts.manrope(
-                        fontSize: 13.sp,
-                        fontWeight: FontWeight.w500,
-                        color: const Color(0xFF72666D),
-                      ),
-                    ),
-                  ],
+              ),
+            ],
+          ),
+          SizedBox(height: 4.h),
+          Row(
+            children: [
+              Icon(
+                Icons.schedule_rounded,
+                color: const Color(0xFF5F5B62),
+                size: 15.sp,
+              ),
+              SizedBox(width: 4.w),
+              Text(
+                _durationLabel(leave),
+                style: GoogleFonts.inter(
+                  fontSize: 14.sp,
+                  fontWeight: FontWeight.w500,
+                  color: const Color(0xFF5F5B62),
                 ),
-                SizedBox(height: 10.h),
-                Row(
-                  children: [
-                    Icon(
-                      Icons.description_outlined,
-                      size: 15.sp,
-                      color: AppColors.primary,
-                    ),
-                    SizedBox(width: 6.w),
-                    Expanded(
-                      child: Text(
-                        leave.reason.trim().isEmpty ? 'No description provided.' : leave.reason,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.manrope(
-                          fontSize: 13.sp,
-                          fontWeight: FontWeight.w500,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                    ),
-                  ],
+              ),
+              const Spacer(),
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 4.h),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(999.r),
+                  border: Border.all(color: statusForeground),
                 ),
-              ],
+                child: Text(
+                  _statusLabel(leave.status),
+                  style: GoogleFonts.inter(
+                    fontSize: 12.sp,
+                    fontWeight: FontWeight.w800,
+                    color: statusForeground,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 14.h),
+          Container(
+            width: double.infinity,
+            padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 13.h),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF7F8FB),
+              borderRadius: BorderRadius.circular(8.r),
             ),
-          ),
-          Divider(
-            height: 1,
-            thickness: 1,
-            color: const Color(0xFFF0E4E8),
-          ),
-          Padding(
-            padding: EdgeInsets.fromLTRB(14.w, 11.h, 14.w, 11.h),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    footerLabel,
-                    style: GoogleFonts.manrope(
-                      fontSize: 11.sp,
-                      fontWeight: FontWeight.w500,
-                      color: const Color(0xFF90858B),
-                    ),
-                  ),
-                ),
-                if (onActionPressed != null)
-                  InkWell(
-                    onTap: isActionLoading ? null : onActionPressed,
-                    borderRadius: BorderRadius.circular(999.r),
-                    child: Container(
-                      width: 34.r,
-                      height: 34.r,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFF4F7),
-                        borderRadius: BorderRadius.circular(999.r),
-                      ),
-                      child: isActionLoading
-                          ? SizedBox(
-                              width: 16.r,
-                              height: 16.r,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: const AlwaysStoppedAnimation<Color>(
-                                  AppColors.rmPrimary,
-                                ),
-                              ),
-                            )
-                          : Icon(
-                              Icons.more_horiz_rounded,
-                              size: 20.sp,
-                              color: AppColors.rmPrimary,
-                            ),
-                    ),
-                  ),
-              ],
+            child: Text(
+              'Reason: ${leave.reason.trim().isEmpty ? 'No description provided.' : leave.reason}',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.inter(
+                fontSize: 14.sp,
+                fontWeight: FontWeight.w500,
+                color: const Color(0xFF4F4750),
+              ),
             ),
           ),
         ],
@@ -905,9 +1025,28 @@ class _LeaveArchiveCard extends StatelessWidget {
 
   static String _typeLabel(LeaveModel leave) {
     if (leave.isHalfDay) {
-      return '${leave.type} • Half-day';
+      return leave.type;
     }
     return leave.type;
+  }
+
+  static String _durationLabel(LeaveModel leave) {
+    if (leave.isHalfDay) {
+      return '0.5 Day';
+    }
+    final days = leave.endDate.difference(leave.startDate).inDays + 1;
+    return '$days ${days == 1 ? 'Day' : 'Days'}';
+  }
+
+  static String _statusLabel(String status) {
+    final normalized = status.trim().toUpperCase();
+    if (normalized.contains('REJECT')) {
+      return 'DENIED';
+    }
+    if (normalized.isEmpty) {
+      return 'PENDING';
+    }
+    return normalized;
   }
 }
 
@@ -941,7 +1080,7 @@ class _LeaveActionSheet extends StatelessWidget {
               SizedBox(height: 16.h),
               Text(
                 'Pending Leave Actions',
-                style: GoogleFonts.manrope(
+                style: GoogleFonts.inter(
                   color: AppColors.rmHeading,
                   fontSize: 18.sp,
                   fontWeight: FontWeight.w800,
@@ -1017,7 +1156,7 @@ class _LeaveActionTile extends StatelessWidget {
             Expanded(
               child: Text(
                 label,
-                style: GoogleFonts.manrope(
+                style: GoogleFonts.inter(
                   color: AppColors.rmHeading,
                   fontSize: 15.sp,
                   fontWeight: FontWeight.w700,
@@ -1062,7 +1201,7 @@ class _EmptyArchiveCard extends StatelessWidget {
           Text(
             title,
             textAlign: TextAlign.center,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               fontSize: 14.sp,
               fontWeight: FontWeight.w600,
               color: const Color(0xFF746970),

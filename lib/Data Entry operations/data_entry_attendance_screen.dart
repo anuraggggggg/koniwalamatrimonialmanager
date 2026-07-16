@@ -21,7 +21,7 @@ class DataEntryAttendanceScreen extends StatelessWidget {
         children: [
           Text(
             'Attendance',
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               fontSize: 29.sp,
               fontWeight: FontWeight.w900,
               color: AppColors.rmPrimary,
@@ -30,7 +30,7 @@ class DataEntryAttendanceScreen extends StatelessWidget {
           SizedBox(height: 6.h),
           Text(
             'Track daily punch-in and working-hour records.',
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               fontSize: 15.sp,
               fontWeight: FontWeight.w600,
               color: AppColors.rmMutedText,
@@ -94,7 +94,7 @@ class _MetricCard extends StatelessWidget {
           SizedBox(height: 12.h),
           Text(
             value,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               fontSize: 28.sp,
               fontWeight: FontWeight.w900,
               color: AppColors.rmHeading,
@@ -102,7 +102,7 @@ class _MetricCard extends StatelessWidget {
           ),
           Text(
             label,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               fontSize: 14.sp,
               fontWeight: FontWeight.w700,
               color: AppColors.rmMutedText,
@@ -138,7 +138,7 @@ class _AttendanceCard extends StatelessWidget {
               children: [
                 Text(
                   row.day,
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     fontSize: 15.sp,
                     fontWeight: FontWeight.w800,
                     color: AppColors.rmHeading,
@@ -147,7 +147,7 @@ class _AttendanceCard extends StatelessWidget {
                 SizedBox(height: 4.h),
                 Text(
                   'In: ${row.punchIn}  |  Total: ${row.totalHours}',
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     fontSize: 14.sp,
                     fontWeight: FontWeight.w600,
                     color: AppColors.rmMutedText,
@@ -166,7 +166,7 @@ class _AttendanceCard extends StatelessWidget {
             ),
             child: Text(
               row.status,
-              style: GoogleFonts.manrope(
+              style: GoogleFonts.inter(
                 fontSize: 14.sp,
                 fontWeight: FontWeight.w900,
                 color: isLeave ? AppColors.danger : AppColors.success,

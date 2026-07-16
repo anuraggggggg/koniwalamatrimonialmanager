@@ -14,14 +14,13 @@ class RequestNewLeaveScreen extends StatefulWidget {
   State<RequestNewLeaveScreen> createState() => _RequestNewLeaveScreenState();
 }
 
-
-
 class _RequestNewLeaveScreenState extends State<RequestNewLeaveScreen> {
   final List<String> _categories = const [
     'Annual leave',
     'Sick leave',
     'Unpaid leave',
   ];
+  bool _isHalfDay = false;
 
   @override
   void initState() {
@@ -77,9 +76,9 @@ class _RequestNewLeaveScreenState extends State<RequestNewLeaveScreen> {
   }
 
   void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _submitLeave() async {
@@ -158,12 +157,14 @@ class _RequestNewLeaveScreenState extends State<RequestNewLeaveScreen> {
     }
 
     requestProvider.reset();
+    setState(() => _isHalfDay = false);
     _showMessage('Leave request sent to admin queue.');
     Navigator.pop(context, true);
   }
 
   void _closeScreen() {
     context.read<LeaveRequestProvider>().reset();
+    setState(() => _isHalfDay = false);
     Navigator.pop(context);
   }
 
@@ -174,50 +175,28 @@ class _RequestNewLeaveScreenState extends State<RequestNewLeaveScreen> {
         normalizedRole == 'HR';
   }
 
-  BoxDecoration _requestCardDecoration({double radius = 12}) {
-    return BoxDecoration(
-      color: AppColors.white,
-      borderRadius: BorderRadius.circular(radius),
-      border: Border.all(color: AppColors.rmPaleRoseBorder),
-      boxShadow: const [
-        BoxShadow(
-          color: AppColors.rmCardShadow,
-          blurRadius: 14,
-          offset: Offset(0, 6),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildDecoratedField({required Widget child}) {
-    return Container(
-      decoration: _requestCardDecoration(radius: 12.r),
-      child: child,
-    );
-  }
-
   InputDecoration _fieldDecoration(String hint) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: GoogleFonts.manrope(
-        color: AppColors.rmHintText,
+      hintStyle: GoogleFonts.inter(
+        color: const Color(0xFF27292D),
         fontWeight: FontWeight.w500,
-        fontSize: 18.sp,
+        fontSize: 16.sp,
       ),
-      contentPadding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 10.h),
+      contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 14.h),
       filled: true,
       fillColor: AppColors.white,
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12.r),
-        borderSide: BorderSide.none,
+        borderSide: const BorderSide(color: Color(0xFFD9D9D9)),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12.r),
-        borderSide: BorderSide.none,
+        borderSide: const BorderSide(color: Color(0xFFD76322)),
       ),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12.r),
-        borderSide: BorderSide.none,
+        borderSide: const BorderSide(color: Color(0xFFD9D9D9)),
       ),
     );
   }
@@ -227,249 +206,305 @@ class _RequestNewLeaveScreenState extends State<RequestNewLeaveScreen> {
     final requestProvider = context.watch<LeaveRequestProvider>();
 
     return Scaffold(
-      backgroundColor: AppColors.rmSoftPink,
-      appBar: AppBar(
-        backgroundColor: AppColors.white,
-        surfaceTintColor: AppColors.white,
-        scrolledUnderElevation: 0,
-        elevation: 0,
-        toolbarHeight: 66.h,
-        automaticallyImplyLeading: false,
-        title: Text(
-          'New Request',
-          style: GoogleFonts.manrope(
-            fontSize: 20.sp,
-            fontWeight: FontWeight.w800,
-            color: AppColors.rmHeading,
-          ),
-        ),
-        actions: [
-          IconButton(
-            onPressed: _closeScreen,
-            icon: Icon(Icons.close, color: AppColors.primary, size: 24.sp),
-          ),
-          SizedBox(width: 12.w),
-        ],
-      ),
+      backgroundColor: const Color(0xFFFFF9F6),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: EdgeInsets.fromLTRB(20.w, 4.h, 20.w, 24.h),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Request New Leave',
-                style: GoogleFonts.manrope(
-                  fontSize: 28.sp,
-                  fontWeight: FontWeight.w900,
-                  color: AppColors.primary,
-                  height: 1.3,
-                ),
+        child: Center(
+          child: SingleChildScrollView(
+            padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 16.h),
+            child: Container(
+              width: double.infinity,
+              constraints: BoxConstraints(maxWidth: 390.w),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x33000000),
+                    blurRadius: 24,
+                    offset: Offset(0, 12),
+                  ),
+                ],
               ),
-              const SizedBox(height: 8),
-              Text(
-                'Initiate a formal leave request for administrative review and ledger adjustment.',
-                style: GoogleFonts.manrope(
-                  fontSize: 18.sp,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.rmMutedText,
-                  height: 1.5,
-                ),
-              ),
-              SizedBox(height: 12.h),
-              _buildLabel('Leave Categorization'),
-              SizedBox(height: 6.h),
-              _buildDecoratedField(
-                child: DropdownButtonFormField<String>(
-                  isExpanded: true,
-                  dropdownColor: AppColors.white,
-                  menuMaxHeight: 300.h,
-                  borderRadius: BorderRadius.circular(12.r),
-                  value: requestProvider.selectedCategory,
-                  items: _categories
-                      .map(
-                        (c) => DropdownMenuItem(
-                          value: c,
-                          child: Text(
-                            c,
-                            style: GoogleFonts.manrope(
-                              fontSize: 18.sp,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.rmHeading,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(16.w, 18.h, 14.w, 18.h),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Request New Leave',
+                                style: GoogleFonts.inter(
+                                  fontSize: 22.sp,
+                                  fontWeight: FontWeight.w800,
+                                  color: const Color(0xFF171412),
+                                  height: 1.1,
+                                ),
+                              ),
+                              SizedBox(height: 10.h),
+                              Text(
+                                'Initiate a formal leave request for\nadministrative review.',
+                                style: GoogleFonts.inter(
+                                  fontSize: 17.sp,
+                                  fontWeight: FontWeight.w500,
+                                  color: const Color(0xFF171412),
+                                  height: 1.28,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          tooltip: 'Close',
+                          onPressed: _closeScreen,
+                          icon: Icon(
+                            Icons.close_rounded,
+                            color: const Color(0xFF111827),
+                            size: 24.sp,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Divider(height: 1, color: Color(0xFFE7DCD5)),
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(16.w, 18.h, 16.w, 16.h),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildLabel('Leave Categorization'),
+                        SizedBox(height: 14.h),
+                        DropdownButtonFormField<String>(
+                          isExpanded: true,
+                          dropdownColor: AppColors.white,
+                          menuMaxHeight: 300.h,
+                          borderRadius: BorderRadius.circular(12.r),
+                          initialValue: requestProvider.selectedCategory,
+                          items: _categories
+                              .map(
+                                (c) => DropdownMenuItem(
+                                  value: c,
+                                  child: Text(
+                                    c,
+                                    style: GoogleFonts.inter(
+                                      fontSize: 18.sp,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.rmHeading,
+                                    ),
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: requestProvider.setSelectedCategory,
+                          decoration: _fieldDecoration('Select category...'),
+                          icon: Icon(
+                            Icons.keyboard_arrow_down_rounded,
+                            size: 24.sp,
+                            color: const Color(0xFF27292D),
+                          ),
+                        ),
+                        SizedBox(height: 20.h),
+                        _buildLabel('Departure Date'),
+                        SizedBox(height: 14.h),
+                        TextFormField(
+                          controller: requestProvider.departureDateController,
+                          readOnly: true,
+                          style: GoogleFonts.inter(
+                            fontSize: 16.sp,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          onTap: () =>
+                              _pickDate(requestProvider.setDepartureDate),
+                          decoration: _fieldDecoration('mm/dd/yyyy'),
+                        ),
+                        SizedBox(height: 20.h),
+                        _buildLabel('Return Date'),
+                        SizedBox(height: 14.h),
+                        TextFormField(
+                          controller: requestProvider.returnDateController,
+                          readOnly: true,
+                          style: GoogleFonts.inter(
+                            fontSize: 16.sp,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          onTap: () => _pickDate(requestProvider.setReturnDate),
+                          decoration: _fieldDecoration('mm/dd/yyyy'),
+                        ),
+                        SizedBox(height: 20.h),
+                        InkWell(
+                          onTap: () => setState(() => _isHalfDay = !_isHalfDay),
+                          borderRadius: BorderRadius.circular(999.r),
+                          child: Container(
+                            width: double.infinity,
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 14.w,
+                              vertical: 16.h,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFF3ED),
+                              borderRadius: BorderRadius.circular(999.r),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 16.w,
+                                  height: 16.w,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(4.r),
+                                    border: Border.all(
+                                      color: const Color(0xFFFF6B2C),
+                                    ),
+                                    color: _isHalfDay
+                                        ? const Color(0xFFFF6B2C)
+                                        : Colors.white,
+                                  ),
+                                  child: _isHalfDay
+                                      ? Icon(
+                                          Icons.check_rounded,
+                                          size: 12.sp,
+                                          color: Colors.white,
+                                        )
+                                      : null,
+                                ),
+                                SizedBox(width: 14.w),
+                                Text(
+                                  'This is a Half-Day Leave',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 14.sp,
+                                    fontWeight: FontWeight.w900,
+                                    color: const Color(0xFF2C2522),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ),
-                      )
-                      .toList(),
-                  onChanged: requestProvider.setSelectedCategory,
-                  decoration: _fieldDecoration('Select category...'),
-                  icon: Icon(
-                    Icons.keyboard_arrow_down_rounded,
-                    size: 24.sp,
-                    color: AppColors.primary,
-                  ),
-                ),
-              ),
-              SizedBox(height: 8.h),
-              _buildLabel('Departure Date'),
-              SizedBox(height: 6.h),
-              _buildDecoratedField(
-                child: TextFormField(
-                  controller: requestProvider.departureDateController,
-                  readOnly: true,
-                  style: GoogleFonts.manrope(
-                    fontSize: 18.sp,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  onTap: () => _pickDate(requestProvider.setDepartureDate),
-                  decoration: _fieldDecoration('mm/dd/yyyy').copyWith(
-                    prefixIcon: Icon(
-                      Icons.calendar_today_outlined,
-                      size: 20.sp,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                ),
-              ),
-              SizedBox(height: 8.h),
-              _buildLabel('Return Date'),
-              SizedBox(height: 6.h),
-              _buildDecoratedField(
-                child: TextFormField(
-                  controller: requestProvider.returnDateController,
-                  readOnly: true,
-                  style: GoogleFonts.manrope(
-                    fontSize: 18.sp,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  onTap: () => _pickDate(requestProvider.setReturnDate),
-                  decoration: _fieldDecoration('mm/dd/yyyy').copyWith(
-                    prefixIcon: Icon(
-                      Icons.calendar_today_outlined,
-                      size: 20.sp,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                ),
-              ),
-              SizedBox(height: 8.h),
-              _buildLabel('Justification & Context'),
-              SizedBox(height: 6.h),
-              _buildDecoratedField(
-                child: TextFormField(
-                  controller: requestProvider.justificationController,
-                  maxLines: 8,
-                  style: GoogleFonts.manrope(
-                    fontSize: 18.sp,
-                    fontWeight: FontWeight.w600,
-                    height: 1.35,
-                  ),
-                  decoration: _fieldDecoration(
-                    'Provide reason or context for this request...',
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-      bottomNavigationBar: Container(
-        padding: EdgeInsets.fromLTRB(20.w, 8.h, 20.w, 16.h),
-        decoration: _requestCardDecoration(radius: 0),
-        child: SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SizedBox(
-                width: double.infinity,
-                height: 50.h,
-                child: ElevatedButton(
-                  onPressed: requestProvider.isSubmitting ? null : _submitLeave,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: AppColors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12.r),
-                    ),
-                    elevation: 0,
-                  ),
-                  child: requestProvider.isSubmitting
-                      ? SizedBox(
-                          width: 22.r,
-                          height: 22.r,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.2,
-                            valueColor: const AlwaysStoppedAnimation<Color>(
-                              AppColors.white,
-                            ),
+                        SizedBox(height: 20.h),
+                        _buildLabel('Justification & Context'),
+                        SizedBox(height: 10.h),
+                        TextFormField(
+                          controller: requestProvider.justificationController,
+                          maxLines: 5,
+                          style: GoogleFonts.inter(
+                            fontSize: 16.sp,
+                            fontWeight: FontWeight.w600,
+                            height: 1.35,
                           ),
-                        )
-                      : Text(
-                          'Authorize Request',
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.manrope(
-                            color: AppColors.white,
-                            fontSize: 18.sp,
-                            fontWeight: FontWeight.w700,
+                          decoration: _fieldDecoration(
+                            'Provide reason or context for this request...',
                           ),
                         ),
-                ),
-              ),
-              if (requestProvider.errorMessage != null &&
-                  requestProvider.errorMessage!.isNotEmpty) ...[
-                SizedBox(height: 10.h),
-                Text(
-                  requestProvider.errorMessage!,
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.manrope(
-                    color: const Color(0xFFB3261E),
-                    fontSize: 13.sp,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-              const SizedBox(height: 10),
-              Container(
-                width: double.infinity,
-                height: 40.h,
-                decoration: _requestCardDecoration(radius: 12.r),
-                child: OutlinedButton(
-                  onPressed: requestProvider.isSubmitting ? null : _closeScreen,
-                  style: OutlinedButton.styleFrom(
-                    backgroundColor: Colors.transparent,
-                    foregroundColor: AppColors.primary,
-                    side: BorderSide.none,
-                    shadowColor: Colors.transparent,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12.r),
+                      ],
                     ),
                   ),
-                  child: Text(
-                    'Discard',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.manrope(
-                      color: AppColors.primary,
-                      fontSize: 16.sp,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  const Divider(height: 1, color: Color(0xFFE7DCD5)),
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 14.h),
+                    child: _buildActionButtons(requestProvider),
                   ),
-                ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),
     );
   }
 
+  Widget _buildActionButtons(LeaveRequestProvider requestProvider) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          width: double.infinity,
+          height: 44.h,
+          child: ElevatedButton(
+            onPressed: requestProvider.isSubmitting ? null : _submitLeave,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFD76322),
+              foregroundColor: AppColors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(999.r),
+              ),
+              elevation: 0,
+            ),
+            child: requestProvider.isSubmitting
+                ? SizedBox(
+                    width: 22.r,
+                    height: 22.r,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.2,
+                      valueColor: const AlwaysStoppedAnimation<Color>(
+                        AppColors.white,
+                      ),
+                    ),
+                  )
+                : Text(
+                    'AUTHORIZE REQUEST',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.inter(
+                      color: AppColors.white,
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.4,
+                    ),
+                  ),
+          ),
+        ),
+        if (requestProvider.errorMessage != null &&
+            requestProvider.errorMessage!.isNotEmpty) ...[
+          SizedBox(height: 10.h),
+          Text(
+            requestProvider.errorMessage!,
+            textAlign: TextAlign.center,
+            style: GoogleFonts.inter(
+              color: const Color(0xFFB3261E),
+              fontSize: 13.sp,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+        SizedBox(height: 10.h),
+        SizedBox(
+          width: double.infinity,
+          height: 44.h,
+          child: OutlinedButton(
+            onPressed: requestProvider.isSubmitting ? null : _closeScreen,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFFD71920),
+              side: const BorderSide(color: Color(0xFFD71920)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(999.r),
+              ),
+            ),
+            child: Text(
+              'DISCARD',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.inter(
+                color: const Color(0xFFD71920),
+                fontSize: 14.sp,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.6,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildLabel(String label) {
     return Text(
       label,
-      style: GoogleFonts.manrope(
-        fontSize: 17.sp,
+      style: GoogleFonts.inter(
+        fontSize: 14.sp,
         fontWeight: FontWeight.w800,
-        color: AppColors.primary,
-        letterSpacing: 0,
+        color: const Color(0xFF27292D),
+        letterSpacing: 0.4,
       ),
     );
   }

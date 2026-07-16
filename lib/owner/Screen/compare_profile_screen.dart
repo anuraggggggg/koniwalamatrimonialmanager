@@ -161,7 +161,7 @@ class _CompareProfileScreenState extends State<CompareProfileScreen> {
             Text(
               _error!,
               textAlign: TextAlign.center,
-              style: GoogleFonts.manrope(
+              style: GoogleFonts.inter(
                 color: AppColors.danger,
                 fontSize: 14.sp,
                 fontWeight: FontWeight.w700,
@@ -172,7 +172,7 @@ class _CompareProfileScreenState extends State<CompareProfileScreen> {
               onPressed: _fetchComparison,
               child: Text(
                 'Retry',
-                style: GoogleFonts.manrope(fontWeight: FontWeight.w800),
+                style: GoogleFonts.inter(fontWeight: FontWeight.w800),
               ),
             ),
           ],
@@ -375,7 +375,7 @@ class _CompareProfileScreenState extends State<CompareProfileScreen> {
             child: Text(
               'Match Comparison Overview',
               overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.playfairDisplay(
+              style: GoogleFonts.inter(
                 color: AppColors.rmPrimary,
                 fontSize: 17.sp,
                 fontWeight: FontWeight.w600,
@@ -693,7 +693,7 @@ class _CompareProfileScreenState extends State<CompareProfileScreen> {
   Widget _sectionCaption(String text) {
     return Text(
       text,
-      style: GoogleFonts.manrope(
+      style: GoogleFonts.inter(
         color: AppColors.rmComparisonCaption,
         fontSize: 13.sp,
         fontWeight: FontWeight.w900,
@@ -705,7 +705,7 @@ class _CompareProfileScreenState extends State<CompareProfileScreen> {
   Widget _sectionTitle(String text, {Color color = AppColors.rmPrimary}) {
     return Text(
       text,
-      style: GoogleFonts.playfairDisplay(
+      style: GoogleFonts.inter(
         color: color,
         fontSize: 16.sp,
         fontWeight: FontWeight.w600,
@@ -919,7 +919,7 @@ class _ProfileComparisonColumn extends StatelessWidget {
                 textAlign: TextAlign.center,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.manrope(
+                style: GoogleFonts.inter(
                   color: AppColors.rmPrimary,
                   fontSize: 14.sp,
                   fontWeight: FontWeight.w700,
@@ -944,7 +944,7 @@ class _ProfileComparisonColumn extends StatelessWidget {
                 child: Text(
                   location,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     color: AppColors.rmComparisonMeta,
                     fontSize: 12.sp,
                     fontWeight: FontWeight.w500,
@@ -963,7 +963,7 @@ class _ProfileComparisonColumn extends StatelessWidget {
                 textAlign: TextAlign.center,
                 maxLines: 5,
                 overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.manrope(
+                style: GoogleFonts.inter(
                   color: AppColors.rmComparisonBody,
                   fontSize: 10.8.sp,
                   fontWeight: FontWeight.w500,
@@ -985,7 +985,7 @@ class _ProfileComparisonColumn extends StatelessWidget {
             label: Text(
               'View Full Profile',
               overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.manrope(
+              style: GoogleFonts.inter(
                 fontSize: 11.6.sp,
                 fontWeight: FontWeight.w700,
               ),
@@ -1134,7 +1134,7 @@ class _MatchScoreBadge extends StatelessWidget {
                 children: [
                   Text(
                     scoreText,
-                    style: GoogleFonts.manrope(
+                    style: GoogleFonts.inter(
                       color: AppColors.rmComparisonStrong,
                       fontSize: 17.sp,
                       fontWeight: FontWeight.w900,
@@ -1144,7 +1144,7 @@ class _MatchScoreBadge extends StatelessWidget {
                   SizedBox(height: 2.h),
                   Text(
                     'MATCH',
-                    style: GoogleFonts.manrope(
+                    style: GoogleFonts.inter(
                       color: AppColors.rmTeal,
                       fontSize: 7.sp,
                       fontWeight: FontWeight.w800,
@@ -1180,7 +1180,7 @@ class _IdChip extends StatelessWidget {
         'ID: $text',
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style: GoogleFonts.manrope(
+        style: GoogleFonts.inter(
           color: AppColors.rmComparisonMuted,
           fontSize: 10.sp,
           fontWeight: FontWeight.w600,
@@ -1215,7 +1215,7 @@ class _FitChip extends StatelessWidget {
             child: Text(
               text,
               overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.manrope(
+              style: GoogleFonts.inter(
                 color: AppColors.rmTeal,
                 fontSize: 11.4.sp,
                 fontWeight: FontWeight.w700,
@@ -1254,7 +1254,7 @@ class _HabitRow extends StatelessWidget {
           Expanded(
             child: Text(
               label,
-              style: GoogleFonts.manrope(
+              style: GoogleFonts.inter(
                 color: AppColors.rmComparisonMuted,
                 fontSize: 10.5.sp,
                 fontWeight: FontWeight.w800,
@@ -1266,7 +1266,7 @@ class _HabitRow extends StatelessWidget {
           Expanded(
             child: Text(
               value,
-              style: GoogleFonts.manrope(
+              style: GoogleFonts.inter(
                 color: AppColors.rmComparisonStrong,
                 fontSize: 12.sp,
                 fontWeight: FontWeight.w500,
@@ -1342,7 +1342,7 @@ class _PersonMiniHeader extends StatelessWidget {
             name,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: AppColors.rmPrimary,
               fontSize: 12.6.sp,
               fontWeight: FontWeight.w700,
@@ -1375,7 +1375,7 @@ class _ComparisonDetailRow extends StatelessWidget {
           Expanded(
             child: Text(
               detail.label,
-              style: GoogleFonts.manrope(
+              style: GoogleFonts.inter(
                 color: AppColors.rmComparisonLabel,
                 fontSize: 10.sp,
                 fontWeight: FontWeight.w800,
@@ -1399,7 +1399,7 @@ class _ComparisonDetailRow extends StatelessWidget {
                       ),
                       child: Text(
                         detail.value,
-                        style: GoogleFonts.manrope(
+                        style: GoogleFonts.inter(
                           color: AppColors.rmComparisonChipText,
                           fontSize: 10.sp,
                           fontWeight: FontWeight.w800,
@@ -1409,7 +1409,7 @@ class _ComparisonDetailRow extends StatelessWidget {
                   : Text(
                       detail.value,
                       textAlign: TextAlign.right,
-                      style: GoogleFonts.manrope(
+                      style: GoogleFonts.inter(
                         color: AppColors.rmComparisonStrong,
                         fontSize: 11.5.sp,
                         fontWeight: FontWeight.w500,
@@ -1445,7 +1445,7 @@ class _MatchReasonRow extends StatelessWidget {
         Expanded(
           child: Text(
             text,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: AppColors.rmComparisonStrong,
               fontSize: 14.sp,
               fontWeight: FontWeight.w500,

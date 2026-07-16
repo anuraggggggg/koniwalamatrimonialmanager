@@ -86,7 +86,7 @@ class _ProfileHeaderSection extends StatelessWidget {
               children: [
                 Text(
                   'View Profile',
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     color: AppColors.maroonPrimary,
                     fontSize: 17.sp,
                     fontWeight: FontWeight.w800,
@@ -96,7 +96,7 @@ class _ProfileHeaderSection extends StatelessWidget {
                 SizedBox(height: 2.h),
                 Text(
                   'REF: #${profile.reference}',
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     color: AppColors.maroonPrimary,
                     fontSize: 10.sp,
                     fontWeight: FontWeight.w700,
@@ -171,7 +171,7 @@ class _ProfileHeroImage extends StatelessWidget {
                 children: [
                   Text(
                     'ACTIVE MEMBER',
-                    style: GoogleFonts.manrope(
+                    style: GoogleFonts.inter(
                       color: const Color(0xFF4F4312),
                       fontSize: 10.sp,
                       fontWeight: FontWeight.w800,
@@ -208,7 +208,7 @@ class _ProfileIntroSection extends StatelessWidget {
           Text(
             profile.name,
             textAlign: TextAlign.center,
-            style: GoogleFonts.cormorantGaramond(
+            style: GoogleFonts.inter(
               color: AppColors.maroonPrimary,
               fontSize: 28.sp,
               fontWeight: FontWeight.w800,
@@ -219,7 +219,7 @@ class _ProfileIntroSection extends StatelessWidget {
           Text(
             profile.summary,
             textAlign: TextAlign.center,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: const Color(0xFF56525A),
               fontSize: 14.sp,
               fontWeight: FontWeight.w500,
@@ -305,7 +305,7 @@ class _SectionEyebrow extends StatelessWidget {
     return Text(
       label,
       textAlign: TextAlign.center,
-      style: GoogleFonts.manrope(
+      style: GoogleFonts.inter(
         color: const Color(0xFF70666D),
         fontSize: 10.sp,
         fontWeight: FontWeight.w800,
@@ -325,7 +325,7 @@ class _SectionHeading extends StatelessWidget {
     return Text(
       title,
       textAlign: TextAlign.center,
-      style: GoogleFonts.cormorantGaramond(
+      style: GoogleFonts.inter(
         color: AppColors.maroonPrimary,
         fontSize: 24.sp,
         fontWeight: FontWeight.w700,
@@ -370,7 +370,7 @@ class _ProfileFact extends StatelessWidget {
         Text(
           label,
           textAlign: TextAlign.center,
-          style: GoogleFonts.manrope(
+          style: GoogleFonts.inter(
             color: const Color(0xFF544E54),
             fontSize: 11.sp,
             fontWeight: FontWeight.w800,
@@ -383,7 +383,7 @@ class _ProfileFact extends StatelessWidget {
           textAlign: TextAlign.center,
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
-          style: GoogleFonts.manrope(
+          style: GoogleFonts.inter(
             color: AppColors.maroonPrimary,
             fontSize: 15.sp,
             fontWeight: FontWeight.w800,
@@ -425,7 +425,7 @@ class _PersonalNarrativeSection extends StatelessWidget {
                   padding: EdgeInsets.only(top: 2.h),
                   child: Text(
                     profile.narrativeInitial,
-                    style: GoogleFonts.cormorantGaramond(
+                    style: GoogleFonts.inter(
                       color: const Color(0xFFE2B743),
                       fontSize: 42.sp,
                       fontWeight: FontWeight.w700,
@@ -438,7 +438,7 @@ class _PersonalNarrativeSection extends StatelessWidget {
                 Expanded(
                   child: Text(
                     profile.narrativeBody,
-                    style: GoogleFonts.manrope(
+                    style: GoogleFonts.inter(
                       color: AppColors.rmSubtleRoseText,
                       fontSize: 14.sp,
                       fontWeight: FontWeight.w600,
@@ -495,7 +495,7 @@ class _EducationProfessionSection extends StatelessWidget {
                     Expanded(
                       child: Text(
                         'Current Role',
-                        style: GoogleFonts.manrope(
+                        style: GoogleFonts.inter(
                           color: const Color(0xFF353137),
                           fontSize: 16.sp,
                           fontWeight: FontWeight.w800,
@@ -508,7 +508,7 @@ class _EducationProfessionSection extends StatelessWidget {
                   padding: EdgeInsets.only(left: 20.w, top: 8.h),
                   child: Text(
                     profile.currentRole,
-                    style: GoogleFonts.manrope(
+                    style: GoogleFonts.inter(
                       color: AppColors.rmPrimary,
                       fontSize: 14.sp,
                       fontWeight: FontWeight.w500,
@@ -519,7 +519,7 @@ class _EducationProfessionSection extends StatelessWidget {
                 SizedBox(height: 20.h),
                 Text(
                   'Education',
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     color: const Color(0xFF353137),
                     fontSize: 16.sp,
                     fontWeight: FontWeight.w800,
@@ -528,7 +528,7 @@ class _EducationProfessionSection extends StatelessWidget {
                 SizedBox(height: 8.h),
                 Text(
                   'Academic Background',
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     color: AppColors.rmPrimary,
                     fontSize: 13.sp,
                     fontWeight: FontWeight.w700,
@@ -538,7 +538,7 @@ class _EducationProfessionSection extends StatelessWidget {
                 SizedBox(height: 4.h),
                 Text(
                   profile.education,
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     color: AppColors.rmMutedText,
                     fontSize: 13.sp,
                     fontWeight: FontWeight.w500,
@@ -582,7 +582,7 @@ class _KeyDetailsSection extends StatelessWidget {
                 SizedBox(width: 8.w),
                 Text(
                   'Key Details',
-                  style: GoogleFonts.cormorantGaramond(
+                  style: GoogleFonts.inter(
                     color: const Color(0xFFE1B645),
                     fontSize: 24.sp,
                     fontWeight: FontWeight.w700,
@@ -637,7 +637,7 @@ class _KeyDetailRow extends StatelessWidget {
               Expanded(
                 child: Text(
                   label,
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     color: const Color(0xFFF2C23C),
                     fontSize: 10.sp,
                     fontWeight: FontWeight.w800,
@@ -652,7 +652,7 @@ class _KeyDetailRow extends StatelessWidget {
                   textAlign: TextAlign.right,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     color: AppColors.white,
                     fontSize: 13.sp,
                     fontWeight: FontWeight.w500,
@@ -756,7 +756,7 @@ class _FamilySideCard extends StatelessWidget {
                 children: [
                   Text(
                     side,
-                    style: GoogleFonts.manrope(
+                    style: GoogleFonts.inter(
                       color: AppColors.rmBodyText,
                       fontSize: 10.sp,
                       fontWeight: FontWeight.w800,
@@ -766,7 +766,7 @@ class _FamilySideCard extends StatelessWidget {
                   SizedBox(height: 12.h),
                   Text(
                     name,
-                    style: GoogleFonts.manrope(
+                    style: GoogleFonts.inter(
                       color: AppColors.maroonPrimary,
                       fontSize: 16.sp,
                       fontWeight: FontWeight.w800,
@@ -807,7 +807,7 @@ class _FamilyLine extends StatelessWidget {
   Widget build(BuildContext context) {
     return RichText(
       text: TextSpan(
-        style: GoogleFonts.manrope(
+        style: GoogleFonts.inter(
           color: AppColors.rmBodyText,
           fontSize: 12.sp,
           fontWeight: FontWeight.w500,
@@ -816,7 +816,7 @@ class _FamilyLine extends StatelessWidget {
         children: [
           TextSpan(
             text: '$label : ',
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: AppColors.maroonPrimary,
               fontSize: 12.sp,
               fontWeight: FontWeight.w800,
@@ -847,7 +847,7 @@ class _PhotoGallerySection extends StatelessWidget {
         Text(
           'A GLIMPSE INTO $galleryPronoun LIFE AND PASSIONS.',
           textAlign: TextAlign.center,
-          style: GoogleFonts.manrope(
+          style: GoogleFonts.inter(
             color: AppColors.rmSubtleRoseText,
             fontSize: 10.sp,
             fontWeight: FontWeight.w800,
@@ -1074,7 +1074,7 @@ class _ProfileActionButton extends StatelessWidget {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8.r),
           ),
-          textStyle: GoogleFonts.manrope(
+          textStyle: GoogleFonts.inter(
             fontSize: 12.sp,
             fontWeight: FontWeight.w500,
           ),

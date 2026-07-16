@@ -58,9 +58,9 @@ class _RelationshipManagerLeadsScreenState
   Future<void> _refresh() {
     final accessToken = context.read<AuthProvider>().userModel?.accessToken;
     return context.read<RmLeadsProvider>().fetchLeads(
-          accessToken,
-          forceRefresh: true,
-        );
+      accessToken,
+      forceRefresh: true,
+    );
   }
 
   List<RmLeadItem> _assignedLeads(List<RmLeadItem> leads, String? userId) {
@@ -68,7 +68,9 @@ class _RelationshipManagerLeadsScreenState
       return leads;
     }
 
-    final assigned = leads.where((lead) => lead.assignedToId == userId).toList();
+    final assigned = leads
+        .where((lead) => lead.assignedToId == userId)
+        .toList();
     return assigned.isEmpty ? leads : assigned;
   }
 
@@ -100,10 +102,7 @@ class _RelationshipManagerLeadsScreenState
     final whatsappUri = Uri(
       scheme: 'whatsapp',
       host: 'send',
-      queryParameters: {
-        'phone': cleanPhone,
-        'text': message,
-      },
+      queryParameters: {'phone': cleanPhone, 'text': message},
     );
     final webUri = Uri.https('wa.me', '/$cleanPhone', {'text': message});
 
@@ -154,7 +153,9 @@ class _RelationshipManagerLeadsScreenState
     final selectedTab = _selectedBottomNavIndex(rawSelectedTab);
     final user = authProvider.userModel?.user;
     final assignedLeads = _assignedLeads(leadsProvider.leads, user?.id);
-    final syncedChats = assignedLeads.where((lead) => lead.hasConversation).length;
+    final syncedChats = assignedLeads
+        .where((lead) => lead.hasConversation)
+        .length;
     final openTasks = assignedLeads.fold<int>(
       0,
       (count, lead) => count + lead.openTasksCount,
@@ -175,9 +176,7 @@ class _RelationshipManagerLeadsScreenState
         onClientTap: () {
           Navigator.of(context).pop();
           Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => const ClientRegistryScreen(),
-            ),
+            MaterialPageRoute(builder: (_) => const ClientRegistryScreen()),
           );
         },
         onLeaveManagementTap: () {
@@ -290,7 +289,7 @@ class _RelationshipManagerLeadsScreenState
                         children: [
                           Text(
                             'Dynamic Manager Chat Hub',
-                            style: GoogleFonts.manrope(
+                            style: GoogleFonts.inter(
                               color: AppColors.rmHeading,
                               fontSize: 15.sp,
                               fontWeight: FontWeight.w800,
@@ -299,7 +298,7 @@ class _RelationshipManagerLeadsScreenState
                           SizedBox(height: 4.h),
                           Text(
                             'This screen reads live manager lead data from `/leads` using the current bearer token.',
-                            style: GoogleFonts.manrope(
+                            style: GoogleFonts.inter(
                               color: AppColors.rmBodyText,
                               fontSize: 13.sp,
                               fontWeight: FontWeight.w500,
@@ -329,7 +328,8 @@ class _RelationshipManagerLeadsScreenState
                 _LeadHubMessage(
                   message: leadsProvider.error!,
                   actionLabel: 'Retry',
-                  onActionPressed: () => context.read<RmLeadsProvider>().retry(),
+                  onActionPressed: () =>
+                      context.read<RmLeadsProvider>().retry(),
                 )
               else if (assignedLeads.isEmpty)
                 _LeadHubMessage(
@@ -340,7 +340,7 @@ class _RelationshipManagerLeadsScreenState
               else ...[
                 Text(
                   'Conversation Queue',
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     color: AppColors.rmPrimary,
                     fontSize: 24.sp,
                     fontWeight: FontWeight.w800,
@@ -349,7 +349,7 @@ class _RelationshipManagerLeadsScreenState
                 SizedBox(height: 6.h),
                 Text(
                   'Open a lead to continue the conversation in WhatsApp.',
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     color: AppColors.rmBodyText,
                     fontSize: 14.sp,
                     fontWeight: FontWeight.w500,
@@ -372,7 +372,8 @@ class _RelationshipManagerLeadsScreenState
                 _LeadHubMessage(
                   message: leadsProvider.error!,
                   actionLabel: 'Retry',
-                  onActionPressed: () => context.read<RmLeadsProvider>().retry(),
+                  onActionPressed: () =>
+                      context.read<RmLeadsProvider>().retry(),
                 ),
               ],
             ],
@@ -465,17 +466,16 @@ class _RelationshipManagerBottomNavItem extends StatelessWidget {
             if (iconAsset != null)
               Image.asset(
                 iconAsset!,
-                width: 26,
-                height: 26,
+                width: 26.sp,
+                height: 26.sp,
                 color: selected ? maroon : inactive,
               )
             else
-              Icon(icon, size: 26, color: selected ? maroon : inactive),
+              Icon(icon, size: 26.sp, color: selected ? maroon : inactive),
             SizedBox(height: 4.h),
             Text(
               label,
               style: TextStyle(
-                fontFamily: 'Manrope',
                 fontSize: 12.sp,
                 fontWeight: FontWeight.w700,
                 color: selected ? maroon : inactive,
@@ -507,11 +507,7 @@ class _LeadHubHeader extends StatelessWidget {
       children: [
         IconButton(
           onPressed: onMenuPressed,
-          icon: Icon(
-            Icons.menu,
-            color: AppColors.rmPrimary,
-            size: 24.sp,
-          ),
+          icon: Icon(Icons.menu, color: AppColors.rmPrimary, size: 24.sp),
         ),
         SizedBox(width: 6.w),
         Expanded(
@@ -520,7 +516,7 @@ class _LeadHubHeader extends StatelessWidget {
             children: [
               Text(
                 'WhatsApp Chat Queue',
-                style: GoogleFonts.manrope(
+                style: GoogleFonts.inter(
                   color: AppColors.rmPrimary,
                   fontSize: 28.sp,
                   fontWeight: FontWeight.w800,
@@ -529,7 +525,7 @@ class _LeadHubHeader extends StatelessWidget {
               SizedBox(height: 6.h),
               Text(
                 'Manager: $managerName',
-                style: GoogleFonts.manrope(
+                style: GoogleFonts.inter(
                   color: AppColors.rmBodyText,
                   fontSize: 14.sp,
                   fontWeight: FontWeight.w600,
@@ -620,7 +616,7 @@ class _RelationshipManagerLeadsDrawer extends StatelessWidget {
                         ),
                         child: Text(
                           userName.isNotEmpty ? userName[0].toUpperCase() : 'R',
-                          style: GoogleFonts.manrope(
+                          style: GoogleFonts.inter(
                             color: AppColors.white,
                             fontSize: 22.sp,
                             fontWeight: FontWeight.w800,
@@ -636,7 +632,7 @@ class _RelationshipManagerLeadsDrawer extends StatelessWidget {
                               userName,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: GoogleFonts.manrope(
+                              style: GoogleFonts.inter(
                                 color: AppColors.white,
                                 fontSize: 19.sp,
                                 fontWeight: FontWeight.w800,
@@ -645,7 +641,7 @@ class _RelationshipManagerLeadsDrawer extends StatelessWidget {
                             SizedBox(height: 3.h),
                             Text(
                               'Relationship Manager',
-                              style: GoogleFonts.manrope(
+                              style: GoogleFonts.inter(
                                 color: AppColors.white.withValues(alpha: 0.78),
                                 fontSize: 14.sp,
                                 fontWeight: FontWeight.w600,
@@ -692,7 +688,7 @@ class _RelationshipManagerLeadsDrawer extends StatelessWidget {
                     padding: EdgeInsets.fromLTRB(6.w, 0, 6.w, 10.h),
                     child: Text(
                       'Main Menu',
-                      style: GoogleFonts.manrope(
+                      style: GoogleFonts.inter(
                         color: AppColors.rmMutedText,
                         fontSize: 13.sp,
                         fontWeight: FontWeight.w900,
@@ -803,7 +799,7 @@ class _RelationshipManagerLeadsDrawer extends StatelessWidget {
                         Expanded(
                           child: Text(
                             'Online and ready for follow-ups',
-                            style: GoogleFonts.manrope(
+                            style: GoogleFonts.inter(
                               color: AppColors.rmBodyText,
                               fontSize: 13.sp,
                               fontWeight: FontWeight.w700,
@@ -834,7 +830,7 @@ class _RelationshipManagerLeadsDrawer extends StatelessWidget {
                           SizedBox(width: 10.w),
                           Text(
                             'Logout',
-                            style: GoogleFonts.manrope(
+                            style: GoogleFonts.inter(
                               fontSize: 15.sp,
                               fontWeight: FontWeight.w800,
                             ),
@@ -875,7 +871,7 @@ class _RelationshipManagerLeadsDrawerMetric extends StatelessWidget {
         children: [
           Text(
             value,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: AppColors.white,
               fontSize: 19.sp,
               fontWeight: FontWeight.w900,
@@ -885,7 +881,7 @@ class _RelationshipManagerLeadsDrawerMetric extends StatelessWidget {
           SizedBox(height: 4.h),
           Text(
             label,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: AppColors.white.withValues(alpha: 0.78),
               fontSize: 12.sp,
               fontWeight: FontWeight.w700,
@@ -933,7 +929,7 @@ class _RelationshipManagerLeadsDrawerItem extends StatelessWidget {
                 Expanded(
                   child: Text(
                     label,
-                    style: GoogleFonts.manrope(
+                    style: GoogleFonts.inter(
                       color: color,
                       fontSize: 15.sp,
                       fontWeight: selected ? FontWeight.w800 : FontWeight.w700,
@@ -995,7 +991,7 @@ class _SummaryCard extends StatelessWidget {
             title,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: AppColors.rmMutedText,
               fontSize: 12.sp,
               fontWeight: FontWeight.w700,
@@ -1004,7 +1000,7 @@ class _SummaryCard extends StatelessWidget {
           SizedBox(height: 6.h),
           Text(
             value,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: AppColors.rmHeading,
               fontSize: 24.sp,
               fontWeight: FontWeight.w900,
@@ -1015,7 +1011,7 @@ class _SummaryCard extends StatelessWidget {
             subtitle,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: AppColors.rmBodyText,
               fontSize: 11.sp,
               fontWeight: FontWeight.w500,
@@ -1059,7 +1055,7 @@ class _LeadHubMessage extends StatelessWidget {
           Text(
             message,
             textAlign: TextAlign.center,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: AppColors.rmBodyText,
               fontSize: 15.sp,
               fontWeight: FontWeight.w600,
@@ -1079,7 +1075,7 @@ class _LeadHubMessage extends StatelessWidget {
               ),
               child: Text(
                 actionLabel!,
-                style: GoogleFonts.manrope(fontWeight: FontWeight.w800),
+                style: GoogleFonts.inter(fontWeight: FontWeight.w800),
               ),
             ),
           ],
@@ -1129,7 +1125,7 @@ class _ManagerLeadCard extends StatelessWidget {
                 backgroundColor: const Color(0xFFF7D9E3),
                 child: Text(
                   lead.initials,
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     color: AppColors.rmPrimary,
                     fontSize: 22.sp,
                     fontWeight: FontWeight.w800,
@@ -1145,7 +1141,7 @@ class _ManagerLeadCard extends StatelessWidget {
                       lead.name,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.manrope(
+                      style: GoogleFonts.inter(
                         color: AppColors.rmPrimary,
                         fontSize: 20.sp,
                         fontWeight: FontWeight.w800,
@@ -1156,7 +1152,7 @@ class _ManagerLeadCard extends StatelessWidget {
                       '${lead.phone} - ${lead.city}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.manrope(
+                      style: GoogleFonts.inter(
                         color: AppColors.rmBodyText,
                         fontSize: 14.sp,
                         fontWeight: FontWeight.w500,
@@ -1167,7 +1163,7 @@ class _ManagerLeadCard extends StatelessWidget {
                       lead.email,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.manrope(
+                      style: GoogleFonts.inter(
                         color: AppColors.rmMutedText,
                         fontSize: 13.sp,
                         fontWeight: FontWeight.w500,
@@ -1230,7 +1226,7 @@ class _ManagerLeadCard extends StatelessWidget {
                     lead.latestMessagePreview,
                     maxLines: 3,
                     overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.manrope(
+                    style: GoogleFonts.inter(
                       color: AppColors.rmBodyText,
                       fontSize: 14.sp,
                       fontWeight: FontWeight.w500,
@@ -1310,7 +1306,7 @@ class _ManagerLeadCard extends StatelessWidget {
                   icon: Icon(Icons.chat_bubble_outline, size: 18.sp),
                   label: Text(
                     'Open WhatsApp',
-                    style: GoogleFonts.manrope(fontWeight: FontWeight.w800),
+                    style: GoogleFonts.inter(fontWeight: FontWeight.w800),
                   ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.rmPrimary,
@@ -1329,7 +1325,7 @@ class _ManagerLeadCard extends StatelessWidget {
                   icon: Icon(Icons.task_alt_outlined, size: 18.sp),
                   label: Text(
                     'View Tasks',
-                    style: GoogleFonts.manrope(fontWeight: FontWeight.w800),
+                    style: GoogleFonts.inter(fontWeight: FontWeight.w800),
                   ),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.rmHeading,
@@ -1365,7 +1361,7 @@ class _StageBadge extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: GoogleFonts.manrope(
+        style: GoogleFonts.inter(
           color: AppColors.rmStatusText,
           fontSize: 12.sp,
           fontWeight: FontWeight.w800,
@@ -1403,7 +1399,7 @@ class _InfoChip extends StatelessWidget {
           SizedBox(width: 6.w),
           Text(
             label,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: textColor,
               fontSize: 12.sp,
               fontWeight: FontWeight.w700,
@@ -1437,7 +1433,7 @@ class _MetricTile extends StatelessWidget {
             label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: AppColors.rmMutedText,
               fontSize: 11.sp,
               fontWeight: FontWeight.w700,
@@ -1448,7 +1444,7 @@ class _MetricTile extends StatelessWidget {
             value,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: AppColors.rmHeading,
               fontSize: 13.sp,
               fontWeight: FontWeight.w800,
@@ -1474,7 +1470,7 @@ class _InlineMetaRow extends StatelessWidget {
         Expanded(
           child: Text(
             label,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: AppColors.rmMutedText,
               fontSize: 12.sp,
               fontWeight: FontWeight.w600,
@@ -1488,7 +1484,7 @@ class _InlineMetaRow extends StatelessWidget {
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.right,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: AppColors.rmHeading,
               fontSize: 12.sp,
               fontWeight: FontWeight.w700,
@@ -1528,7 +1524,7 @@ class _LeadTasksSheet extends StatelessWidget {
             SizedBox(height: 16.h),
             Text(
               '${lead.name} Tasks',
-              style: GoogleFonts.manrope(
+              style: GoogleFonts.inter(
                 color: AppColors.rmPrimary,
                 fontSize: 22.sp,
                 fontWeight: FontWeight.w800,
@@ -1537,7 +1533,7 @@ class _LeadTasksSheet extends StatelessWidget {
             SizedBox(height: 6.h),
             Text(
               'Tasks synced from `/leads` for this manager conversation.',
-              style: GoogleFonts.manrope(
+              style: GoogleFonts.inter(
                 color: AppColors.rmBodyText,
                 fontSize: 13.sp,
                 fontWeight: FontWeight.w500,
@@ -1572,7 +1568,7 @@ class _LeadTasksSheet extends StatelessWidget {
                               Expanded(
                                 child: Text(
                                   task.title,
-                                  style: GoogleFonts.manrope(
+                                  style: GoogleFonts.inter(
                                     color: AppColors.rmHeading,
                                     fontSize: 15.sp,
                                     fontWeight: FontWeight.w800,
@@ -1596,7 +1592,7 @@ class _LeadTasksSheet extends StatelessWidget {
                           SizedBox(height: 10.h),
                           Text(
                             'Assigned to ${task.assignedToName}',
-                            style: GoogleFonts.manrope(
+                            style: GoogleFonts.inter(
                               color: AppColors.rmBodyText,
                               fontSize: 13.sp,
                               fontWeight: FontWeight.w600,
@@ -1605,7 +1601,7 @@ class _LeadTasksSheet extends StatelessWidget {
                           SizedBox(height: 4.h),
                           Text(
                             'Due: ${_formatDateTime(task.dueAt, fallback: 'Not scheduled')}',
-                            style: GoogleFonts.manrope(
+                            style: GoogleFonts.inter(
                               color: AppColors.rmMutedText,
                               fontSize: 12.sp,
                               fontWeight: FontWeight.w500,
@@ -1640,7 +1636,7 @@ class _SheetStatusChip extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: GoogleFonts.manrope(
+        style: GoogleFonts.inter(
           color: AppColors.rmStatusText,
           fontSize: 11.sp,
           fontWeight: FontWeight.w800,
@@ -1666,7 +1662,7 @@ class _SheetMetaChip extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: GoogleFonts.manrope(
+        style: GoogleFonts.inter(
           color: AppColors.rmHeading,
           fontSize: 11.sp,
           fontWeight: FontWeight.w700,

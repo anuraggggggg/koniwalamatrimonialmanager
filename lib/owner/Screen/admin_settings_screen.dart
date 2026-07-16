@@ -18,12 +18,20 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _tabController.addListener(_handleTabChange);
   }
 
   @override
   void dispose() {
+    _tabController.removeListener(_handleTabChange);
     _tabController.dispose();
     super.dispose();
+  }
+
+  void _handleTabChange() {
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   @override
@@ -31,91 +39,165 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen>
     return Scaffold(
       backgroundColor: AppColors.rmSoftPink,
       body: SafeArea(
-        child: MediaQuery(
-          data: MediaQuery.of(
-            context,
-          ).copyWith(textScaler: const TextScaler.linear(1.35)),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: EdgeInsets.fromLTRB(12.w, 24.h, 12.w, 0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            'Settings',
-                            style: GoogleFonts.manrope(
-                              color: AppColors.rmPrimary,
-                              fontSize: 28.sp,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ),
-                        IconButton(
-                          onPressed: () => Navigator.maybePop(context),
-                          icon: Icon(
-                            Icons.close_rounded,
-                            color: AppColors.rmHeading,
-                            size: 22.sp,
-                          ),
-                        ),
-                      ],
-                    ),
-                    Text(
-                      'Manage organization-wide parameters, API\nintegrations, and system policies.',
-                      style: GoogleFonts.manrope(
-                        color: AppColors.rmBodyText,
-                        fontSize: 12.sp,
-                        fontWeight: FontWeight.w500,
-                        height: 1.35,
-                      ),
-                    ),
-                    SizedBox(height: 12.h),
-                    TabBar(
-                      controller: _tabController,
-                      isScrollable: true,
-                      tabAlignment: TabAlignment.start,
-                      padding: EdgeInsets.zero,
-                      labelPadding: EdgeInsets.only(right: 24.w),
-                      indicatorSize: TabBarIndicatorSize.label,
-                      indicatorColor: AppColors.rmPrimary,
-                      dividerColor: AppColors.rmPinkBorder,
-                      labelColor: AppColors.rmPrimary,
-                      unselectedLabelColor: AppColors.rmHeading,
-                      labelStyle: GoogleFonts.manrope(
-                        fontSize: 13.sp,
-                        fontWeight: FontWeight.w700,
-                      ),
-                      unselectedLabelStyle: GoogleFonts.manrope(
-                        fontSize: 13.sp,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      tabs: const [
-                        Tab(text: 'Payroll & HR'),
-                        Tab(text: 'WhatsApp API'),
-                        Tab(text: 'Email Templates'),
-                      ],
-                    ),
-                  ],
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildTopBar(context),
+            Padding(
+              padding: EdgeInsets.fromLTRB(14.w, 22.h, 14.w, 0),
+              child: Text(
+                'Manage organization-wide parameters, API integrations, and system policies.',
+                style: GoogleFonts.inter(
+                  color: AppColors.rmBodyText,
+                  fontSize: 15.sp,
+                  fontWeight: FontWeight.w400,
+                  height: 1.5,
                 ),
               ),
-              Expanded(
-                child: TabBarView(
-                  controller: _tabController,
-                  children: const [
-                    _PayrollSettingsTab(),
-                    _WhatsAppApiSettingsTab(),
-                    _SettingsPlaceholder(
-                      icon: Icons.email_outlined,
-                      title: 'Email Templates',
-                      subtitle:
-                          'Manage organization-wide email templates and delivery defaults.',
-                    ),
-                  ],
+            ),
+            SizedBox(height: 30.h),
+            _buildSettingsTabs(),
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: const [
+                  _PayrollSettingsTab(),
+                  _WhatsAppApiSettingsTab(),
+                  _SettingsPlaceholder(
+                    icon: Icons.email_outlined,
+                    title: 'Email Templates',
+                    subtitle:
+                        'Manage organization-wide email templates and delivery defaults.',
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTopBar(BuildContext context) {
+    return Container(
+      height: 64.h,
+      padding: EdgeInsets.symmetric(horizontal: 12.w),
+      decoration: const BoxDecoration(
+        color: AppColors.rmSoftPink,
+        border: Border(
+          bottom: BorderSide(color: AppColors.rmHeaderDivider, width: 1),
+        ),
+      ),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 40.w,
+            child: IconButton(
+              tooltip: 'Back',
+              onPressed: () => Navigator.maybePop(context),
+              icon: Icon(
+                Icons.arrow_back_rounded,
+                color: AppColors.rmHeading,
+                size: 23.sp,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              'Settings',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.inter(
+                color: AppColors.rmHeading,
+                fontSize: 20.sp,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          SizedBox(width: 40.w),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSettingsTabs() {
+    final tabs = const [
+      _SettingsTabData(icon: Icons.payments_outlined, label: 'Payroll & HR'),
+      _SettingsTabData(icon: Icons.message_outlined, label: 'WhatsApp API'),
+      _SettingsTabData(icon: Icons.email_outlined, label: 'Email Templates'),
+    ];
+
+    return SizedBox(
+      height: 36.h,
+      child: ListView.separated(
+        padding: EdgeInsets.symmetric(horizontal: 20.w),
+        scrollDirection: Axis.horizontal,
+        itemCount: tabs.length,
+        separatorBuilder: (_, _) => SizedBox(width: 8.w),
+        itemBuilder: (context, index) {
+          return _SettingsTabPill(
+            icon: tabs[index].icon,
+            label: tabs[index].label,
+            selected: _tabController.index == index,
+            onTap: () => _tabController.animateTo(index),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _SettingsTabData {
+  const _SettingsTabData({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+}
+
+class _SettingsTabPill extends StatelessWidget {
+  const _SettingsTabPill({
+    required this.icon,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final foreground = selected ? AppColors.white : const Color(0xFF062A52);
+
+    return Material(
+      color: selected ? AppColors.primary : AppColors.white,
+      borderRadius: BorderRadius.circular(999),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(999),
+        child: Container(
+          height: 34.h,
+          padding: EdgeInsets.symmetric(horizontal: 14.w),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(999),
+            border: selected
+                ? null
+                : Border.all(color: const Color(0xFFCBD5E1), width: 1),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, color: foreground, size: 16.sp),
+              SizedBox(width: 6.w),
+              Text(
+                label,
+                maxLines: 1,
+                style: GoogleFonts.inter(
+                  color: foreground,
+                  fontSize: 12.sp,
+                  fontWeight: FontWeight.w800,
+                  height: 1,
                 ),
               ),
             ],
@@ -138,7 +220,7 @@ class _WhatsAppApiSettingsTab extends StatelessWidget {
         children: [
           Text(
             'WhatsApp API\nIntegration',
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: AppColors.rmPrimary,
               fontSize: 24.sp,
               fontWeight: FontWeight.w800,
@@ -148,7 +230,7 @@ class _WhatsAppApiSettingsTab extends StatelessWidget {
           SizedBox(height: 5.h),
           Text(
             'Manage your Meta WhatsApp Business\nconnection and routing.',
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: AppColors.rmBodyText,
               fontSize: 13.sp,
               fontWeight: FontWeight.w500,
@@ -186,7 +268,7 @@ class _WhatsAppApiSettingsTab extends StatelessWidget {
                     children: [
                       Text(
                         'API Status: Connected',
-                        style: GoogleFonts.manrope(
+                        style: GoogleFonts.inter(
                           color: const Color(0xFF145B31),
                           fontSize: 13.sp,
                           fontWeight: FontWeight.w700,
@@ -194,7 +276,7 @@ class _WhatsAppApiSettingsTab extends StatelessWidget {
                       ),
                       Text(
                         'Using WhatsApp Business API v18.0',
-                        style: GoogleFonts.manrope(
+                        style: GoogleFonts.inter(
                           color: const Color(0xFF42765A),
                           fontSize: 12.sp,
                           fontWeight: FontWeight.w500,
@@ -289,7 +371,7 @@ class _WhatsAppSettingsCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   title,
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     color: AppColors.rmHeading,
                     fontSize: 13.sp,
                     fontWeight: FontWeight.w700,
@@ -302,7 +384,7 @@ class _WhatsAppSettingsCard extends StatelessWidget {
             SizedBox(height: 14.h),
             Text(
               body!,
-              style: GoogleFonts.manrope(
+              style: GoogleFonts.inter(
                 color: AppColors.rmBodyText,
                 fontSize: 12.sp,
                 fontWeight: FontWeight.w500,
@@ -324,7 +406,7 @@ class _WhatsAppSettingsCard extends StatelessWidget {
                 endpoint!,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.manrope(
+                style: GoogleFonts.inter(
                   color: AppColors.rmMutedText,
                   fontSize: 10.sp,
                   fontWeight: FontWeight.w500,
@@ -348,7 +430,7 @@ class _WhatsAppSettingsCard extends StatelessWidget {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(5.r),
                       ),
-                      textStyle: GoogleFonts.manrope(
+                      textStyle: GoogleFonts.inter(
                         fontSize: 12.sp,
                         fontWeight: FontWeight.w700,
                       ),
@@ -364,7 +446,7 @@ class _WhatsAppSettingsCard extends StatelessWidget {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(5.r),
                       ),
-                      textStyle: GoogleFonts.manrope(
+                      textStyle: GoogleFonts.inter(
                         fontSize: 12.sp,
                         fontWeight: FontWeight.w700,
                       ),
@@ -383,7 +465,7 @@ class _PayrollSettingsTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      padding: EdgeInsets.fromLTRB(12.w, 24.h, 12.w, 24.h),
+      padding: EdgeInsets.fromLTRB(20.w, 18.h, 20.w, 32.h),
       child: Column(
         children: [
           Container(
@@ -394,64 +476,80 @@ class _PayrollSettingsTab extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Payroll & Incentive\nOperations',
-                  style: GoogleFonts.manrope(
-                    color: AppColors.rmHeading,
+                  'Payroll & Incentive Operations',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF062A52),
                     fontSize: 19.sp,
-                    fontWeight: FontWeight.w700,
-                    height: 1.18,
+                    fontWeight: FontWeight.w800,
+                    height: 1.15,
                   ),
                 ),
                 SizedBox(height: 6.h),
                 Text(
-                  'Configure attendance math, payroll behavior, and\ndynamic incentive policies.',
-                  style: GoogleFonts.manrope(
+                  'Configure attendance math, payroll behavior, and dynamic incentive policies.',
+                  style: GoogleFonts.inter(
                     color: AppColors.rmBodyText,
-                    fontSize: 11.sp,
-                    fontWeight: FontWeight.w500,
+                    fontSize: 13.sp,
+                    fontWeight: FontWeight.w400,
                     height: 1.35,
                   ),
                 ),
                 SizedBox(height: 16.h),
-                _SettingsActionButton(
-                  icon: Icons.payments_outlined,
-                  label: 'Payroll Settings',
-                  filled: false,
-                  onPressed: () {},
-                ),
-                SizedBox(height: 6.h),
-                _SettingsActionButton(
-                  icon: Icons.trending_up_rounded,
-                  label: 'Incentive Settings',
-                  filled: true,
-                  onPressed: () {},
+                Row(
+                  children: [
+                    Expanded(
+                      child: _SettingsActionButton(
+                        icon: Icons.payments_outlined,
+                        label: 'Payroll Settings',
+                        filled: false,
+                        onPressed: () {},
+                      ),
+                    ),
+                    SizedBox(width: 20.w),
+                    Expanded(
+                      child: _SettingsActionButton(
+                        icon: Icons.trending_up_rounded,
+                        label: 'Incentive Settings',
+                        filled: true,
+                        onPressed: () {},
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
-          SizedBox(height: 18.h),
+          SizedBox(height: 14.h),
           const _PolicyCard(
             icon: Icons.calendar_month_outlined,
+            iconBackground: Color(0xFFEAF3FF),
+            iconColor: Color(0xFF062A52),
             title: 'WORKING DAYS',
             body:
                 'Standard organization week is currently defined. Attendance system will mark unchecked days as Holidays automatically.',
           ),
-          SizedBox(height: 8.h),
+          SizedBox(height: 12.h),
           const _PolicyCard(
             icon: Icons.account_balance_outlined,
+            iconBackground: Color(0xFFF3EEFF),
+            iconColor: Color(0xFF062A52),
             title: 'DIVISOR POLICY',
             body:
                 'Salary per-day rate calculation follows the global organizational policy (Fixed 30, Actual Days, or Working Days).',
           ),
-          SizedBox(height: 8.h),
+          SizedBox(height: 12.h),
           const _PolicyCard(
             icon: Icons.stars_outlined,
+            iconBackground: Color(0xFFE0F9EF),
+            iconColor: Color(0xFF00A878),
             title: 'INCENTIVE ELIGIBILITY',
             body:
                 'Centralize qualified lead rules, role-based tiers, payout percentages, and incentive cycle automation from one place.',
             premium: true,
           ),
-          SizedBox(height: 18.h),
+          SizedBox(height: 14.h),
           const _CompensationAutomationCard(),
         ],
       ),
@@ -465,65 +563,52 @@ class _CompensationAutomationCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return CustomPaint(
-      painter: _DashedBorderPainter(color: AppColors.rmPinkBorder, radius: 9.r),
+      foregroundPainter: _DashedBorderPainter(
+        color: const Color(0xFFFFB899),
+        radius: 18.r,
+      ),
       child: Container(
         width: double.infinity,
-        padding: EdgeInsets.fromLTRB(20.w, 18.h, 20.w, 18.h),
+        padding: EdgeInsets.fromLTRB(20.w, 34.h, 20.w, 24.h),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFEFE8),
+          borderRadius: BorderRadius.circular(18.r),
+        ),
         child: Column(
           children: [
             Container(
-              width: 29.r,
-              height: 29.r,
+              width: 48.r,
+              height: 48.r,
               decoration: const BoxDecoration(
-                color: Color(0xFFF8E8EF),
+                color: AppColors.white,
                 shape: BoxShape.circle,
               ),
               child: Icon(
                 Icons.auto_awesome_rounded,
                 color: AppColors.rmPrimary,
-                size: 16.sp,
+                size: 22.sp,
               ),
             ),
-            SizedBox(height: 8.h),
+            SizedBox(height: 14.h),
             Text(
-              'Compensation\nAutomation Summary',
+              'Compensation Automation Summary',
               textAlign: TextAlign.center,
-              style: GoogleFonts.manrope(
-                color: AppColors.rmHeading,
-                fontSize: 18.sp,
-                fontWeight: FontWeight.w700,
-                height: 1.25,
+              style: GoogleFonts.inter(
+                color: const Color(0xFF062A52),
+                fontSize: 15.sp,
+                fontWeight: FontWeight.w800,
+                height: 1.2,
               ),
             ),
             SizedBox(height: 10.h),
             Text(
-              'Use the settings above to manage attendance\ncalculation rules and incentive policy\nautomation without code changes.',
+              'Use the settings above to manage attendance calculation rules and incentive policy automation without code changes.',
               textAlign: TextAlign.center,
-              style: GoogleFonts.manrope(
+              style: GoogleFonts.inter(
                 color: AppColors.rmBodyText,
-                fontSize: 10.sp,
-                fontWeight: FontWeight.w500,
-                height: 1.4,
-              ),
-            ),
-            SizedBox(height: 14.h),
-            SizedBox(
-              width: double.infinity,
-              height: 34.h,
-              child: OutlinedButton(
-                onPressed: () {},
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.primary,
-                  side: const BorderSide(color: AppColors.primary),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(6.r),
-                  ),
-                  textStyle: GoogleFonts.manrope(
-                    fontSize: 11.sp,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                child: const Text('View Audit Logs'),
+                fontSize: 12.sp,
+                fontWeight: FontWeight.w400,
+                height: 1.15,
               ),
             ),
           ],
@@ -587,40 +672,38 @@ class _SettingsActionButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       width: double.infinity,
-      height: 46.h,
+      height: 34.h,
       child: filled
-          ? ElevatedButton.icon(
+          ? ElevatedButton(
               onPressed: onPressed,
-              icon: Icon(icon, size: 18.sp),
-              label: Text(label),
               style: ElevatedButton.styleFrom(
                 elevation: 0,
                 backgroundColor: AppColors.primary,
                 foregroundColor: AppColors.white,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(9.r),
+                  borderRadius: BorderRadius.circular(6.r),
                 ),
-                textStyle: GoogleFonts.manrope(
-                  fontSize: 14.sp,
-                  fontWeight: FontWeight.w700,
+                textStyle: GoogleFonts.inter(
+                  fontSize: 11.sp,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
+              child: FittedBox(child: Text(label)),
             )
-          : OutlinedButton.icon(
+          : OutlinedButton(
               onPressed: onPressed,
-              icon: Icon(icon, size: 18.sp),
-              label: Text(label),
               style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.primary,
+                foregroundColor: const Color(0xFF062A52),
                 side: const BorderSide(color: AppColors.primary),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(9.r),
+                  borderRadius: BorderRadius.circular(6.r),
                 ),
-                textStyle: GoogleFonts.manrope(
-                  fontSize: 14.sp,
-                  fontWeight: FontWeight.w700,
+                textStyle: GoogleFonts.inter(
+                  fontSize: 11.sp,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
+              child: FittedBox(child: Text(label)),
             ),
     );
   }
@@ -629,12 +712,16 @@ class _SettingsActionButton extends StatelessWidget {
 class _PolicyCard extends StatelessWidget {
   const _PolicyCard({
     required this.icon,
+    required this.iconBackground,
+    required this.iconColor,
     required this.title,
     required this.body,
     this.premium = false,
   });
 
   final IconData icon;
+  final Color iconBackground;
+  final Color iconColor;
   final String title;
   final String body;
   final bool premium;
@@ -643,19 +730,19 @@ class _PolicyCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.fromLTRB(16.w, 14.h, 10.w, 14.h),
+      padding: EdgeInsets.fromLTRB(13.w, 13.h, 14.w, 15.h),
       decoration: _cardDecoration(),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 28.r,
-            height: 28.r,
-            decoration: const BoxDecoration(
-              color: Color(0xFFF8E8EF),
+            width: 40.r,
+            height: 40.r,
+            decoration: BoxDecoration(
+              color: iconBackground,
               shape: BoxShape.circle,
             ),
-            child: Icon(icon, color: AppColors.rmPrimary, size: 16.sp),
+            child: Icon(icon, color: iconColor, size: 19.sp),
           ),
           SizedBox(width: 16.w),
           Expanded(
@@ -664,12 +751,17 @@ class _PolicyCard extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Text(
-                      title,
-                      style: GoogleFonts.manrope(
-                        color: AppColors.rmHeading,
-                        fontSize: 9.sp,
-                        fontWeight: FontWeight.w700,
+                    Expanded(
+                      child: Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.inter(
+                          color: const Color(0xFF062A52),
+                          fontSize: 16.sp,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.2,
+                        ),
                       ),
                     ),
                     if (premium) ...[
@@ -685,7 +777,7 @@ class _PolicyCard extends StatelessWidget {
                         ),
                         child: Text(
                           'PREMIUM',
-                          style: GoogleFonts.manrope(
+                          style: GoogleFonts.inter(
                             color: const Color(0xFF9A7100),
                             fontSize: 7.sp,
                             fontWeight: FontWeight.w800,
@@ -698,22 +790,14 @@ class _PolicyCard extends StatelessWidget {
                 SizedBox(height: 4.h),
                 Text(
                   body,
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     color: AppColors.rmBodyText,
-                    fontSize: 11.sp,
-                    fontWeight: FontWeight.w500,
+                    fontSize: 13.sp,
+                    fontWeight: FontWeight.w400,
                     height: 1.45,
                   ),
                 ),
               ],
-            ),
-          ),
-          Padding(
-            padding: EdgeInsets.only(top: 25.h),
-            child: Icon(
-              Icons.chevron_right_rounded,
-              color: AppColors.rmModalClose,
-              size: 20.sp,
             ),
           ),
         ],
@@ -747,7 +831,7 @@ class _SettingsPlaceholder extends StatelessWidget {
             SizedBox(height: 12.h),
             Text(
               title,
-              style: GoogleFonts.manrope(
+              style: GoogleFonts.inter(
                 color: AppColors.rmHeading,
                 fontSize: 18.sp,
                 fontWeight: FontWeight.w800,
@@ -757,7 +841,7 @@ class _SettingsPlaceholder extends StatelessWidget {
             Text(
               subtitle,
               textAlign: TextAlign.center,
-              style: GoogleFonts.manrope(
+              style: GoogleFonts.inter(
                 color: AppColors.rmBodyText,
                 fontSize: 12.sp,
                 height: 1.4,
@@ -773,14 +857,10 @@ class _SettingsPlaceholder extends StatelessWidget {
 BoxDecoration _cardDecoration() {
   return BoxDecoration(
     color: AppColors.white,
-    borderRadius: BorderRadius.circular(9.r),
-    border: Border.all(color: AppColors.rmPaleRoseBorder),
+    borderRadius: BorderRadius.circular(10.r),
+    border: Border.all(color: const Color(0xFFE8DCE0)),
     boxShadow: const [
-      BoxShadow(
-        color: AppColors.rmStatShadow,
-        blurRadius: 8,
-        offset: Offset(0, 3),
-      ),
+      BoxShadow(color: Color(0x1A000000), blurRadius: 10, offset: Offset(0, 3)),
     ],
   );
 }

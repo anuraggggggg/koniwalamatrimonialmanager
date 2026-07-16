@@ -57,7 +57,7 @@ class CustomerRegistryProvider extends ChangeNotifier {
         },
       );
       debugPrint('Customers API response: ${response.statusCode}');
-      debugPrint('Customers API body: ${response.body}');
+      debugPrint('Customers API body length: ${response.body.length}');
 
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception('Customers API failed with ${response.statusCode}');

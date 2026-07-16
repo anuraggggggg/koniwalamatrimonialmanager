@@ -80,10 +80,7 @@ class _RelationshipManagerAccountScreenState
       if (!mounted) {
         return;
       }
-      context.read<HolidayProvider>().fetchHolidays(
-        _holidayYear,
-        accessToken,
-      );
+      context.read<HolidayProvider>().fetchHolidays(_holidayYear, accessToken);
     });
   }
 
@@ -94,10 +91,7 @@ class _RelationshipManagerAccountScreenState
     }
 
     _requestedHolidayToken = accessToken;
-    context.read<HolidayProvider>().fetchHolidays(
-      _holidayYear,
-      accessToken,
-    );
+    context.read<HolidayProvider>().fetchHolidays(_holidayYear, accessToken);
   }
 
   String? _currentEmployeeId() {
@@ -210,9 +204,7 @@ class _RelationshipManagerAccountScreenState
     try {
       final response = await _dio.get(
         url,
-        options: Options(
-          headers: {'Authorization': 'Bearer $accessToken'},
-        ),
+        options: Options(headers: {'Authorization': 'Bearer $accessToken'}),
       );
 
       if (!mounted) {
@@ -257,18 +249,13 @@ class _RelationshipManagerAccountScreenState
       _attendanceError = null;
     });
 
-    final url = '${ApiConstants.baseUrl}${ApiConstants.hrEmployeeAttendance(
-      employeeId: employeeId,
-      month: _attendanceMonth,
-      year: _attendanceYear,
-    )}';
+    final url =
+        '${ApiConstants.baseUrl}${ApiConstants.hrEmployeeAttendance(employeeId: employeeId, month: _attendanceMonth, year: _attendanceYear)}';
 
     try {
       final response = await _dio.get(
         url,
-        options: Options(
-          headers: {'Authorization': 'Bearer $accessToken'},
-        ),
+        options: Options(headers: {'Authorization': 'Bearer $accessToken'}),
       );
 
       if (!mounted) {
@@ -370,7 +357,6 @@ class _RelationshipManagerAccountScreenState
                 padding: EdgeInsets.symmetric(horizontal: 4),
                 textStyle: TextStyle(
                   fontSize: 15.sp,
-                  fontFamily: 'Manrope',
                   fontWeight: FontWeight.w700,
                   height: 1.30,
                 ),
@@ -418,7 +404,6 @@ class _RelationshipManagerAccountScreenState
                       style: TextStyle(
                         color: AppColors.rmPrimary,
                         fontSize: 20.sp,
-                        fontFamily: 'Manrope',
                         fontWeight: FontWeight.w900,
                         height: 1.15,
                       ),
@@ -439,7 +424,6 @@ class _RelationshipManagerAccountScreenState
                       style: TextStyle(
                         color: AppColors.rmMutedText,
                         fontSize: 14.sp,
-                        fontFamily: 'Manrope',
                         fontWeight: FontWeight.w900,
                       ),
                     ),
@@ -493,7 +477,6 @@ class _RelationshipManagerAccountScreenState
             style: TextStyle(
               color: AppColors.rmPrimary,
               fontSize: 18.sp,
-              fontFamily: 'Manrope',
               fontWeight: FontWeight.w900,
               height: 1.25,
             ),
@@ -502,7 +485,7 @@ class _RelationshipManagerAccountScreenState
           Text(
             employeeName,
             textAlign: TextAlign.center,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: AppColors.rmPrimary,
               fontSize: 24.sp,
               fontWeight: FontWeight.w900,
@@ -518,7 +501,6 @@ class _RelationshipManagerAccountScreenState
               style: TextStyle(
                 color: AppColors.rmBodyText,
                 fontSize: 15.sp,
-                fontFamily: 'Manrope',
                 fontWeight: FontWeight.w500,
                 height: 1.40,
               ),
@@ -584,7 +566,6 @@ class _RelationshipManagerAccountScreenState
                   style: TextStyle(
                     color: AppColors.rmMutedText,
                     fontSize: 20.sp,
-                    fontFamily: 'Manrope',
                     fontWeight: FontWeight.w800,
                     height: 1.25.h,
                     letterSpacing: 0.5,
@@ -605,7 +586,6 @@ class _RelationshipManagerAccountScreenState
                   style: TextStyle(
                     color: AppColors.success,
                     fontSize: 12.sp,
-                    fontFamily: 'Manrope',
                     fontWeight: FontWeight.w900,
                     height: 1.20.h,
                   ),
@@ -619,7 +599,6 @@ class _RelationshipManagerAccountScreenState
             style: TextStyle(
               color: AppColors.rmPrimary,
               fontSize: 20.sp,
-              fontFamily: 'Manrope',
               fontWeight: FontWeight.w900,
               height: 1.20.h,
             ),
@@ -630,7 +609,6 @@ class _RelationshipManagerAccountScreenState
             style: TextStyle(
               color: AppColors.rmBodyText,
               fontSize: 14.sp,
-              fontFamily: 'Manrope',
               fontWeight: FontWeight.w600,
               height: 1.25,
             ),
@@ -658,7 +636,6 @@ class _RelationshipManagerAccountScreenState
                   style: TextStyle(
                     color: AppColors.rmMutedText,
                     fontSize: 13.sp,
-                    fontFamily: 'Manrope',
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -668,7 +645,6 @@ class _RelationshipManagerAccountScreenState
                 style: TextStyle(
                   color: AppColors.rmMutedText,
                   fontSize: 13.sp,
-                  fontFamily: 'Manrope',
                   fontWeight: FontWeight.w800,
                 ),
               ),
@@ -760,7 +736,6 @@ class _RelationshipManagerAccountScreenState
                   style: TextStyle(
                     color: AppColors.rmPrimary,
                     fontSize: 20.sp,
-                    fontFamily: 'Manrope',
                     fontWeight: FontWeight.w900,
                     height: 1.15,
                   ),
@@ -778,7 +753,6 @@ class _RelationshipManagerAccountScreenState
                         style: TextStyle(
                           color: AppColors.rmMutedText,
                           fontSize: 16.sp,
-                          fontFamily: 'Manrope',
                           fontWeight: FontWeight.w800,
                           height: 1.25,
                           letterSpacing: 0.4,
@@ -894,7 +868,6 @@ class _RelationshipManagerAccountScreenState
                     style: TextStyle(
                       color: AppColors.rmHeading,
                       fontSize: 18.sp,
-                      fontFamily: 'Manrope',
                       fontWeight: FontWeight.w900,
                       height: 1.25,
                     ),
@@ -929,7 +902,6 @@ class _RelationshipManagerAccountScreenState
                     style: TextStyle(
                       color: AppColors.rmMutedText,
                       fontSize: 14.sp,
-                      fontFamily: 'Manrope',
                       fontWeight: FontWeight.w800,
                       height: 1.20,
                     ),
@@ -952,7 +924,6 @@ class _RelationshipManagerAccountScreenState
               style: TextStyle(
                 color: AppColors.danger,
                 fontSize: 12.sp,
-                fontFamily: 'Manrope',
                 fontWeight: FontWeight.w700,
                 height: 1.25,
               ),
@@ -998,7 +969,8 @@ class _RelationshipManagerAccountScreenState
       cells.add(
         _CalendarDay(
           '$day',
-          selected: day == DateTime.now().day &&
+          selected:
+              day == DateTime.now().day &&
               _attendanceMonth == DateTime.now().month &&
               _attendanceYear == DateTime.now().year,
           statusColor: _attendanceStatusColor(attendanceDay?.status),
@@ -1051,7 +1023,6 @@ class _RelationshipManagerAccountScreenState
                   style: TextStyle(
                     color: AppColors.rmPrimary,
                     fontSize: 20.sp,
-                    fontFamily: 'Manrope',
                     fontWeight: FontWeight.w900,
                     height: 1.15,
                   ),
@@ -1072,7 +1043,6 @@ class _RelationshipManagerAccountScreenState
                   style: TextStyle(
                     color: AppColors.rmMutedText,
                     fontSize: 14.sp,
-                    fontFamily: 'Manrope',
                     fontWeight: FontWeight.w900,
                   ),
                 ),
@@ -1088,7 +1058,11 @@ class _RelationshipManagerAccountScreenState
           else
             Column(
               children: [
-                for (var index = 0; index < _payrollHistory.length; index++) ...[
+                for (
+                  var index = 0;
+                  index < _payrollHistory.length;
+                  index++
+                ) ...[
                   _PayrollHistoryTile(
                     item: _payrollHistory[index],
                     currencyFormat: _currencyFormat,
@@ -1140,10 +1114,7 @@ int _asInt(dynamic value) {
 }
 
 class _EmployeeAttendanceResult {
-  const _EmployeeAttendanceResult({
-    required this.summary,
-    required this.days,
-  });
+  const _EmployeeAttendanceResult({required this.summary, required this.days});
 
   final _EmployeeAttendanceSummary summary;
   final List<_EmployeeAttendanceDay> days;
@@ -1154,11 +1125,12 @@ class _EmployeeAttendanceResult {
         : data is Map
         ? Map<String, dynamic>.from(data)
         : <String, dynamic>{};
-    final days = (source['days'] is List ? source['days'] as List : const [])
-        .whereType<Map>()
-        .map((item) => _EmployeeAttendanceDay.fromJson(item))
-        .toList()
-      ..sort((left, right) => left.date.compareTo(right.date));
+    final days =
+        (source['days'] is List ? source['days'] as List : const [])
+            .whereType<Map>()
+            .map((item) => _EmployeeAttendanceDay.fromJson(item))
+            .toList()
+          ..sort((left, right) => left.date.compareTo(right.date));
 
     return _EmployeeAttendanceResult(
       summary: _EmployeeAttendanceSummary.fromJson(source, days),
@@ -1289,7 +1261,8 @@ class _EmployeeAttendanceDay {
       notes: _nullableString(json['notes']),
       leaveType: _nullableString(leaveDetails['type']),
       holidayName: _nullableString(holidayDetails['name']),
-      isHalfDay: leaveDetails['isHalfDay'] == true ||
+      isHalfDay:
+          leaveDetails['isHalfDay'] == true ||
           holidayDetails['isHalfDay'] == true,
     );
   }
@@ -1334,25 +1307,22 @@ class _PayrollHistoryItem {
   final String? payslipFileName;
   final DateTime? payslipGeneratedAt;
 
-  DateTime get periodDate => DateTime(
-    year == 0 ? 1900 : year,
-    month == 0 ? 1 : month,
-  );
+  DateTime get periodDate =>
+      DateTime(year == 0 ? 1900 : year, month == 0 ? 1 : month);
 
   static List<_PayrollHistoryItem> fromResponse(dynamic data) {
     final rows = _extractRows(data);
     return rows
         .whereType<Map>()
         .map(
-          (row) => _PayrollHistoryItem.fromJson(
-            Map<String, dynamic>.from(row),
-          ),
+          (row) => _PayrollHistoryItem.fromJson(Map<String, dynamic>.from(row)),
         )
         .toList();
   }
 
   factory _PayrollHistoryItem.fromJson(Map<String, dynamic> json) {
-    final payrollRun = _asMap(json['payrollRun']) ??
+    final payrollRun =
+        _asMap(json['payrollRun']) ??
         _asMap(json['run']) ??
         _asMap(json['payroll']);
 
@@ -1464,7 +1434,6 @@ class _HistoryEmptyState extends StatelessWidget {
         style: TextStyle(
           color: AppColors.rmMutedText,
           fontSize: 14.sp,
-          fontFamily: 'Manrope',
           fontWeight: FontWeight.w700,
           height: 1.25,
         ),
@@ -1474,10 +1443,7 @@ class _HistoryEmptyState extends StatelessWidget {
 }
 
 class _PayrollHistoryTile extends StatelessWidget {
-  const _PayrollHistoryTile({
-    required this.item,
-    required this.currencyFormat,
-  });
+  const _PayrollHistoryTile({required this.item, required this.currencyFormat});
 
   final _PayrollHistoryItem item;
   final NumberFormat currencyFormat;
@@ -1523,7 +1489,6 @@ class _PayrollHistoryTile extends StatelessWidget {
                     style: TextStyle(
                       color: AppColors.rmHeading,
                       fontSize: 16.sp,
-                      fontFamily: 'Manrope',
                       fontWeight: FontWeight.w900,
                       height: 1.25,
                     ),
@@ -1536,7 +1501,6 @@ class _PayrollHistoryTile extends StatelessWidget {
                     style: TextStyle(
                       color: AppColors.success,
                       fontSize: 15.sp,
-                      fontFamily: 'Manrope',
                       fontWeight: FontWeight.w900,
                       height: 1.20,
                     ),
@@ -1592,7 +1556,6 @@ class _PayrollStatusPill extends StatelessWidget {
         style: TextStyle(
           color: AppColors.success,
           fontSize: 11.sp,
-          fontFamily: 'Manrope',
           fontWeight: FontWeight.w900,
           height: 1.15,
         ),
@@ -1622,7 +1585,6 @@ class _PayrollMetaChip extends StatelessWidget {
         style: TextStyle(
           color: AppColors.rmMutedText,
           fontSize: 11.sp,
-          fontFamily: 'Manrope',
           fontWeight: FontWeight.w800,
           height: 1.15,
         ),
@@ -1653,7 +1615,6 @@ class _HolidayEmptyState extends StatelessWidget {
         style: TextStyle(
           color: AppColors.rmMutedText,
           fontSize: 14.sp,
-          fontFamily: 'Manrope',
           fontWeight: FontWeight.w700,
           height: 1.25,
         ),
@@ -1702,7 +1663,6 @@ class _HolidayListTile extends StatelessWidget {
                 style: TextStyle(
                   color: AppColors.rmHeading,
                   fontSize: 15.sp,
-                  fontFamily: 'Manrope',
                   fontWeight: FontWeight.w900,
                   height: 1.25,
                 ),
@@ -1728,7 +1688,6 @@ class _HolidayListTile extends StatelessWidget {
                   style: TextStyle(
                     color: AppColors.rmBodyText,
                     fontSize: 12.sp,
-                    fontFamily: 'Manrope',
                     fontWeight: FontWeight.w600,
                     height: 1.35,
                   ),
@@ -1763,7 +1722,6 @@ class _HolidayMetaChip extends StatelessWidget {
         style: TextStyle(
           color: AppColors.rmMutedText,
           fontSize: 11.sp,
-          fontFamily: 'Manrope',
           fontWeight: FontWeight.w800,
           height: 1.15,
         ),
@@ -1803,7 +1761,6 @@ class _InfoTile extends StatelessWidget {
             style: TextStyle(
               color: AppColors.rmMutedText,
               fontSize: 12.sp,
-              fontFamily: 'Manrope',
               fontWeight: FontWeight.w800,
               height: 1.25,
               letterSpacing: 0.5,
@@ -1817,7 +1774,6 @@ class _InfoTile extends StatelessWidget {
             style: TextStyle(
               color: AppColors.rmPrimary,
               fontSize: 18.sp,
-              fontFamily: 'Manrope',
               fontWeight: FontWeight.w900,
               height: 1.20,
             ),
@@ -1854,7 +1810,6 @@ class _IncentiveDetailCard extends StatelessWidget {
             style: TextStyle(
               color: AppColors.rmMutedText,
               fontSize: 13.sp,
-              fontFamily: 'Manrope',
               fontWeight: FontWeight.w800,
               height: 1.25,
               letterSpacing: 0.5,
@@ -1868,7 +1823,6 @@ class _IncentiveDetailCard extends StatelessWidget {
             style: TextStyle(
               color: AppColors.rmHeading,
               fontSize: 18.sp,
-              fontFamily: 'Manrope',
               fontWeight: FontWeight.w900,
               height: 1.25,
             ),
@@ -1909,7 +1863,6 @@ class _AttendanceStatCard extends StatelessWidget {
             style: TextStyle(
               color: data.color,
               fontSize: 24.sp,
-              fontFamily: 'Manrope',
               fontWeight: FontWeight.w900,
               height: 1.05,
             ),
@@ -1923,7 +1876,6 @@ class _AttendanceStatCard extends StatelessWidget {
             style: TextStyle(
               color: AppColors.rmBodyText,
               fontSize: 12.sp,
-              fontFamily: 'Manrope',
               fontWeight: FontWeight.w800,
               height: 1.20,
             ),
@@ -1978,7 +1930,6 @@ class _CalendarDayCell extends StatelessWidget {
               style: TextStyle(
                 color: textColor,
                 fontSize: 14.sp,
-                fontFamily: 'Manrope',
                 fontWeight: FontWeight.w800,
                 height: 1.00,
               ),
@@ -2023,7 +1974,6 @@ class _LegendDot extends StatelessWidget {
           style: TextStyle(
             color: AppColors.rmBodyText,
             fontSize: 13.sp,
-            fontFamily: 'Manrope',
             fontWeight: FontWeight.w700,
             height: 1.20,
           ),
@@ -2064,7 +2014,6 @@ class _SegmentButton extends StatelessWidget {
           style: TextStyle(
             color: selected ? AppColors.rmPrimary : AppColors.rmMutedText,
             fontSize: 15.sp,
-            fontFamily: 'Manrope',
             fontWeight: FontWeight.w800,
             height: 1.20,
           ),

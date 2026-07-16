@@ -51,9 +51,7 @@ String _formatDashboardLabel(String value) {
   return value
       .split('_')
       .where((part) => part.isNotEmpty)
-      .map(
-        (part) => part[0].toUpperCase() + part.substring(1).toLowerCase(),
-      )
+      .map((part) => part[0].toUpperCase() + part.substring(1).toLowerCase())
       .join(' ');
 }
 
@@ -72,10 +70,7 @@ String _buildRecentProfileSubtitle(ManagerRecentProfileItem profile) {
 }
 
 class _DashboardBadgePalette {
-  const _DashboardBadgePalette({
-    required this.background,
-    required this.text,
-  });
+  const _DashboardBadgePalette({required this.background, required this.text});
 
   final Color background;
   final Color text;
@@ -262,10 +257,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void _fetchManagerDashboard({bool forceRefresh = false}) {
     final accessToken = context.read<AuthProvider>().userModel?.accessToken;
     context.read<ManagerDashboardProvider>().fetchDashboard(
-          accessToken,
-          period: _selectedPeriodKey,
-          forceRefresh: forceRefresh,
-        );
+      accessToken,
+      period: _selectedPeriodKey,
+      forceRefresh: forceRefresh,
+    );
     context.read<LeadFollowUpProvider>().fetchFollowUps(accessToken);
   }
 
@@ -309,7 +304,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               children: [
                 Text(
                   'Dashboard Filters',
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     color: AppColors.rmHeading,
                     fontSize: 20.sp,
                     fontWeight: FontWeight.w900,
@@ -318,7 +313,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 SizedBox(height: 6.h),
                 Text(
                   'Choose the activity period for dashboard metrics.',
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     color: AppColors.rmBodyText,
                     fontSize: 13.sp,
                     fontWeight: FontWeight.w600,
@@ -357,7 +352,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
     return 'Rs. $value';
   }
-
 
   List<Widget> _buildFunnelCards(List<ManagerDashboardFunnelItem>? items) {
     if (items == null || items.isEmpty) {
@@ -551,8 +545,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       LinearProgressIndicator(
                         minHeight: 3,
                         color: AppColors.primary,
-                        backgroundColor:
-                            AppColors.primary.withValues(alpha: 0.12),
+                        backgroundColor: AppColors.primary.withValues(
+                          alpha: 0.12,
+                        ),
                       ),
                     ],
                     if ((managerDashboard?.period.displayText ?? '')
@@ -560,7 +555,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       SizedBox(height: 10.h),
                       Text(
                         managerDashboard!.period.displayText,
-                        style: GoogleFonts.manrope(
+                        style: GoogleFonts.inter(
                           color: AppColors.rmBodyText,
                           fontSize: 13.sp,
                           fontWeight: FontWeight.w700,
@@ -572,7 +567,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       SizedBox(height: 10.h),
                       Text(
                         managerDashboardProvider.error!,
-                        style: GoogleFonts.manrope(
+                        style: GoogleFonts.inter(
                           color: Colors.red.shade700,
                           fontSize: 13.sp,
                           fontWeight: FontWeight.w700,
@@ -580,10 +575,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                     ],
                     SizedBox(height: 25.h),
-                    _StatsGrid(
-                      maroon: AppColors.primary,
-                      items: statItems,
-                    ),
+                    _StatsGrid(maroon: AppColors.primary, items: statItems),
                     SizedBox(height: 16.h),
                     Container(
                       width: double.infinity,
@@ -596,10 +588,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             children: [
                               Text(
                                 'Assigned Funnel',
-                                style: GoogleFonts.manrope(
+                                style: GoogleFonts.inter(
                                   color: const Color(0xFF181C1F),
-                                  fontSize: 22,
-                                  // fontFamily: 'Manrope',
+                                  fontSize: 22.sp,
                                   fontWeight: FontWeight.w600,
                                   height: 1.60,
                                 ),
@@ -637,9 +628,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       dashboard: managerDashboard,
                     ),
                     SizedBox(height: 14.h),
-                    _LeadFollowUpsPanel(
-                      maroon: _maroon,
-                    ),
+                    _LeadFollowUpsPanel(maroon: _maroon),
                   ],
                 ),
               )
@@ -786,7 +775,8 @@ List<_ManagerChatThreadData> _buildManagerChatThreads(
   final urgent = dashboard?.urgent;
   final pendingReplies = urgent?.pendingReplies ?? 0;
   final readyToSend = urgent?.readyToSend ?? 0;
-  final profiles = dashboard?.recentProfiles ?? const <ManagerRecentProfileItem>[];
+  final profiles =
+      dashboard?.recentProfiles ?? const <ManagerRecentProfileItem>[];
 
   if (profiles.isNotEmpty) {
     return profiles.take(4).toList().asMap().entries.map((entry) {
@@ -962,7 +952,8 @@ List<_ManagerChatActivityData> _buildManagerChatActivities(
     ),
     _ManagerChatActivityData(
       title: 'Ritwik thread marked warm',
-      subtitle: 'Client intent is positive. The next step is a shortlist review.',
+      subtitle:
+          'Client intent is positive. The next step is a shortlist review.',
       icon: Icons.local_fire_department_outlined,
       actionLabel: 'Updated',
     ),
@@ -1073,7 +1064,9 @@ class _ManagerChatWorkspaceState extends State<_ManagerChatWorkspace> {
     final phone = thread.phone;
     if (phone == null || phone.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('WhatsApp number not available for this contact')),
+        const SnackBar(
+          content: Text('WhatsApp number not available for this contact'),
+        ),
       );
       return;
     }
@@ -1084,8 +1077,10 @@ class _ManagerChatWorkspaceState extends State<_ManagerChatWorkspace> {
       cleanPhone = '91$cleanPhone'; // Default to India if 10 digits
     }
 
-    final message = "Hello ${thread.name}, I am following up from Koniwala Matrimonial regarding ${thread.clientLabel}.";
-    final url = "https://wa.me/$cleanPhone?text=${Uri.encodeComponent(message)}";
+    final message =
+        "Hello ${thread.name}, I am following up from Koniwala Matrimonial regarding ${thread.clientLabel}.";
+    final url =
+        "https://wa.me/$cleanPhone?text=${Uri.encodeComponent(message)}";
     final uri = Uri.parse(url);
 
     try {
@@ -1096,9 +1091,9 @@ class _ManagerChatWorkspaceState extends State<_ManagerChatWorkspace> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     }
   }
@@ -1237,20 +1232,20 @@ class _ManagerChatWorkspaceState extends State<_ManagerChatWorkspace> {
   Widget build(BuildContext context) {
     final allThreads = _buildManagerChatThreads(widget.dashboard);
     final filteredThreads = _filteredThreads(allThreads);
-    final threads =
-        (filteredThreads.isEmpty ? allThreads : filteredThreads)
-            .map(_threadWithLocalPreview)
-            .toList();
-    final selectedThreadIndex =
-        _selectedThreadIndex >= threads.length ? 0 : _selectedThreadIndex;
+    final threads = (filteredThreads.isEmpty ? allThreads : filteredThreads)
+        .map(_threadWithLocalPreview)
+        .toList();
+    final selectedThreadIndex = _selectedThreadIndex >= threads.length
+        ? 0
+        : _selectedThreadIndex;
     final selectedThread = threads[selectedThreadIndex];
     final messages = _messagesForThread(selectedThread);
-    final pendingReplies = widget.dashboard?.urgent.pendingReplies ??
+    final pendingReplies =
+        widget.dashboard?.urgent.pendingReplies ??
         threads.where((thread) => thread.unreadCount > 0).length;
-    final readyDrafts = widget.dashboard?.urgent.readyToSend ??
-        threads
-            .where((thread) => thread.actionLabel == 'Review Draft')
-            .length;
+    final readyDrafts =
+        widget.dashboard?.urgent.readyToSend ??
+        threads.where((thread) => thread.actionLabel == 'Review Draft').length;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -1265,7 +1260,8 @@ class _ManagerChatWorkspaceState extends State<_ManagerChatWorkspace> {
               onOpenClientRegistry: widget.onOpenClientRegistry,
               onOpenFollowUps: widget.onOpenFollowUps,
               messageController: _messageController,
-              onSendMessage: ({imagePath}) => _sendMessage(selectedThread, imagePath: imagePath),
+              onSendMessage: ({imagePath}) =>
+                  _sendMessage(selectedThread, imagePath: imagePath),
               compact: true,
               onBack: () {
                 setState(() {
@@ -1293,7 +1289,7 @@ class _ManagerChatWorkspaceState extends State<_ManagerChatWorkspace> {
                         children: [
                           Text(
                             'WhatsApp Chat',
-                            style: GoogleFonts.manrope(
+                            style: GoogleFonts.inter(
                               color: widget.maroon,
                               fontSize: 28.sp,
                               fontWeight: FontWeight.w700,
@@ -1302,7 +1298,7 @@ class _ManagerChatWorkspaceState extends State<_ManagerChatWorkspace> {
                           SizedBox(height: 4.h),
                           Text(
                             '$pendingReplies pending replies and $readyDrafts draft-ready conversations in the manager queue.',
-                            style: GoogleFonts.manrope(
+                            style: GoogleFonts.inter(
                               color: AppColors.rmBodyText,
                               fontSize: 13.sp,
                               fontWeight: FontWeight.w500,
@@ -1354,7 +1350,7 @@ class _ManagerChatWorkspaceState extends State<_ManagerChatWorkspace> {
                       Expanded(
                         child: Text(
                           'Search chats, clients, or message intent',
-                          style: GoogleFonts.manrope(
+                          style: GoogleFonts.inter(
                             color: AppColors.rmMutedText,
                             fontSize: 13.sp,
                             fontWeight: FontWeight.w500,
@@ -1427,7 +1423,10 @@ class _ManagerChatWorkspaceState extends State<_ManagerChatWorkspace> {
                                     widget.onOpenClientRegistry,
                                 onOpenFollowUps: widget.onOpenFollowUps,
                                 messageController: _messageController,
-                                onSendMessage: ({imagePath}) => _sendMessage(selectedThread, imagePath: imagePath),
+                                onSendMessage: ({imagePath}) => _sendMessage(
+                                  selectedThread,
+                                  imagePath: imagePath,
+                                ),
                                 compact: false,
                                 onBack: null,
                                 fullScreen: false,
@@ -1459,10 +1458,7 @@ class _ManagerChatWorkspaceState extends State<_ManagerChatWorkspace> {
 }
 
 class _ManagerTopActionChip extends StatelessWidget {
-  const _ManagerTopActionChip({
-    required this.label,
-    required this.onTap,
-  });
+  const _ManagerTopActionChip({required this.label, required this.onTap});
 
   final String label;
   final VoidCallback onTap;
@@ -1480,7 +1476,7 @@ class _ManagerTopActionChip extends StatelessWidget {
         ),
         child: Text(
           label,
-          style: GoogleFonts.manrope(
+          style: GoogleFonts.inter(
             color: AppColors.rmPrimary,
             fontSize: 11.sp,
             fontWeight: FontWeight.w800,
@@ -1518,7 +1514,7 @@ class _ManagerChatFilterChip extends StatelessWidget {
         ),
         child: Text(
           label,
-          style: GoogleFonts.manrope(
+          style: GoogleFonts.inter(
             color: selected ? Colors.white : AppColors.rmPrimary,
             fontSize: 12.sp,
             fontWeight: FontWeight.w800,
@@ -1600,7 +1596,7 @@ class _ManagerChatConversationTile extends StatelessWidget {
               backgroundColor: AppColors.rmPrimary,
               child: Text(
                 thread.initials,
-                style: GoogleFonts.manrope(
+                style: GoogleFonts.inter(
                   color: Colors.white,
                   fontSize: 14.sp,
                   fontWeight: FontWeight.w800,
@@ -1619,7 +1615,7 @@ class _ManagerChatConversationTile extends StatelessWidget {
                           thread.name,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.manrope(
+                          style: GoogleFonts.inter(
                             color: AppColors.rmHeading,
                             fontSize: 14.sp,
                             fontWeight: FontWeight.w800,
@@ -1629,7 +1625,7 @@ class _ManagerChatConversationTile extends StatelessWidget {
                       SizedBox(width: 8.w),
                       Text(
                         thread.timeLabel,
-                        style: GoogleFonts.manrope(
+                        style: GoogleFonts.inter(
                           color: AppColors.rmMutedText,
                           fontSize: 10.sp,
                           fontWeight: FontWeight.w700,
@@ -1642,7 +1638,7 @@ class _ManagerChatConversationTile extends StatelessWidget {
                     thread.clientLabel,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.manrope(
+                    style: GoogleFonts.inter(
                       color: AppColors.rmMutedText,
                       fontSize: 11.sp,
                       fontWeight: FontWeight.w600,
@@ -1653,7 +1649,7 @@ class _ManagerChatConversationTile extends StatelessWidget {
                     thread.preview,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.manrope(
+                    style: GoogleFonts.inter(
                       color: AppColors.rmBodyText,
                       fontSize: 12.sp,
                       fontWeight: FontWeight.w500,
@@ -1674,7 +1670,7 @@ class _ManagerChatConversationTile extends StatelessWidget {
                         ),
                         child: Text(
                           thread.stateLabel,
-                          style: GoogleFonts.manrope(
+                          style: GoogleFonts.inter(
                             color: palette.text,
                             fontSize: 9.sp,
                             fontWeight: FontWeight.w800,
@@ -1694,7 +1690,7 @@ class _ManagerChatConversationTile extends StatelessWidget {
                           ),
                           child: Text(
                             '${thread.unreadCount}',
-                            style: GoogleFonts.manrope(
+                            style: GoogleFonts.inter(
                               color: Colors.white,
                               fontSize: 10.sp,
                               fontWeight: FontWeight.w800,
@@ -1781,7 +1777,7 @@ class _ManagerChatConversationPane extends StatelessWidget {
                   backgroundColor: AppColors.rmPrimary,
                   child: Text(
                     thread.initials,
-                    style: GoogleFonts.manrope(
+                    style: GoogleFonts.inter(
                       color: Colors.white,
                       fontSize: 14.sp,
                       fontWeight: FontWeight.w800,
@@ -1797,7 +1793,7 @@ class _ManagerChatConversationPane extends StatelessWidget {
                         thread.name,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.manrope(
+                        style: GoogleFonts.inter(
                           color: AppColors.rmPrimary,
                           fontSize: 22.sp,
                           fontWeight: FontWeight.w700,
@@ -1808,7 +1804,7 @@ class _ManagerChatConversationPane extends StatelessWidget {
                         '${thread.clientLabel} - ${thread.timeLabel}',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.manrope(
+                        style: GoogleFonts.inter(
                           color: AppColors.rmMutedText,
                           fontSize: 11.sp,
                           fontWeight: FontWeight.w600,
@@ -1837,10 +1833,10 @@ class _ManagerChatConversationPane extends StatelessWidget {
                     ),
                   ),
                 ] else
-                _ManagerChatStatusBadge(
-                  label: thread.stateLabel,
-                  palette: palette,
-                ),
+                  _ManagerChatStatusBadge(
+                    label: thread.stateLabel,
+                    palette: palette,
+                  ),
               ],
             ),
           ),
@@ -1883,7 +1879,7 @@ class _ManagerChatConversationPane extends StatelessWidget {
                   Expanded(
                     child: Text(
                       'Messages are shown in a WhatsApp-style manager conversation view.',
-                      style: GoogleFonts.manrope(
+                      style: GoogleFonts.inter(
                         color: AppColors.rmBodyText,
                         fontSize: 11.sp,
                         fontWeight: FontWeight.w600,
@@ -1912,7 +1908,7 @@ class _ManagerChatConversationPane extends StatelessWidget {
                     ),
                     child: Text(
                       'Today',
-                      style: GoogleFonts.manrope(
+                      style: GoogleFonts.inter(
                         color: AppColors.rmPrimary,
                         fontSize: 10.sp,
                         fontWeight: FontWeight.w700,
@@ -1939,10 +1935,7 @@ class _ManagerChatConversationPane extends StatelessWidget {
 }
 
 class _ManagerChatStatusBadge extends StatelessWidget {
-  const _ManagerChatStatusBadge({
-    required this.label,
-    required this.palette,
-  });
+  const _ManagerChatStatusBadge({required this.label, required this.palette});
 
   final String label;
   final _ChatAccentPalette palette;
@@ -1958,7 +1951,7 @@ class _ManagerChatStatusBadge extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: GoogleFonts.manrope(
+        style: GoogleFonts.inter(
           color: palette.text,
           fontSize: 10.sp,
           fontWeight: FontWeight.w800,
@@ -1978,8 +1971,9 @@ class _ManagerChatBubble extends StatelessWidget {
     final hasImage = message.imagePath != null && message.imagePath!.isNotEmpty;
 
     return Align(
-      alignment:
-          message.isIncoming ? Alignment.centerLeft : Alignment.centerRight,
+      alignment: message.isIncoming
+          ? Alignment.centerLeft
+          : Alignment.centerRight,
       child: Container(
         constraints: BoxConstraints(maxWidth: 260.w),
         margin: EdgeInsets.only(bottom: 10.h),
@@ -2014,7 +2008,7 @@ class _ManagerChatBubble extends StatelessWidget {
                   if (message.text.isNotEmpty)
                     Text(
                       message.text,
-                      style: GoogleFonts.manrope(
+                      style: GoogleFonts.inter(
                         color: AppColors.rmHeading,
                         fontSize: 13.sp,
                         fontWeight: FontWeight.w500,
@@ -2027,7 +2021,7 @@ class _ManagerChatBubble extends StatelessWidget {
                     children: [
                       Text(
                         message.timeLabel,
-                        style: GoogleFonts.manrope(
+                        style: GoogleFonts.inter(
                           color: AppColors.rmMutedText,
                           fontSize: 9.sp,
                           fontWeight: FontWeight.w700,
@@ -2035,8 +2029,11 @@ class _ManagerChatBubble extends StatelessWidget {
                       ),
                       if (message.showReadReceipt) ...[
                         SizedBox(width: 4.w),
-                        Icon(Icons.done_all,
-                            color: Colors.blueAccent, size: 12.sp),
+                        Icon(
+                          Icons.done_all,
+                          color: Colors.blueAccent,
+                          size: 12.sp,
+                        ),
                       ],
                     ],
                   ),
@@ -2126,7 +2123,11 @@ class _ManagerChatComposerState extends State<_ManagerChatComposer> {
                         color: Colors.black54,
                         shape: BoxShape.circle,
                       ),
-                      child: Icon(Icons.close, color: Colors.white, size: 18.sp),
+                      child: Icon(
+                        Icons.close,
+                        color: Colors.white,
+                        size: 18.sp,
+                      ),
                     ),
                   ),
                 ),
@@ -2174,16 +2175,15 @@ class _ManagerChatComposerState extends State<_ManagerChatComposer> {
                     ),
                   );
                 },
-                icon: Icon(
-                  Icons.add,
-                  color: AppColors.rmPrimary,
-                  size: 26.sp,
-                ),
+                icon: Icon(Icons.add, color: AppColors.rmPrimary, size: 26.sp),
               ),
               Expanded(
                 child: Container(
                   constraints: BoxConstraints(minHeight: 44.h),
-                  padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 6.h),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 10.w,
+                    vertical: 6.h,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(24.r),
@@ -2204,7 +2204,7 @@ class _ManagerChatComposerState extends State<_ManagerChatComposer> {
                           maxLines: 4,
                           textInputAction: TextInputAction.send,
                           onSubmitted: (_) => _handleSend(),
-                          style: GoogleFonts.manrope(
+                          style: GoogleFonts.inter(
                             color: AppColors.rmHeading,
                             fontSize: 13.sp,
                             fontWeight: FontWeight.w500,
@@ -2213,7 +2213,7 @@ class _ManagerChatComposerState extends State<_ManagerChatComposer> {
                             isCollapsed: true,
                             border: InputBorder.none,
                             hintText: 'Type a message or ${widget.actionLabel}',
-                            hintStyle: GoogleFonts.manrope(
+                            hintStyle: GoogleFonts.inter(
                               color: AppColors.rmMutedText,
                               fontSize: 13.sp,
                               fontWeight: FontWeight.w500,
@@ -2221,7 +2221,8 @@ class _ManagerChatComposerState extends State<_ManagerChatComposer> {
                           ),
                         ),
                       ),
-                      if (widget.controller.text.isEmpty && _selectedImage == null) ...[
+                      if (widget.controller.text.isEmpty &&
+                          _selectedImage == null) ...[
                         IconButton(
                           onPressed: () => _pickImage(ImageSource.gallery),
                           icon: Icon(
@@ -2252,7 +2253,8 @@ class _ManagerChatComposerState extends State<_ManagerChatComposer> {
               ValueListenableBuilder<TextEditingValue>(
                 valueListenable: widget.controller,
                 builder: (context, value, _) {
-                  final hasContent = value.text.trim().isNotEmpty || _selectedImage != null;
+                  final hasContent =
+                      value.text.trim().isNotEmpty || _selectedImage != null;
                   return InkWell(
                     onTap: hasContent ? _handleSend : null,
                     borderRadius: BorderRadius.circular(999.r),
@@ -2345,7 +2347,7 @@ class _ManagerDashboardDrawer extends StatelessWidget {
                         ),
                         child: Text(
                           userName.isNotEmpty ? userName[0].toUpperCase() : 'M',
-                          style: GoogleFonts.manrope(
+                          style: GoogleFonts.inter(
                             color: AppColors.white,
                             fontSize: 22.sp,
                             fontWeight: FontWeight.w800,
@@ -2361,7 +2363,7 @@ class _ManagerDashboardDrawer extends StatelessWidget {
                               userName,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: GoogleFonts.manrope(
+                              style: GoogleFonts.inter(
                                 color: AppColors.white,
                                 fontSize: 18.sp,
                                 fontWeight: FontWeight.w800,
@@ -2372,7 +2374,7 @@ class _ManagerDashboardDrawer extends StatelessWidget {
                               roleLabel,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: GoogleFonts.manrope(
+                              style: GoogleFonts.inter(
                                 color: AppColors.white.withValues(alpha: 0.78),
                                 fontSize: 13.sp,
                                 fontWeight: FontWeight.w600,
@@ -2419,7 +2421,7 @@ class _ManagerDashboardDrawer extends StatelessWidget {
                     padding: EdgeInsets.fromLTRB(6.w, 0, 6.w, 10.h),
                     child: Text(
                       'Main Menu',
-                      style: GoogleFonts.manrope(
+                      style: GoogleFonts.inter(
                         color: AppColors.rmMutedText,
                         fontSize: 12.sp,
                         fontWeight: FontWeight.w900,
@@ -2543,7 +2545,7 @@ class _ManagerDashboardDrawer extends StatelessWidget {
                         Expanded(
                           child: Text(
                             'Dashboard menu ready',
-                            style: GoogleFonts.manrope(
+                            style: GoogleFonts.inter(
                               color: AppColors.rmBodyText,
                               fontSize: 12.sp,
                               fontWeight: FontWeight.w700,
@@ -2577,7 +2579,7 @@ class _ManagerDashboardDrawer extends StatelessWidget {
                           SizedBox(width: 10.w),
                           Text(
                             'Logout',
-                            style: GoogleFonts.manrope(
+                            style: GoogleFonts.inter(
                               fontSize: 15.sp,
                               fontWeight: FontWeight.w800,
                             ),
@@ -2615,7 +2617,7 @@ class _ManagerDrawerMetric extends StatelessWidget {
         children: [
           Text(
             value,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: AppColors.white,
               fontSize: 18.sp,
               fontWeight: FontWeight.w900,
@@ -2627,7 +2629,7 @@ class _ManagerDrawerMetric extends StatelessWidget {
             label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: AppColors.white.withValues(alpha: 0.78),
               fontSize: 11.sp,
               fontWeight: FontWeight.w700,
@@ -2677,7 +2679,7 @@ class _ManagerDrawerItem extends StatelessWidget {
                     label,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.manrope(
+                    style: GoogleFonts.inter(
                       color: color,
                       fontSize: 15.sp,
                       fontWeight: selected ? FontWeight.w800 : FontWeight.w700,
@@ -2787,14 +2789,14 @@ class _BottomNavItem extends StatelessWidget {
             if (iconAsset != null)
               Image.asset(
                 iconAsset!,
-                width: 18,
-                height: 18,
+                width: 18.sp,
+                height: 18.sp,
                 color: selected ? selectedColor : inactive,
               )
             else
               Icon(
                 icon,
-                size: 18,
+                size: 18.sp,
                 color: selected ? selectedColor : inactive,
               ),
             SizedBox(height: 4.h),
@@ -2815,10 +2817,7 @@ class _BottomNavItem extends StatelessWidget {
 }
 
 class _LeadCardsPanel extends StatelessWidget {
-  const _LeadCardsPanel({
-    required this.maroon,
-    required this.dashboard,
-  });
+  const _LeadCardsPanel({required this.maroon, required this.dashboard});
 
   final Color maroon;
   final ManagerDashboard? dashboard;
@@ -2840,14 +2839,14 @@ class _LeadCardsPanel extends StatelessWidget {
                 height: 50,
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 decoration: _dashboardCardDecoration(radius: 10),
-                child: const Row(
+                child: Row(
                   children: [
-                    Icon(Icons.search, size: 22, color: Color(0xFF202328)),
+                    Icon(Icons.search, size: 22.sp, color: Color(0xFF202328)),
                     SizedBox(width: 12),
                     Text(
                       'Search leads by nam....',
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: 16.sp,
                         fontWeight: FontWeight.w500,
                         color: AppColors.textPrimary,
                       ),
@@ -2896,7 +2895,11 @@ class _LeadCardsPanel extends StatelessWidget {
                 SizedBox(height: 10.h),
                 const _LeadCardItem(),
               ] else ...[
-                for (var index = 0; index < visibleProfiles.length; index++) ...[
+                for (
+                  var index = 0;
+                  index < visibleProfiles.length;
+                  index++
+                ) ...[
                   if (index > 0) SizedBox(height: 10.h),
                   _LeadCardItem(profile: visibleProfiles[index]),
                 ],
@@ -2908,13 +2911,13 @@ class _LeadCardsPanel extends StatelessWidget {
           child: Text(
             hasLiveData
                 ? visibleProfiles.isEmpty
-                    ? 'No assigned leads available'
-                    : 'Displaying queue 1-${visibleProfiles.length} of $totalLeads assigned leads'
+                      ? 'No assigned leads available'
+                      : 'Displaying queue 1-${visibleProfiles.length} of $totalLeads assigned leads'
                 : 'Displaying queue 1-15 of 42 assigned leads',
             style: TextStyle(
-              fontSize: 14,
+              fontSize: 14.sp,
               fontWeight: FontWeight.w700,
-              color: Colors.grey.shade600,
+              color: const Color(0xFF1E1F1F),
             ),
           ),
         ),
@@ -2930,9 +2933,9 @@ class _LeadCardsPanel extends StatelessWidget {
                     borderRadius: BorderRadius.circular(22),
                   ),
                   padding: const EdgeInsets.symmetric(vertical: 12),
-                  textStyle: const TextStyle(
+                  textStyle: TextStyle(
                     fontWeight: FontWeight.w900,
-                    fontSize: 15,
+                    fontSize: 15.sp,
                   ),
                 ),
                 onPressed: () {},
@@ -2952,9 +2955,9 @@ class _LeadCardsPanel extends StatelessWidget {
                     borderRadius: BorderRadius.circular(22),
                   ),
                   padding: const EdgeInsets.symmetric(vertical: 12),
-                  textStyle: const TextStyle(
+                  textStyle: TextStyle(
                     fontWeight: FontWeight.w900,
-                    fontSize: 15,
+                    fontSize: 15.sp,
                   ),
                 ),
                 onPressed: () {},
@@ -2987,8 +2990,8 @@ class _LeadCardItem extends StatelessWidget {
     final priorityStars = currentProfile == null
         ? 2
         : currentProfile.verified
-            ? 3
-            : 2;
+        ? 3
+        : 2;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -3010,9 +3013,9 @@ class _LeadCardItem extends StatelessWidget {
                     : Text(
                         currentProfile?.initials ?? 'AR',
                         style: TextStyle(
-                          color: Colors.grey.shade800,
+                          color: const Color(0xFF24262A),
                           fontWeight: FontWeight.w900,
-                          fontSize: 16,
+                          fontSize: 16.sp,
                         ),
                       ),
               ),
@@ -3025,8 +3028,7 @@ class _LeadCardItem extends StatelessWidget {
                       currentProfile?.name ?? 'Aarav Reddy',
                       style: TextStyle(
                         color: AppColors.primary,
-                        fontSize: 24,
-                        fontFamily: 'Manrope',
+                        fontSize: 24.sp,
                         fontWeight: FontWeight.w800,
                         height: 1.50,
                       ),
@@ -3039,8 +3041,7 @@ class _LeadCardItem extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: const Color(0xFF181C1F),
-                        fontSize: 14,
-                        fontFamily: 'Manrope',
+                        fontSize: 14.sp,
                         fontWeight: FontWeight.w400,
                         height: 1.50,
                       ),
@@ -3067,7 +3068,7 @@ class _LeadCardItem extends StatelessWidget {
                   ? 'AWAITING RESPONSE'
                   : _formatDashboardLabel(status),
               style: TextStyle(
-                fontSize: 13,
+                fontSize: 13.sp,
                 fontWeight: FontWeight.w900,
                 color: statusPalette.text,
                 letterSpacing: 0.2,
@@ -3096,7 +3097,7 @@ class _LeadCardItem extends StatelessWidget {
                     Text(
                       sourceText.isEmpty ? 'Unknown' : sourceText,
                       style: TextStyle(
-                        fontSize: 11,
+                        fontSize: 11.sp,
                         fontWeight: FontWeight.w800,
                         color: Color(0xFF1D1B20),
                       ),
@@ -3148,9 +3149,9 @@ class _LeadMetaTitle extends StatelessWidget {
       child: Text(
         text,
         style: TextStyle(
-          fontSize: 13,
+          fontSize: 13.sp,
           fontWeight: FontWeight.w900,
-          color: Colors.grey.shade600,
+          color: const Color(0xFF1E1F1F),
           letterSpacing: 0.3,
         ),
       ),
@@ -3182,10 +3183,7 @@ class _StarsRow extends StatelessWidget {
 }
 
 class _ScreenshotAssetsPanel extends StatelessWidget {
-  const _ScreenshotAssetsPanel({
-    required this.maroon,
-    required this.dashboard,
-  });
+  const _ScreenshotAssetsPanel({required this.maroon, required this.dashboard});
 
   final Color maroon;
   final ManagerDashboard? dashboard;
@@ -3196,8 +3194,8 @@ class _ScreenshotAssetsPanel extends StatelessWidget {
     final successRate = dashboard == null
         ? 82
         : dashboard!.agencyPerformance.overallConversionRate > 0
-            ? dashboard!.agencyPerformance.overallConversionRate
-            : dashboard!.aiPanel.successRate;
+        ? dashboard!.agencyPerformance.overallConversionRate
+        : dashboard!.aiPanel.successRate;
     final taskCards = _buildDashboardTaskCards(dashboard);
     final score = dashboard?.aiPanel.score;
     final scoreSummary = dashboard == null
@@ -3229,7 +3227,8 @@ class _ScreenshotAssetsPanel extends StatelessWidget {
                 title: 'Success Rate',
                 child: _SuccessRateBlock(
                   value: successRate,
-                  description: 'of agency conversions closed in the selected period.',
+                  description:
+                      'of agency conversions closed in the selected period.',
                 ),
               ),
               SizedBox(height: 14.h),
@@ -3267,12 +3266,11 @@ class _ScreenshotAssetsPanel extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 'Recent Activity',
                 style: TextStyle(
                   color: Color(0xFF181C1F),
-                  fontSize: 24,
-                  fontFamily: 'Manrope',
+                  fontSize: 24.sp,
                   fontWeight: FontWeight.w600,
                   height: 1.60,
                 ),
@@ -3312,7 +3310,11 @@ class _ScreenshotAssetsPanel extends StatelessWidget {
                   isLast: true,
                 ),
               ] else ...[
-                for (var index = 0; index < recentActivities.length; index++) ...[
+                for (
+                  var index = 0;
+                  index < recentActivities.length;
+                  index++
+                ) ...[
                   _ActivityRow(
                     icon: _activityIconForItem(recentActivities[index]),
                     title: recentActivities[index].title,
@@ -3337,9 +3339,9 @@ class _ScreenshotAssetsPanel extends StatelessWidget {
                       borderRadius: BorderRadius.circular(28),
                     ),
                     padding: const EdgeInsets.symmetric(vertical: 13),
-                    textStyle: const TextStyle(
+                    textStyle: TextStyle(
                       fontWeight: FontWeight.w800,
-                      fontSize: 16,
+                      fontSize: 16.sp,
                     ),
                   ),
                   onPressed: () {},
@@ -3372,14 +3374,17 @@ class _MaroonSection extends StatelessWidget {
       children: [
         Row(
           children: [
-            Icon(icon, size: 18, color: Colors.white.withValues(alpha: 0.85)),
+            Icon(
+              icon,
+              size: 18.sp,
+              color: Colors.white.withValues(alpha: 0.85),
+            ),
             SizedBox(width: 8.w),
             Text(
               title,
               style: TextStyle(
                 color: Colors.white,
-                fontSize: 22,
-                fontFamily: 'Manrope',
+                fontSize: 22.sp,
                 fontWeight: FontWeight.w600,
                 height: 1.87,
               ),
@@ -3417,10 +3422,7 @@ class _MaroonSection extends StatelessWidget {
 }
 
 class _SuccessRateBlock extends StatelessWidget {
-  const _SuccessRateBlock({
-    required this.value,
-    required this.description,
-  });
+  const _SuccessRateBlock({required this.value, required this.description});
 
   final int value;
   final String description;
@@ -3434,7 +3436,7 @@ class _SuccessRateBlock extends StatelessWidget {
         Text(
           '$value%',
           style: TextStyle(
-            fontSize: 80,
+            fontSize: 80.sp,
             fontWeight: FontWeight.w900,
             color: Colors.white,
           ),
@@ -3445,8 +3447,7 @@ class _SuccessRateBlock extends StatelessWidget {
           textAlign: TextAlign.center,
           style: TextStyle(
             color: Colors.white,
-            fontSize: 17,
-            fontFamily: 'Manrope',
+            fontSize: 17.sp,
             fontWeight: FontWeight.w600,
             height: 1.50,
           ),
@@ -3515,7 +3516,6 @@ class _TaskItem extends StatelessWidget {
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 18.sp,
-                fontFamily: 'Manrope',
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -3529,8 +3529,7 @@ class _TaskItem extends StatelessWidget {
             child: Text(
               badge,
               style: TextStyle(
-                fontFamily: 'Manrope',
-                fontSize: 15,
+                fontSize: 15.sp,
                 fontWeight: FontWeight.w900,
                 color: textColor,
               ),
@@ -3543,10 +3542,7 @@ class _TaskItem extends StatelessWidget {
 }
 
 class _ScoreBlock extends StatelessWidget {
-  const _ScoreBlock({
-    required this.score,
-    required this.summary,
-  });
+  const _ScoreBlock({required this.score, required this.summary});
 
   final String score;
   final String summary;
@@ -3576,8 +3572,7 @@ class _ScoreBlock extends StatelessWidget {
               score,
               style: TextStyle(
                 color: Color(0xFFFFE57A),
-                fontSize: 35,
-                fontFamily: 'Manrope',
+                fontSize: 35.sp,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -3589,7 +3584,7 @@ class _ScoreBlock extends StatelessWidget {
             summary,
             style: TextStyle(
               color: Colors.white.withValues(alpha: 0.90),
-              fontSize: 18,
+              fontSize: 18.sp,
               fontWeight: FontWeight.w700,
               height: 1.35,
             ),
@@ -3656,7 +3651,11 @@ class _SuggestedMatchesBlock extends StatelessWidget {
                       ),
                     ]
                   : [
-                      for (var index = 0; index < visibleMatches.length; index++) ...[
+                      for (
+                        var index = 0;
+                        index < visibleMatches.length;
+                        index++
+                      ) ...[
                         if (index > 0) SizedBox(height: 10.h),
                         _MiniPeopleRow(
                           leftName: visibleMatches[index].leftName,
@@ -3701,10 +3700,7 @@ class _MiniPeopleRow extends StatelessWidget {
 }
 
 class _MiniPersonCard extends StatelessWidget {
-  const _MiniPersonCard({
-    required this.name,
-    required this.subtitle,
-  });
+  const _MiniPersonCard({required this.name, required this.subtitle});
 
   final String name;
   final String subtitle;
@@ -3717,14 +3713,13 @@ class _MiniPersonCard extends StatelessWidget {
         CircleAvatar(
           radius: 18,
           backgroundColor: const Color(0xFFF7D8E8),
-          child: Icon(Icons.person, size: 20, color: maroon),
+          child: Icon(Icons.person, size: 20.sp, color: maroon),
         ),
         SizedBox(height: 5.h),
         Text(
           name,
-          style: const TextStyle(
-            fontFamily: 'Manrope',
-            fontSize: 15,
+          style: TextStyle(
+            fontSize: 15.sp,
             fontWeight: FontWeight.w900,
             color: Colors.white,
           ),
@@ -3733,8 +3728,7 @@ class _MiniPersonCard extends StatelessWidget {
         Text(
           subtitle.isEmpty ? 'Suggested' : subtitle,
           style: TextStyle(
-            fontFamily: 'Manrope',
-            fontSize: 9,
+            fontSize: 9.sp,
             fontWeight: FontWeight.w700,
             color: Colors.white.withValues(alpha: 0.75),
           ),
@@ -3760,13 +3754,12 @@ class _MatchBadge extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.favorite, size: 14, color: Color(0xFFBD1E59)),
+          Icon(Icons.favorite, size: 14.sp, color: const Color(0xFFBD1E59)),
           const SizedBox(width: 6),
           Text(
             match,
-            style: const TextStyle(
-              fontFamily: 'Manrope',
-              fontSize: 14,
+            style: TextStyle(
+              fontSize: 14.sp,
               fontWeight: FontWeight.w900,
               color: Color(0xFFBD1E59),
             ),
@@ -3809,7 +3802,7 @@ class _ActivityRow extends StatelessWidget {
                   shape: BoxShape.circle,
                   border: Border.all(color: const Color(0xFFCDD5E1)),
                 ),
-                child: Icon(icon, size: 24, color: const Color(0xFF2A2F36)),
+                child: Icon(icon, size: 24.sp, color: const Color(0xFF2A2F36)),
               ),
               if (!isLast)
                 Container(
@@ -3832,7 +3825,6 @@ class _ActivityRow extends StatelessWidget {
                   style: TextStyle(
                     color: const Color(0xFF181C1F),
                     fontSize: 18.sp,
-                    fontFamily: 'Manrope',
                     fontWeight: FontWeight.w600,
                     height: 1.50,
                   ),
@@ -3842,8 +3834,7 @@ class _ActivityRow extends StatelessWidget {
                   subtitle,
                   style: TextStyle(
                     color: const Color(0xFF564146),
-                    fontSize: 16,
-                    fontFamily: 'Manrope',
+                    fontSize: 16.sp,
                     fontWeight: FontWeight.w400,
                     height: 1.50,
                   ),
@@ -3874,15 +3865,14 @@ class _SearchBar extends StatelessWidget {
       child: Row(
         children: [
           const SizedBox(width: 18),
-          const Icon(Icons.search, color: Color(0xFF5F4A50), size: 34),
+          Icon(Icons.search, color: const Color(0xFF5F4A50), size: 34.sp),
           const SizedBox(width: 14),
           Expanded(
             child: Text(
               'Search profiles, IDs...',
               style: TextStyle(
-                fontFamily: 'Manrope',
                 color: const Color(0xFF70758B),
-                fontSize: 18,
+                fontSize: 18.sp,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -3928,7 +3918,7 @@ class _DashboardFilterOption extends StatelessWidget {
               Expanded(
                 child: Text(
                   label,
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     color: selected ? maroon : AppColors.rmHeading,
                     fontSize: 15.sp,
                     fontWeight: FontWeight.w800,
@@ -3986,18 +3976,17 @@ class _ActionPill extends StatelessWidget {
             imageAsset != null
                 ? Image.asset(
                     imageAsset!,
-                    width: 20,
-                    height: 20,
+                    width: 20.sp,
+                    height: 20.sp,
                     color: foreground,
                   )
-                : Icon(icon, size: 24, color: foreground),
+                : Icon(icon, size: 24.sp, color: foreground),
             const SizedBox(width: 12),
             Text(
               label,
               style: TextStyle(
-                fontFamily: 'Manrope',
                 color: foreground,
-                fontSize: 18,
+                fontSize: 18.sp,
                 fontWeight: FontWeight.w800,
               ),
             ),
@@ -4044,9 +4033,8 @@ class _RangeChip extends StatelessWidget {
           maxLines: 1,
           textAlign: TextAlign.center,
           style: TextStyle(
-            fontFamily: 'Manrope',
             color: selected ? Colors.white : const Color(0xFF181C1F),
-            fontSize: 14,
+            fontSize: 14.sp,
             fontWeight: FontWeight.w800,
             height: 1.27,
           ),
@@ -4099,8 +4087,7 @@ class _StatsGrid extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 16,
-                        fontFamily: 'Manrope',
+                        fontSize: 16.sp,
                         color: AppColors.dashbaordcardtext,
                         fontWeight: FontWeight.w600,
                         letterSpacing: 0.4,
@@ -4116,8 +4103,7 @@ class _StatsGrid extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  fontFamily: 'Manrope',
-                  fontSize: 28,
+                  fontSize: 28.sp,
                   color: maroon,
                   fontWeight: FontWeight.w900,
                 ),
@@ -4154,10 +4140,9 @@ class _FunnelCard extends StatelessWidget {
         children: [
           Text(
             title,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: const Color(0xFF181C1F),
-              fontSize: 24,
-              // fontFamily: 'Manrope',
+              fontSize: 24.sp,
               fontWeight: FontWeight.w600,
               height: 1.87,
             ),
@@ -4168,9 +4153,8 @@ class _FunnelCard extends StatelessWidget {
             children: [
               Text(
                 '$count',
-                style: const TextStyle(
-                  fontFamily: 'Manrope',
-                  fontSize: 28,
+                style: TextStyle(
+                  fontSize: 28.sp,
                   fontWeight: FontWeight.w900,
                   color: Color(0xFF1D1B20),
                 ),
@@ -4179,10 +4163,9 @@ class _FunnelCard extends StatelessWidget {
               Text(
                 'PROFILES',
                 style: TextStyle(
-                  fontFamily: 'Manrope',
-                  fontSize: 14,
+                  fontSize: 14.sp,
                   letterSpacing: 0.8,
-                  color: Colors.grey.shade700,
+                  color: const Color(0xFF1E1F1F),
                   fontWeight: FontWeight.w900,
                 ),
               ),
@@ -4205,17 +4188,15 @@ class _FunnelCard extends StatelessWidget {
 }
 
 class _UrgentFocusCard extends StatelessWidget {
-  const _UrgentFocusCard({
-    required this.maroon,
-    required this.dashboard,
-  });
+  const _UrgentFocusCard({required this.maroon, required this.dashboard});
 
   final Color maroon;
   final ManagerDashboard? dashboard;
 
   @override
   Widget build(BuildContext context) {
-    final overdueFollowUps = dashboard?.followUpControl.fold<int>(
+    final overdueFollowUps =
+        dashboard?.followUpControl.fold<int>(
           0,
           (total, item) => total + item.overdueFollowUps,
         ) ??
@@ -4249,10 +4230,9 @@ class _UrgentFocusCard extends StatelessWidget {
               const SizedBox(width: 8),
               Text(
                 'Urgent Focus',
-                style: GoogleFonts.manrope(
+                style: GoogleFonts.inter(
                   color: AppColors.primary,
-                  fontSize: 22,
-                  // fontFamily: 'Manrope',
+                  fontSize: 22.sp,
                   fontWeight: FontWeight.w600,
                   height: 1.71,
                 ),
@@ -4279,8 +4259,8 @@ class _UrgentFocusCard extends StatelessWidget {
             subtitle: pendingReplies > 0
                 ? 'Waiting on feedback'
                 : unassignedLeads > 0
-                    ? 'Needs assignment'
-                    : 'Reply queue is clear',
+                ? 'Needs assignment'
+                : 'Reply queue is clear',
             actionLabel: 'Assign',
             actionIcon: Icons.assignment_ind_outlined,
             onTap: () {},
@@ -4327,8 +4307,7 @@ class _UrgentRow extends StatelessWidget {
                   title,
                   style: TextStyle(
                     color: const Color(0xFF181C1F),
-                    fontSize: 18,
-                    fontFamily: 'Manrope',
+                    fontSize: 18.sp,
                     fontWeight: FontWeight.w600,
                     height: 1.14,
                   ),
@@ -4338,8 +4317,7 @@ class _UrgentRow extends StatelessWidget {
                   subtitle,
                   style: TextStyle(
                     color: const Color(0xFF727785),
-                    fontSize: 14,
-                    fontFamily: 'Manrope',
+                    fontSize: 14.sp,
                     fontWeight: FontWeight.w500,
                     height: 1.25,
                   ),
@@ -4361,14 +4339,13 @@ class _UrgentRow extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(actionIcon, size: 14, color: maroon),
+                  Icon(actionIcon, size: 14.sp, color: maroon),
                   SizedBox(width: 6.w),
                   Text(
                     actionLabel,
                     style: TextStyle(
-                      fontFamily: 'Manrope',
                       color: maroon,
-                      fontSize: 13,
+                      fontSize: 13.sp,
                       fontWeight: FontWeight.w900,
                     ),
                   ),
@@ -4397,9 +4374,9 @@ class _LeadFollowUpsPanel extends StatelessWidget {
       children: [
         Text(
           'Lead Follow-ups',
-          style: GoogleFonts.manrope(
+          style: GoogleFonts.inter(
             color: const Color(0xFF181C1F),
-            fontSize: 24,
+            fontSize: 24.sp,
             fontWeight: FontWeight.w600,
             height: 1.60,
           ),
@@ -4426,10 +4403,7 @@ class _LeadFollowUpsPanel extends StatelessWidget {
             itemCount: followUps.length,
             separatorBuilder: (context, index) => SizedBox(height: 10.h),
             itemBuilder: (context, index) {
-              return _FollowUpItem(
-                task: followUps[index],
-                maroon: maroon,
-              );
+              return _FollowUpItem(task: followUps[index], maroon: maroon);
             },
           ),
       ],
@@ -4438,10 +4412,7 @@ class _LeadFollowUpsPanel extends StatelessWidget {
 }
 
 class _FollowUpItem extends StatelessWidget {
-  const _FollowUpItem({
-    required this.task,
-    required this.maroon,
-  });
+  const _FollowUpItem({required this.task, required this.maroon});
 
   final WorkflowTask task;
   final Color maroon;
@@ -4472,7 +4443,10 @@ class _FollowUpItem extends StatelessWidget {
                           task.displayTitle.isNotEmpty
                               ? task.displayTitle[0].toUpperCase()
                               : 'L',
-                          style: TextStyle(color: maroon, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                            color: maroon,
+                            fontWeight: FontWeight.bold,
+                          ),
                         )
                       : null,
                 ),
@@ -4483,8 +4457,8 @@ class _FollowUpItem extends StatelessWidget {
                     children: [
                       Text(
                         task.displayTitle,
-                        style: const TextStyle(
-                          fontSize: 18,
+                        style: TextStyle(
+                          fontSize: 18.sp,
                           fontWeight: FontWeight.w700,
                           color: Color(0xFF181C1F),
                         ),
@@ -4492,8 +4466,8 @@ class _FollowUpItem extends StatelessWidget {
                       Text(
                         task.displayReason,
                         style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey.shade600,
+                          fontSize: 14.sp,
+                          color: const Color(0xFF1E1F1F),
                         ),
                       ),
                     ],
@@ -4505,10 +4479,7 @@ class _FollowUpItem extends StatelessWidget {
             SizedBox(height: 12.h),
             Text(
               task.displaySummary,
-              style: const TextStyle(
-                fontSize: 14,
-                color: Color(0xFF444B57),
-              ),
+              style: TextStyle(fontSize: 14.sp, color: const Color(0xFF444B57)),
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
             ),
@@ -4518,18 +4489,25 @@ class _FollowUpItem extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.calendar_today, size: 14, color: Colors.grey),
+                    const Icon(
+                      Icons.calendar_today,
+                      size: 14,
+                      color: Color(0xFF1E1F1F),
+                    ),
                     SizedBox(width: 4.w),
                     Text(
                       _formatDate(task.dueAt),
-                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                      style: TextStyle(
+                        fontSize: 12.sp,
+                        color: const Color(0xFF1E1F1F),
+                      ),
                     ),
                   ],
                 ),
                 Text(
                   task.workflowStatus,
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 12.sp,
                     fontWeight: FontWeight.bold,
                     color: maroon,
                   ),
@@ -4577,7 +4555,7 @@ class _PriorityBadge extends StatelessWidget {
         priority,
         style: TextStyle(
           color: color,
-          fontSize: 10,
+          fontSize: 10.sp,
           fontWeight: FontWeight.bold,
         ),
       ),

@@ -161,7 +161,7 @@ class _HrDashboardDrawer extends StatelessWidget {
                         ),
                         child: Text(
                           userName.isNotEmpty ? userName[0].toUpperCase() : 'H',
-                          style: GoogleFonts.manrope(
+                          style: GoogleFonts.inter(
                             color: AppColors.white,
                             fontSize: 22.sp,
                             fontWeight: FontWeight.w800,
@@ -177,7 +177,7 @@ class _HrDashboardDrawer extends StatelessWidget {
                               userName,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: GoogleFonts.manrope(
+                              style: GoogleFonts.inter(
                                 color: AppColors.white,
                                 fontSize: 19.sp,
                                 fontWeight: FontWeight.w800,
@@ -188,7 +188,7 @@ class _HrDashboardDrawer extends StatelessWidget {
                               roleLabel,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: GoogleFonts.manrope(
+                              style: GoogleFonts.inter(
                                 color: AppColors.white.withValues(alpha: 0.78),
                                 fontSize: 14.sp,
                                 fontWeight: FontWeight.w600,
@@ -226,7 +226,7 @@ class _HrDashboardDrawer extends StatelessWidget {
                     padding: EdgeInsets.fromLTRB(6.w, 0, 6.w, 10.h),
                     child: Text(
                       'Main Menu',
-                      style: GoogleFonts.manrope(
+                      style: GoogleFonts.inter(
                         color: AppColors.hrMuted,
                         fontSize: 13.sp,
                         fontWeight: FontWeight.w900,
@@ -314,7 +314,7 @@ class _HrDashboardDrawer extends StatelessWidget {
                         Expanded(
                           child: Text(
                             'HR workspace active',
-                            style: GoogleFonts.manrope(
+                            style: GoogleFonts.inter(
                               color: AppColors.hrText,
                               fontSize: 13.sp,
                               fontWeight: FontWeight.w700,
@@ -348,7 +348,7 @@ class _HrDashboardDrawer extends StatelessWidget {
                           SizedBox(width: 10.w),
                           Text(
                             'Logout',
-                            style: GoogleFonts.manrope(
+                            style: GoogleFonts.inter(
                               fontSize: 15.sp,
                               fontWeight: FontWeight.w800,
                             ),
@@ -386,7 +386,7 @@ class _HrDrawerMetric extends StatelessWidget {
         children: [
           Text(
             value,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: AppColors.white,
               fontSize: 19.sp,
               fontWeight: FontWeight.w900,
@@ -398,7 +398,7 @@ class _HrDrawerMetric extends StatelessWidget {
             label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: AppColors.white.withValues(alpha: 0.78),
               fontSize: 12.sp,
               fontWeight: FontWeight.w700,
@@ -446,7 +446,7 @@ class _HrDrawerItem extends StatelessWidget {
                     label,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.manrope(
+                    style: GoogleFonts.inter(
                       color: color,
                       fontSize: 15.sp,
                       fontWeight: selected ? FontWeight.w800 : FontWeight.w700,

@@ -45,7 +45,9 @@ class HrAttendanceCalendarProvider extends ChangeNotifier {
     _requestedYear = year;
 
     if (accessToken == null || accessToken.isEmpty) {
-      debugPrint('HR attendance calendar API not called: access token missing.');
+      debugPrint(
+        'HR attendance calendar API not called: access token missing.',
+      );
       _isLoading = false;
       _error = 'Login required to load attendance calendar.';
       _calendar = null;
@@ -60,12 +62,7 @@ class HrAttendanceCalendarProvider extends ChangeNotifier {
     try {
       final uri = Uri.parse(
         '${ApiConstants.baseUrl}${ApiConstants.hrAttendanceCalendar}',
-      ).replace(
-        queryParameters: {
-          'month': '$month',
-          'year': '$year',
-        },
-      );
+      ).replace(queryParameters: {'month': '$month', 'year': '$year'});
       debugPrint('Calling HR attendance calendar API: $uri');
 
       final response = await http.get(

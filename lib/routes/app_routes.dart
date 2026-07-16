@@ -18,6 +18,7 @@ class AppRoutes {
   static const String hrDashboard = '/hr-dashboard';
   static const String registry = '/registry';
   static const String leadsRegistry = '/leads-registry';
+  static const String clientRegistry = '/client-registry';
   static const String newInquiry = '/new-inquiry';
   static const String leadFollowUps = '/lead-follow-ups';
   static const String createNewTask = '/create-new-task';

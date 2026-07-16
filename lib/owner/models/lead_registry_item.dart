@@ -13,7 +13,9 @@ class LeadRegistryItem {
     required this.leadFor,
     required this.createdOn,
     this.image = '',
-  });
+    this.reason = '',
+    String? searchIndex,
+  }) : searchIndex = searchIndex ?? '';
 
   final String id;
   final String shortlistCandidateId;
@@ -28,12 +30,14 @@ class LeadRegistryItem {
   final String leadFor;
   final String createdOn;
   final String image;
+  final String reason;
+  final String searchIndex;
 
   factory LeadRegistryItem.fromJson(Map<String, dynamic> json) {
     final assignedTo = json['assignedTo'];
     final isShortlistCandidate = _looksLikeShortlistCandidate(json);
 
-    return LeadRegistryItem(
+    final item = LeadRegistryItem(
       id: _readText(json['id']),
       shortlistCandidateId: _firstText([
         json['shortlistCandidateId'],
@@ -55,7 +59,16 @@ class LeadRegistryItem {
       leadFor: _formatEnumLabel(_readText(json['leadFor'], fallback: '-')),
       createdOn: _formatCreatedOn(_readText(json['createdAt'])),
       image: _readText(json['image']),
+      reason: _firstText([
+        json['reason'],
+        json['remarks'],
+        json['remark'],
+        json['notes'],
+        json['note'],
+        json['description'],
+      ]),
     );
+    return item.copyWith(searchIndex: item._buildSearchIndex());
   }
 
   bool get canDeleteShortlistCandidate => shortlistCandidateId.isNotEmpty;
@@ -71,22 +84,86 @@ class LeadRegistryItem {
     String? source,
     String? leadFor,
     String? image,
+    String? reason,
+    String? searchIndex,
   }) {
+    final nextName = name ?? this.name;
+    final nextPhone = phone ?? this.phone;
+    final nextEmail = email ?? this.email;
+    final nextStage = stage ?? this.stage;
+    final nextCity = city ?? this.city;
+    final nextAssignedTo = assignedTo ?? this.assignedTo;
+    final nextSource = source ?? this.source;
+    final nextLeadFor = leadFor ?? this.leadFor;
+    final nextReason = reason ?? this.reason;
+
     return LeadRegistryItem(
       id: id,
       shortlistCandidateId: shortlistCandidateId,
-      name: name ?? this.name,
-      phone: phone ?? this.phone,
-      email: email ?? this.email,
-      stage: stage ?? this.stage,
-      city: city ?? this.city,
+      name: nextName,
+      phone: nextPhone,
+      email: nextEmail,
+      stage: nextStage,
+      city: nextCity,
       assignedToId: assignedToId ?? this.assignedToId,
-      assignedTo: assignedTo ?? this.assignedTo,
-      source: source ?? this.source,
-      leadFor: leadFor ?? this.leadFor,
+      assignedTo: nextAssignedTo,
+      source: nextSource,
+      leadFor: nextLeadFor,
       createdOn: createdOn,
       image: image ?? this.image,
+      reason: nextReason,
+      searchIndex:
+          searchIndex ??
+          _buildSearchIndexFor(
+            name: nextName,
+            phone: nextPhone,
+            email: nextEmail,
+            city: nextCity,
+            assignedTo: nextAssignedTo,
+            source: nextSource,
+            stage: nextStage,
+            leadFor: nextLeadFor,
+            reason: nextReason,
+          ),
     );
+  }
+
+  String _buildSearchIndex() {
+    return _buildSearchIndexFor(
+      name: name,
+      phone: phone,
+      email: email,
+      city: city,
+      assignedTo: assignedTo,
+      source: source,
+      stage: stage,
+      leadFor: leadFor,
+      reason: reason,
+    );
+  }
+
+  static String _buildSearchIndexFor({
+    required String name,
+    required String phone,
+    required String email,
+    required String city,
+    required String assignedTo,
+    required String source,
+    required String stage,
+    required String leadFor,
+    required String reason,
+  }) {
+    return <String>[
+      name,
+      phone,
+      email,
+      city,
+      assignedTo,
+      source,
+      stage,
+      leadFor,
+      reason,
+    ].join(' ').toLowerCase();
   }
 
   String get initials {

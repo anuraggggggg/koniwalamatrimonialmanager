@@ -1,4 +1,3 @@
-
 class RmDashboardSummary {
   const RmDashboardSummary({
     required this.assignedLeads,

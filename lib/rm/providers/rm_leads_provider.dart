@@ -57,16 +57,18 @@ class RmLeadsProvider extends ChangeNotifier {
       final decoded = jsonDecode(response.body);
       final leadRows = _extractLeadRows(decoded);
 
-      final parsedLeads = leadRows
-          .whereType<Map<String, dynamic>>()
-          .map(RmLeadItem.fromJson)
-          .toList()
-        ..sort((a, b) {
-          final left = a.latestActivityAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-          final right =
-              b.latestActivityAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-          return right.compareTo(left);
-        });
+      final parsedLeads =
+          leadRows
+              .whereType<Map<String, dynamic>>()
+              .map(RmLeadItem.fromJson)
+              .toList()
+            ..sort((a, b) {
+              final left =
+                  a.latestActivityAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+              final right =
+                  b.latestActivityAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+              return right.compareTo(left);
+            });
 
       _leads = parsedLeads;
       _isLoading = false;

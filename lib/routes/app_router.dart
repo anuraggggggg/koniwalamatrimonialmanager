@@ -17,6 +17,7 @@ import 'package:koniwalamatrimonial/splash_screen.dart';
 import 'package:koniwalamatrimonial/screens/plain_role_screen.dart';
 import 'package:koniwalamatrimonial/owner/Screen/registry_screen.dart';
 import 'package:koniwalamatrimonial/owner/Screen/leads_registry_screen.dart';
+import 'package:koniwalamatrimonial/owner/Screen/client_registry_screen.dart';
 import 'package:koniwalamatrimonial/owner/Screen/new_inquiry_screen.dart';
 import 'package:koniwalamatrimonial/owner/Screen/create_new_task_screen.dart';
 import 'package:koniwalamatrimonial/owner/Screen/lead_follow_ups_screen.dart';
@@ -59,8 +60,21 @@ class AppRouter {
           builder: (_) => RegistryScreen(onMenuPressed: () {}),
         );
       case AppRoutes.leadsRegistry:
+        final initialStage = settings.arguments is String
+            ? settings.arguments as String
+            : null;
         return MaterialPageRoute(
-          builder: (_) => const LeadsRegistryScreen(showScaffold: true),
+          builder: (_) => LeadsRegistryScreen(
+            showScaffold: true,
+            initialStage: initialStage,
+          ),
+        );
+      case AppRoutes.clientRegistry:
+        final initialFilter = settings.arguments is ClientRegistryInitialFilter
+            ? settings.arguments as ClientRegistryInitialFilter
+            : ClientRegistryInitialFilter.all;
+        return MaterialPageRoute(
+          builder: (_) => ClientRegistryScreen(initialFilter: initialFilter),
         );
       case AppRoutes.newInquiry:
         return MaterialPageRoute(builder: (_) => const NewInquiryScreen());
@@ -177,8 +191,9 @@ class AppRouter {
         return PageRouteBuilder(
           opaque: false,
           barrierColor: Colors.transparent,
-          pageBuilder: (_, __, ___) => const AdminDrawerScreen(),
-          transitionsBuilder: (_, animation, __, child) {
+          pageBuilder: (context, animation, secondaryAnimation) =>
+              const AdminDrawerScreen(),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
             return FadeTransition(opacity: animation, child: child);
           },
         );

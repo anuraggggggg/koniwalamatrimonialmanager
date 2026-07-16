@@ -120,7 +120,7 @@ class RoleMenuDrawer extends StatelessWidget {
                           userName,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.manrope(
+                          style: GoogleFonts.inter(
                             fontSize: 17.sp,
                             fontWeight: FontWeight.w800,
                             color: theme.headingColor,
@@ -131,7 +131,7 @@ class RoleMenuDrawer extends StatelessWidget {
                           roleLabel,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.manrope(
+                          style: GoogleFonts.inter(
                             fontSize: 13.sp,
                             fontWeight: FontWeight.w700,
                             color: theme.primaryColor,
@@ -161,7 +161,7 @@ class RoleMenuDrawer extends StatelessWidget {
                           children: [
                             Text(
                               metric.value,
-                              style: GoogleFonts.manrope(
+                              style: GoogleFonts.inter(
                                 fontSize: 17.sp,
                                 fontWeight: FontWeight.w900,
                                 color: theme.primaryColor,
@@ -172,7 +172,7 @@ class RoleMenuDrawer extends StatelessWidget {
                               metric.label,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: GoogleFonts.manrope(
+                              style: GoogleFonts.inter(
                                 fontSize: 11.sp,
                                 fontWeight: FontWeight.w600,
                                 color: theme.mutedTextColor,
@@ -216,7 +216,7 @@ class RoleMenuDrawer extends StatelessWidget {
                 ),
                 child: Text(
                   statusText,
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     fontSize: 13.sp,
                     fontWeight: FontWeight.w600,
                     color: theme.mutedTextColor,
@@ -259,7 +259,7 @@ class _RoleLogoutButton extends StatelessWidget {
                 'Logout',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.manrope(
+                style: GoogleFonts.inter(
                   fontSize: 15.sp,
                   fontWeight: FontWeight.w800,
                   color: AppColors.error,
@@ -298,9 +298,7 @@ class _RoleMenuTile extends StatelessWidget {
         child: Container(
           padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 12.h),
           decoration: BoxDecoration(
-            color: selected
-                ? theme.selectedItemBgColor
-                : Colors.transparent,
+            color: selected ? theme.selectedItemBgColor : Colors.transparent,
             borderRadius: BorderRadius.circular(12.r),
           ),
           child: Row(
@@ -312,7 +310,7 @@ class _RoleMenuTile extends StatelessWidget {
                   item.label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     fontSize: 15.sp,
                     fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
                     color: color,

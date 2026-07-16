@@ -207,7 +207,7 @@ Email: ${employee.email}
         ),
         title: Text(
           'Employee Profile',
-          style: GoogleFonts.manrope(
+          style: GoogleFonts.inter(
             color: AppColors.hrText,
             fontSize: 18.sp,
             fontWeight: FontWeight.w700,
@@ -302,7 +302,7 @@ Email: ${employee.email}
   Widget _buildSectionTitle(String title) {
     return Text(
       title,
-      style: GoogleFonts.manrope(
+      style: GoogleFonts.inter(
         color: AppColors.rmHeading,
         fontSize: 16.sp,
         fontWeight: FontWeight.w700,
@@ -347,7 +347,7 @@ Email: ${employee.email}
                     // Text(
                     //   employee?.statusLabel ?? 'PRESENT',
                     //   textAlign: TextAlign.center,
-                    //   style: GoogleFonts.manrope(
+                    //   style: GoogleFonts.inter(
                     //     color: statusColor,
                     //     fontSize: 10.sp,
                     //     fontWeight: FontWeight.w700,
@@ -415,7 +415,7 @@ Email: ${employee.email}
           Text(
             _displayName(employee, user),
             textAlign: TextAlign.center,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: AppColors.rmHeading,
               fontSize: 24.sp,
               fontWeight: FontWeight.w800,
@@ -427,7 +427,7 @@ Email: ${employee.email}
           Text(
             _displayDesignation(employee, user),
             textAlign: TextAlign.center,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: AppColors.rmBodyText,
               fontSize: 14.sp,
               fontWeight: FontWeight.w500,
@@ -438,7 +438,7 @@ Email: ${employee.email}
           Text(
             _displayTier(employee),
             textAlign: TextAlign.center,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: AppColors.rmMutedText,
               fontSize: 13.sp,
               fontWeight: FontWeight.w600,
@@ -565,7 +565,7 @@ Email: ${employee.email}
         ),
         child: Text(
           trend,
-          style: GoogleFonts.manrope(
+          style: GoogleFonts.inter(
             color: AppColors.success,
             fontSize: 10.sp,
             fontWeight: FontWeight.bold,
@@ -627,7 +627,7 @@ Email: ${employee.email}
             title,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: Color(0xFF424754),
               fontSize: 12.sp,
               fontWeight: FontWeight.w600,
@@ -644,7 +644,7 @@ Email: ${employee.email}
                   value,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     color: valueColor,
                     fontSize: 24.sp,
                     fontWeight: FontWeight.w800,
@@ -676,7 +676,7 @@ Email: ${employee.email}
         children: [
           Text(
             "MANAGER'S NOTE",
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: AppColors.white.withValues(alpha: 0.7),
               fontSize: 11.sp,
               fontWeight: FontWeight.w800,
@@ -687,7 +687,7 @@ Email: ${employee.email}
           SizedBox(height: 12.h),
           Text(
             '"$displayName is part of the $department team and contributes to daily matrimonial operations."',
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: AppColors.white,
               fontSize: 14.sp,
               height: 1.5,
@@ -708,7 +708,7 @@ Email: ${employee.email}
                   '$managerName, Reporting Manager',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     color: AppColors.white,
                     fontSize: 10.sp,
                     fontWeight: FontWeight.w600,
@@ -791,7 +791,7 @@ Email: ${employee.email}
               children: [
                 Text(
                   label,
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     color: AppColors.rmMutedText,
                     fontSize: 10.sp,
                     fontWeight: FontWeight.w700,
@@ -801,7 +801,7 @@ Email: ${employee.email}
                 SizedBox(height: 4.h),
                 Text(
                   value,
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     color: AppColors.rmHeading,
                     fontSize: 14.sp,
                     fontWeight: FontWeight.w600,
@@ -852,7 +852,7 @@ Email: ${employee.email}
               onPressed: () => _openAllActivity(employee, user),
               child: Text(
                 'VIEW ALL ACTIVITY',
-                style: GoogleFonts.manrope(
+                style: GoogleFonts.inter(
                   color: AppColors.deepBurgundy,
                   fontSize: 10.sp,
                   fontWeight: FontWeight.w800,
@@ -907,7 +907,7 @@ Email: ${employee.email}
                     title,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.manrope(
+                    style: GoogleFonts.inter(
                       color: AppColors.rmHeading,
                       fontSize: 14.sp,
                       fontWeight: FontWeight.w700,
@@ -919,7 +919,7 @@ Email: ${employee.email}
                     subtitle,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.manrope(
+                    style: GoogleFonts.inter(
                       color: AppColors.rmMutedText,
                       fontSize: 12.sp,
                       fontWeight: FontWeight.w500,
@@ -960,7 +960,7 @@ Email: ${employee.email}
               ),
               child: Text(
                 'Edit Profile',
-                style: GoogleFonts.manrope(
+                style: GoogleFonts.inter(
                   fontSize: 14.sp,
                   fontWeight: FontWeight.w700,
                   color: AppColors.primary,
@@ -995,7 +995,7 @@ Email: ${employee.email}
               ),
               child: Text(
                 'Logout',
-                style: GoogleFonts.manrope(
+                style: GoogleFonts.inter(
                   fontSize: 14.sp,
                   fontWeight: FontWeight.w700,
                 ),
@@ -1104,7 +1104,7 @@ class _EmployeeActivityScreen extends StatelessWidget {
           ),
           title: Text(
             'All Activity',
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: AppColors.hrText,
               fontSize: 19.sp,
               fontWeight: FontWeight.w700,
@@ -1116,7 +1116,7 @@ class _EmployeeActivityScreen extends StatelessWidget {
           children: [
             Text(
               employeeName,
-              style: GoogleFonts.manrope(
+              style: GoogleFonts.inter(
                 color: AppColors.rmHeading,
                 fontSize: 20.sp,
                 fontWeight: FontWeight.w800,
@@ -1125,7 +1125,7 @@ class _EmployeeActivityScreen extends StatelessWidget {
             SizedBox(height: 4.h),
             Text(
               '$displayRole - $department',
-              style: GoogleFonts.manrope(
+              style: GoogleFonts.inter(
                 color: AppColors.rmMutedText,
                 fontSize: 15.sp,
                 fontWeight: FontWeight.w600,
@@ -1198,7 +1198,7 @@ class _EmployeeActivityCard extends StatelessWidget {
               children: [
                 Text(
                   activity.title,
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     color: AppColors.rmHeading,
                     fontSize: 14.sp,
                     fontWeight: FontWeight.w700,
@@ -1207,7 +1207,7 @@ class _EmployeeActivityCard extends StatelessWidget {
                 SizedBox(height: 3.h),
                 Text(
                   activity.subtitle,
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     color: AppColors.rmMutedText,
                     fontSize: 12.sp,
                     fontWeight: FontWeight.w500,
@@ -1220,7 +1220,7 @@ class _EmployeeActivityCard extends StatelessWidget {
           Text(
             activity.value,
             textAlign: TextAlign.end,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: _profileNumberColor,
               fontSize: 15.sp,
               fontWeight: FontWeight.w800,

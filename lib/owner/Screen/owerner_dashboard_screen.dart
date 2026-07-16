@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -10,9 +13,12 @@ import 'package:koniwalamatrimonial/owner/providers/leads_provider.dart';
 import 'package:koniwalamatrimonial/providers/auth_provider.dart';
 import 'package:koniwalamatrimonial/providers/manager_dashboard_provider.dart';
 import 'package:koniwalamatrimonial/owner/providers/hr_employees_provider.dart';
+import 'package:koniwalamatrimonial/owner/providers/follow_up_control_actions_provider.dart';
 import 'package:koniwalamatrimonial/owner/providers/lead_follow_ups_provider.dart';
 import 'package:koniwalamatrimonial/widgets/koniwala_primary_app_bar.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
+import 'package:record/record.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../routes/app_routes.dart';
 import '../models/registry_profile_item.dart';
@@ -21,6 +27,7 @@ import 'registry_screen.dart';
 import 'leads_registry_screen.dart';
 import 'client_registry_screen.dart';
 import '../providers/dashboard_provider.dart';
+import 'admin_drawer_screen.dart';
 import 'profile_digitizer_screen.dart';
 import 'profile_screen.dart';
 import 'employee_detail_screen.dart';
@@ -35,6 +42,15 @@ class OwernerDashboardScreen extends StatefulWidget {
 class _OwernerDashboardScreenState extends State<OwernerDashboardScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   static const List<int> _visibleBottomNavTabs = [0, 1, 2, 5];
+  late final List<Widget> _screens;
+
+  @override
+  void initState() {
+    super.initState();
+    // PERF: Keep tab screens stable. Recreating every IndexedStack child on
+    // dashboard/provider rebuilds causes unnecessary work and slower tab swaps.
+    _screens = _buildScreens();
+  }
 
   int _bottomNavIndexForTab(int selectedIndex) {
     final visibleIndex = _visibleBottomNavTabs.indexOf(selectedIndex);
@@ -45,21 +61,21 @@ class _OwernerDashboardScreenState extends State<OwernerDashboardScreen> {
     return _visibleBottomNavTabs[bottomNavIndex];
   }
 
+  void _openAdminDrawer() {
+    _scaffoldKey.currentState?.openDrawer();
+  }
+
+  void _selectAdminDrawerTab(int index) {
+    Navigator.of(context).maybePop();
+    context.read<DashboardProvider>().selectTab(index);
+  }
+
   List<Widget> _buildScreens() {
     return [
       const HomeView(),
-      RegistryScreen(
-        onMenuPressed: () =>
-            Navigator.of(context).pushNamed(AppRoutes.adminDrawer),
-      ),
-      LeadsRegistryScreen(
-        onMenuPressed: () =>
-            Navigator.of(context).pushNamed(AppRoutes.adminDrawer),
-      ),
-      ClientRegistryScreen(
-        onMenuPressed: () =>
-            Navigator.of(context).pushNamed(AppRoutes.adminDrawer),
-      ),
+      RegistryScreen(onMenuPressed: _openAdminDrawer),
+      LeadsRegistryScreen(onMenuPressed: _openAdminDrawer),
+      ClientRegistryScreen(onMenuPressed: _openAdminDrawer),
       const ProfileDigitizerScreen(embeddedInDashboard: true),
       const ProfileScreen(),
     ];
@@ -71,21 +87,12 @@ class _OwernerDashboardScreenState extends State<OwernerDashboardScreen> {
 
     return Theme(
       data: theme.copyWith(
-        textTheme: GoogleFonts.manropeTextTheme(theme.textTheme),
-        primaryTextTheme: GoogleFonts.manropeTextTheme(theme.primaryTextTheme),
+        textTheme: GoogleFonts.interTextTheme(theme.textTheme),
+        primaryTextTheme: GoogleFonts.interTextTheme(theme.primaryTextTheme),
       ),
       child: Consumer<DashboardProvider>(
         builder: (context, dashboardProvider, _) {
-          final rawSelectedIndex = dashboardProvider.selectedIndex;
-          final selectedIndex = rawSelectedIndex == 3 ? 0 : rawSelectedIndex;
-
-          if (rawSelectedIndex != selectedIndex) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (context.mounted) {
-                context.read<DashboardProvider>().selectTab(selectedIndex);
-              }
-            });
-          }
+          final selectedIndex = dashboardProvider.selectedIndex;
 
           final showParentAppBar =
               selectedIndex != 1 &&
@@ -99,14 +106,21 @@ class _OwernerDashboardScreenState extends State<OwernerDashboardScreen> {
             drawerScrimColor: Colors.black.withValues(alpha: 0.1),
             // drawerElevation: 0,
             backgroundColor: AppColors.rmSoftPink,
+            drawer: Drawer(
+              width: MediaQuery.sizeOf(context).width * 0.68,
+              backgroundColor: AppColors.rmSoftPink,
+              child: AdminDrawerContent(
+                onClose: () => Navigator.of(context).maybePop(),
+                onSelectDashboardTab: _selectAdminDrawerTab,
+              ),
+            ),
             appBar: showParentAppBar
                 ? KoniwalaPrimaryAppBar(
                     showMenuButton: true,
-                    onMenuPressed: () =>
-                        Navigator.of(context).pushNamed(AppRoutes.adminDrawer),
+                    onMenuPressed: _openAdminDrawer,
                   )
                 : null,
-            body: IndexedStack(index: selectedIndex, children: _buildScreens()),
+            body: IndexedStack(index: selectedIndex, children: _screens),
             bottomNavigationBar: _buildBottomNav(context, selectedIndex),
           );
         },
@@ -139,11 +153,11 @@ class _OwernerDashboardScreenState extends State<OwernerDashboardScreen> {
         unselectedItemColor: Colors.black,
         selectedFontSize: 12.sp,
         unselectedFontSize: 11.sp,
-        selectedLabelStyle: GoogleFonts.manrope(
+        selectedLabelStyle: GoogleFonts.inter(
           fontSize: 12.sp,
           fontWeight: FontWeight.w700,
         ),
-        unselectedLabelStyle: GoogleFonts.manrope(
+        unselectedLabelStyle: GoogleFonts.inter(
           fontSize: 11.sp,
           fontWeight: FontWeight.w700,
         ),
@@ -156,18 +170,18 @@ class _OwernerDashboardScreenState extends State<OwernerDashboardScreen> {
             label: 'Dashboard',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.groups_outlined, size: 24),
-            activeIcon: Icon(Icons.groups_rounded, size: 24),
+            icon: Icon(Icons.groups_outlined, size: 24.sp),
+            activeIcon: Icon(Icons.groups_rounded, size: 24.sp),
             label: 'Matches',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.person_search_outlined, size: 24),
-            activeIcon: Icon(Icons.person_search_rounded, size: 24),
+            icon: Icon(Icons.person_search_outlined, size: 24.sp),
+            activeIcon: Icon(Icons.person_search_rounded, size: 24.sp),
             label: 'Leads',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline_rounded, size: 24),
-            activeIcon: Icon(Icons.person_rounded, size: 24),
+            icon: Icon(Icons.person_outline_rounded, size: 24.sp),
+            activeIcon: Icon(Icons.person_rounded, size: 24.sp),
             label: 'Profile',
           ),
         ],
@@ -178,8 +192,8 @@ class _OwernerDashboardScreenState extends State<OwernerDashboardScreen> {
   Widget _bottomNavImageIcon(Color color) {
     return Image.asset(
       'assets/icon/dashbaord_icon.png',
-      width: 24,
-      height: 24,
+      width: 24.sp,
+      height: 24.sp,
       color: color,
     );
   }
@@ -245,7 +259,7 @@ class _AdminDashboardDrawer extends StatelessWidget {
                         ),
                         child: Text(
                           userName.isNotEmpty ? userName[0].toUpperCase() : 'A',
-                          style: GoogleFonts.manrope(
+                          style: GoogleFonts.inter(
                             color: AppColors.white,
                             fontSize: 22.sp,
                             fontWeight: FontWeight.w800,
@@ -261,7 +275,7 @@ class _AdminDashboardDrawer extends StatelessWidget {
                               userName,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: GoogleFonts.manrope(
+                              style: GoogleFonts.inter(
                                 color: AppColors.white,
                                 fontSize: 18.sp,
                                 fontWeight: FontWeight.w800,
@@ -270,7 +284,7 @@ class _AdminDashboardDrawer extends StatelessWidget {
                             SizedBox(height: 3.h),
                             Text(
                               'Admin',
-                              style: GoogleFonts.manrope(
+                              style: GoogleFonts.inter(
                                 color: AppColors.white.withValues(alpha: 0.78),
                                 fontSize: 13.sp,
                                 fontWeight: FontWeight.w600,
@@ -308,7 +322,7 @@ class _AdminDashboardDrawer extends StatelessWidget {
                     padding: EdgeInsets.fromLTRB(6.w, 0, 6.w, 10.h),
                     child: Text(
                       'Main Menu',
-                      style: GoogleFonts.manrope(
+                      style: GoogleFonts.inter(
                         color: AppColors.rmMutedText,
                         fontSize: 12.sp,
                         fontWeight: FontWeight.w900,
@@ -428,12 +442,6 @@ class _AdminDashboardDrawer extends StatelessWidget {
                       Navigator.of(context).pushNamed(AppRoutes.adminSettings);
                     },
                   ),
-                  _AdminDrawerItem(
-                    label: 'Support',
-                    icon: Icons.support_agent_outlined,
-                    selected: false,
-                    onTap: () => Navigator.of(context).maybePop(),
-                  ),
                 ],
               ),
             ),
@@ -470,7 +478,7 @@ class _AdminDashboardDrawer extends StatelessWidget {
                         Expanded(
                           child: Text(
                             'Admin workspace active',
-                            style: GoogleFonts.manrope(
+                            style: GoogleFonts.inter(
                               color: AppColors.rmBodyText,
                               fontSize: 12.sp,
                               fontWeight: FontWeight.w700,
@@ -504,7 +512,7 @@ class _AdminDashboardDrawer extends StatelessWidget {
                           SizedBox(width: 10.w),
                           Text(
                             'Logout',
-                            style: GoogleFonts.manrope(
+                            style: GoogleFonts.inter(
                               fontSize: 15.sp,
                               fontWeight: FontWeight.w800,
                             ),
@@ -544,7 +552,7 @@ class _AdminDrawerMetric extends StatelessWidget {
         children: [
           Text(
             value,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: AppColors.white,
               fontSize: 18.sp,
               fontWeight: FontWeight.w900,
@@ -556,7 +564,7 @@ class _AdminDrawerMetric extends StatelessWidget {
             label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: AppColors.white.withValues(alpha: 0.78),
               fontSize: 11.sp,
               fontWeight: FontWeight.w700,
@@ -606,7 +614,7 @@ class _AdminDrawerItem extends StatelessWidget {
                     label,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.manrope(
+                    style: GoogleFonts.inter(
                       color: color,
                       fontSize: 15.sp,
                       fontWeight: selected ? FontWeight.w800 : FontWeight.w700,
@@ -785,7 +793,7 @@ class _HomeViewState extends State<HomeView> {
                     Expanded(
                       child: Text(
                         'HR Full Report',
-                        style: GoogleFonts.manrope(
+                        style: GoogleFonts.inter(
                           color: AppColors.rmPrimary,
                           fontSize: 22.sp,
                           fontWeight: FontWeight.w800,
@@ -853,6 +861,10 @@ class _HomeViewState extends State<HomeView> {
     final authProvider = context.watch<AuthProvider>();
     final user = authProvider.userModel?.user;
     final userImage = user?.image?.trim();
+    final ImageProvider<Object> avatarImage =
+        userImage != null && userImage.isNotEmpty
+        ? NetworkImage(userImage)
+        : const AssetImage('assets/wedding_hero 1.png');
     final accessToken = authProvider.userModel?.accessToken;
     final managerDashboardProvider = context.watch<ManagerDashboardProvider>();
     final employeesProvider = context.watch<HrEmployeesProvider>();
@@ -863,6 +875,7 @@ class _HomeViewState extends State<HomeView> {
     final List<HrEmployeeItem> hrEmployees = employeesProvider.employees
         .where((employee) => _isHrRole(employee.role))
         .toList();
+    final totalTeamCount = dashboard?.liveTeamStatus.length ?? 0;
     final presentCount =
         dashboard?.liveTeamStatus
             .where(
@@ -870,6 +883,7 @@ class _HomeViewState extends State<HomeView> {
             )
             .length ??
         0;
+    final absentCount = totalTeamCount - presentCount;
     final onlineCount =
         dashboard?.liveTeamStatus
             .where((item) => item.status.toLowerCase() == 'online')
@@ -950,7 +964,7 @@ class _HomeViewState extends State<HomeView> {
             .toList() ??
         [];
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(vertical: 32),
+      padding: const EdgeInsets.only(top: 12, bottom: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -970,45 +984,19 @@ class _HomeViewState extends State<HomeView> {
             padding: const EdgeInsets.symmetric(horizontal: 14),
             child: Row(
               children: [
-                Container(
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 2),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.1),
-                        blurRadius: 8,
-                      ),
-                    ],
-                  ),
-                  child: CircleAvatar(
-                    radius: 24.h,
-                    backgroundColor: AppColors.rmPrimary.withValues(
-                      alpha: 0.12,
-                    ),
-                    backgroundImage: userImage != null && userImage.isNotEmpty
-                        ? NetworkImage(userImage)
-                        : null,
-                    child: userImage == null || userImage.isEmpty
-                        ? ClipOval(
-                            child: Image.asset(
-                              'assets/wedding_hero 1.png',
-                              width: 48.w,
-                              height: 48.h,
-                              fit: BoxFit.cover,
-                            ),
-                          )
-                        : null,
-                  ),
+                CircleAvatar(
+                  radius: 14.h,
+                  backgroundColor: AppColors.rmPrimary.withValues(alpha: 0.12),
+                  backgroundImage: avatarImage,
                 ),
                 SizedBox(width: 16.w),
                 Expanded(
                   child: Text(
                     '${_greetingForHour()} ${_firstName(user?.name)}!',
                     overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.manrope(
+                    style: GoogleFonts.inter(
                       color: Color(0xFF312F2F),
-                      fontSize: 22,
+                      fontSize: 20.sp,
                       fontWeight: FontWeight.w500,
                       height: 1.25,
                     ),
@@ -1017,7 +1005,7 @@ class _HomeViewState extends State<HomeView> {
               ],
             ),
           ),
-          SizedBox(height: 18.h),
+          SizedBox(height: 16.h),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 14),
             child: Column(
@@ -1025,35 +1013,35 @@ class _HomeViewState extends State<HomeView> {
               children: [
                 Text(
                   'KMS BUSINESS SNAPSHOT',
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     color: Color(0xFF211A1B),
-                    fontSize: 22,
+                    fontSize: 22.sp,
                     fontWeight: FontWeight.w700,
                     height: 1.35,
                     letterSpacing: 1,
                   ),
                 ),
-                SizedBox(height: 15.h),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      for (final entry in _periodTabs.entries) ...[
-                        _buildTab(
+                SizedBox(height: 10.h),
+                Row(
+                  children: [
+                    for (final entry in _periodTabs.entries) ...[
+                      Expanded(
+                        child: _buildTab(
                           entry.key,
                           entry.value == _selectedPeriod,
                           () => _selectPeriod(entry.value),
                         ),
+                      ),
+                      if (entry.key != _periodTabs.keys.last)
                         SizedBox(width: 6.w),
-                      ],
                     ],
-                  ),
+                  ],
                 ),
                 // if ((dashboard?.period.displayText ?? '').isNotEmpty) ...[
                 //   SizedBox(height: 12.h),
                 //   Text(
                 //     dashboard!.period.displayText,
-                //     style: GoogleFonts.manrope(
+                //     style: GoogleFonts.inter(
                 //       color: const Color(0xFF6E5C61),
                 //       fontSize: 13.sp,
                 //       fontWeight: FontWeight.w700,
@@ -1076,7 +1064,7 @@ class _HomeViewState extends State<HomeView> {
                       Expanded(
                         child: Text(
                           managerDashboardProvider.error!,
-                          style: GoogleFonts.manrope(
+                          style: GoogleFonts.inter(
                             color: Colors.red.shade700,
                             fontSize: 13.sp,
                             fontWeight: FontWeight.w700,
@@ -1093,11 +1081,11 @@ class _HomeViewState extends State<HomeView> {
               ],
             ),
           ),
-          SizedBox(height: 20.h),
+          SizedBox(height: 16.h),
 
           // Stats Grid
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14),
+            padding: EdgeInsets.symmetric(horizontal: 4.w),
             child: Column(
               children: [
                 Row(
@@ -1106,9 +1094,14 @@ class _HomeViewState extends State<HomeView> {
                       child: _buildStatCard(
                         'NEW LEADS',
                         _formatCompactNumber(kpi?.matchesToday ?? 0),
-                        trend: '+12%',
+                        trend: kpi == null
+                            ? null
+                            : _formatSignedPercent(kpi.newLeadsTrendPercent),
                         trendColor: const Color(0xFF0E9F6E),
-                        hasTrendIcon: true,
+                        trendIcon: Icons.trending_up_rounded,
+                        onTap: () => Navigator.of(
+                          context,
+                        ).pushNamed(AppRoutes.leadsRegistry, arguments: 'New'),
                       ),
                     ),
                     SizedBox(width: 5.w),
@@ -1116,17 +1109,25 @@ class _HomeViewState extends State<HomeView> {
                       child: _buildStatCard(
                         'TOTAL LEADS',
                         _formatCompactNumber(kpi?.totalLeads ?? 0),
-                        // label: 'Stable',
+                        label: 'Active',
+                        trendIcon: Icons.groups_rounded,
+                        onTap: () => Navigator.of(
+                          context,
+                        ).pushNamed(AppRoutes.leadsRegistry),
                       ),
                     ),
                     SizedBox(width: 5.w),
                     Expanded(
                       child: _buildStatCard(
                         'CONVERSIONS',
-                        '${kpi?.conversionRate ?? 0}',
-                        trend: '+2',
+                        _formatCompactNumber(kpi?.conversions ?? 0),
+                        trend: kpi == null ? null : '${kpi.conversionRate}%',
                         trendColor: const Color(0xFF0E9F6E),
-                        labelIcon: Icons.check_circle_outline_rounded,
+                        trendIcon: Icons.check_circle_outline_rounded,
+                        onTap: () => Navigator.of(context).pushNamed(
+                          AppRoutes.leadsRegistry,
+                          arguments: 'Converted',
+                        ),
                       ),
                     ),
                   ],
@@ -1139,8 +1140,12 @@ class _HomeViewState extends State<HomeView> {
                       child: _buildStatCard(
                         'FOLLOW-UPS',
                         _formatCompactNumber(kpi?.followUpsDue ?? 0),
-                        trend: '-8%!',
-                        trendColor: const Color(0xFFC62828),
+                        label: 'Pending',
+                        labelColor: const Color(0xFFC62828),
+                        trendIcon: Icons.notifications_active_rounded,
+                        onTap: () => Navigator.of(
+                          context,
+                        ).pushNamed(AppRoutes.leadFollowUps),
                       ),
                     ),
                     SizedBox(width: 5.w),
@@ -1148,9 +1153,26 @@ class _HomeViewState extends State<HomeView> {
                       child: _buildStatCard(
                         'ACTIVE CLIENTS',
                         _formatCompactNumber(kpi?.activeProfiles ?? 0),
-                        trend: '+18%',
-                        trendColor: const Color(0xFF0E9F6E),
-                        hasCycleIcon: true,
+                        label: 'Active',
+                        trendIcon: Icons.sync_rounded,
+                        onTap: () => Navigator.of(context).pushNamed(
+                          AppRoutes.clientRegistry,
+                          arguments: ClientRegistryInitialFilter.all,
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: 5.w),
+                    Expanded(
+                      child: _buildStatCard(
+                        'VIP CLIENTS',
+                        _formatCompactNumber(kpi?.vipClients ?? 0),
+                        label: 'Priority',
+                        trendIcon: Icons.workspace_premium_outlined,
+                        titleIcon: Icons.workspace_premium_rounded,
+                        onTap: () => Navigator.of(context).pushNamed(
+                          AppRoutes.clientRegistry,
+                          arguments: ClientRegistryInitialFilter.vip,
+                        ),
                       ),
                     ),
                   ],
@@ -1159,14 +1181,27 @@ class _HomeViewState extends State<HomeView> {
             ),
           ),
 
-          SizedBox(height: 20.h),
+          SizedBox(height: 16.h),
 
           _buildProfileShortlistSection(),
 
-          SizedBox(height: 20.h),
+          SizedBox(height: 16.h),
+
+          _buildAgencyGrowthProjection(
+            dashboard: dashboard,
+            agencyPerformance: agencyPerformance,
+            userRole: user?.role,
+            hrEmployees: hrEmployees,
+            followUps: followUpsProvider.leads,
+            managerDashboardProvider: managerDashboardProvider,
+          ),
+
+          SizedBox(height: 16.h),
 
           // Critical Alerts
           _buildConnectivitySection(child: _buildCriticalAlerts(dashboard)),
+
+          SizedBox(height: 16.h),
 
           _buildConnectivitySection(
             child: Padding(
@@ -1176,23 +1211,65 @@ class _HomeViewState extends State<HomeView> {
                 children: [
                   const SizedBox(height: 16),
 
-                  Text(
-                    'LIVE TEAM STATUS',
-                    style: GoogleFonts.manrope(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 0.5,
-                    ),
+                  Row(
+                    children: [
+                      Expanded(
+                        flex: 4,
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            'LIVE TEAM STATUS',
+                            maxLines: 1,
+                            style: GoogleFonts.inter(
+                              color: AppColors.titleColor,
+                              fontSize: 15.sp,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0,
+                            ),
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: 8.w),
+                      Expanded(
+                        flex: 6,
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerRight,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              _buildTeamStatusPill(
+                                'Total',
+                                totalTeamCount,
+                                AppColors.rmHeading,
+                              ),
+                              SizedBox(width: 5.w),
+                              _buildTeamStatusPill(
+                                'Present',
+                                presentCount,
+                                const Color(0xFF22C55E),
+                              ),
+                              SizedBox(width: 5.w),
+                              _buildTeamStatusPill(
+                                'Absent',
+                                absentCount,
+                                const Color(0xFFC62828),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
 
-                  SizedBox(height: 16.h),
+                  SizedBox(height: 12.h),
 
                   if (dashboard?.liveTeamStatus.isEmpty ?? true)
                     _buildSectionEmptyState('No team activity available yet.')
                   else
                     SizedBox(
-                      height:
-                          220.h, // Give the horizontal ListView a fixed height
+                      height: 190.h,
                       child: ListView.builder(
                         scrollDirection: Axis.horizontal,
                         itemCount: dashboard!.liveTeamStatus.take(8).length,
@@ -1210,21 +1287,21 @@ class _HomeViewState extends State<HomeView> {
               ),
             ),
           ),
-          SizedBox(height: 25.h),
+          SizedBox(height: 16.h),
 
           // Follow-up Control
           _buildConnectivitySection(
             child: _buildFollowUpControl(context, dashboard),
           ),
 
-          SizedBox(height: 25.h),
+          SizedBox(height: 16.h),
 
           // Closing Pipeline
           _buildConnectivitySection(
             child: _buildClosingPipelineSection(dashboard),
           ),
 
-          SizedBox(height: 25.h),
+          SizedBox(height: 16.h),
           _buildConnectivitySection(
             child: Padding(
               padding: EdgeInsets.symmetric(horizontal: 14.w),
@@ -1242,7 +1319,7 @@ class _HomeViewState extends State<HomeView> {
                       SizedBox(width: 8.w),
                       Text(
                         'LIVE ACTIVITY',
-                        style: GoogleFonts.manrope(
+                        style: GoogleFonts.inter(
                           color: const Color(0xFF211A1B),
                           fontSize: 15.sp,
                           fontWeight: FontWeight.w800,
@@ -1266,6 +1343,9 @@ class _HomeViewState extends State<HomeView> {
                         SizedBox(width: 10.w),
 
                         _activityChip("Matches", "matches"),
+                        SizedBox(width: 10.w),
+
+                        _activityChip("Payments", "payments"),
                         SizedBox(width: 10.w),
 
                         // _activityChip("Payments", "payments"),
@@ -1337,7 +1417,7 @@ class _HomeViewState extends State<HomeView> {
               ),
             ),
           ),
-          SizedBox(height: 25.h),
+          SizedBox(height: 16.h),
 
           // Employee Performance Overview
           _buildConnectivitySection(
@@ -1351,9 +1431,9 @@ class _HomeViewState extends State<HomeView> {
                   children: [
                     Text(
                       'EMPLOYEE PERFORMANCE OVERVIEW',
-                      style: GoogleFonts.manrope(
+                      style: GoogleFonts.inter(
                         color: Color(0xFF181C1F),
-                        fontSize: 14,
+                        fontSize: 14.sp,
                         fontWeight: FontWeight.w600,
                         letterSpacing: 0.5,
                       ),
@@ -1362,9 +1442,9 @@ class _HomeViewState extends State<HomeView> {
                     SizedBox(height: 12.h),
                     Text(
                       'Group attendance, KPIs, and task progress in one section',
-                      style: GoogleFonts.manrope(
+                      style: GoogleFonts.inter(
                         color: Color(0xFF424754),
-                        fontSize: 12,
+                        fontSize: 12.sp,
                         fontWeight: FontWeight.w400,
                       ),
                     ),
@@ -1403,9 +1483,9 @@ class _HomeViewState extends State<HomeView> {
                       children: [
                         Text(
                           'Task Overview',
-                          style: GoogleFonts.manrope(
+                          style: GoogleFonts.inter(
                             color: Color(0xFF181C1F),
-                            fontSize: 14,
+                            fontSize: 14.sp,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -1419,9 +1499,9 @@ class _HomeViewState extends State<HomeView> {
                           ),
                           child: Text(
                             '${agencyPerformance?.taskCompletionRate ?? 0}% Completed',
-                            style: GoogleFonts.manrope(
+                            style: GoogleFonts.inter(
                               color: AppColors.reddishBrown,
-                              fontSize: 14,
+                              fontSize: 14.sp,
                               fontWeight: FontWeight.w800,
                             ),
                           ),
@@ -1456,7 +1536,7 @@ class _HomeViewState extends State<HomeView> {
               ),
             ),
           ),
-          SizedBox(height: 25.h),
+          SizedBox(height: 16.h),
 
           // AI Suggestions
           _buildConnectivitySection(
@@ -1485,10 +1565,10 @@ class _HomeViewState extends State<HomeView> {
                         SizedBox(width: 10.w),
                         Text(
                           'AI SUGGESTIONS',
-                          style: GoogleFonts.manrope(
+                          style: GoogleFonts.inter(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
-                            fontSize: 12,
+                            fontSize: 12.sp,
                           ),
                         ),
                       ],
@@ -1498,9 +1578,9 @@ class _HomeViewState extends State<HomeView> {
                       primarySuggestion?.description ??
                           primaryAiTask?.title ??
                           'No AI suggestions are available for this period.',
-                      style: GoogleFonts.manrope(
+                      style: GoogleFonts.inter(
                         color: Colors.white,
-                        fontSize: 12,
+                        fontSize: 12.sp,
                         height: 1.4,
                       ),
                     ),
@@ -1530,9 +1610,9 @@ class _HomeViewState extends State<HomeView> {
                             ),
                             child: Text(
                               primarySuggestion?.actionLabel ?? 'Execute',
-                              style: GoogleFonts.manrope(
+                              style: GoogleFonts.inter(
                                 fontWeight: FontWeight.bold,
-                                fontSize: 11,
+                                fontSize: 11.sp,
                               ),
                             ),
                           ),
@@ -1554,8 +1634,8 @@ class _HomeViewState extends State<HomeView> {
                             ),
                             child: Text(
                               'Dismiss',
-                              style: GoogleFonts.manrope(
-                                fontSize: 11,
+                              style: GoogleFonts.inter(
+                                fontSize: 11.sp,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -1568,137 +1648,7 @@ class _HomeViewState extends State<HomeView> {
               ),
             ),
           ),
-          SizedBox(height: 25.h),
-
-          // Agency Growth Projection
-          _buildConnectivitySection(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14),
-              child: Container(
-                padding: const EdgeInsets.all(24),
-                decoration: _ownerCardDecoration(),
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        Text(
-                          'Agency Growth Projection',
-                          style: GoogleFonts.manrope(
-                            color: Color(0xFF181C1F),
-                            fontSize: 20,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 8.h),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        'Based on current RM performance and lead inflow',
-                        style: GoogleFonts.manrope(
-                          color: Color(0xFF424754),
-                          fontSize: 16,
-                          fontWeight: FontWeight.w400,
-                        ),
-                      ),
-                    ),
-                    SizedBox(height: 40.h),
-                    Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        SizedBox(
-                          width: 180,
-                          height: 180,
-                          child: CircularProgressIndicator(
-                            value: _safeProgress(
-                              agencyPerformance?.overallConversionRate ?? 0,
-                              100,
-                            ),
-                            strokeWidth: 18,
-                            backgroundColor: Colors.grey[200],
-                            color: _primaryColor,
-                            strokeCap: StrokeCap.round,
-                          ),
-                        ),
-                        Text(
-                          '${agencyPerformance?.overallConversionRate ?? 0}%',
-                          style: GoogleFonts.manrope(
-                            color: AppColors.primary,
-                            fontSize: 44,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 40.h),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildGrowthStat(
-                            'Closed Clients',
-                            '${agencyPerformance?.closedClients ?? 0}',
-                          ),
-                        ),
-                        Container(
-                          width: 1,
-                          height: 50,
-                          color: Colors.grey[200],
-                        ),
-                        Expanded(
-                          child: _buildGrowthStat(
-                            'Task Completion',
-                            '${agencyPerformance?.taskCompletionRate ?? 0}%',
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 15.h),
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton(
-                        onPressed: () {
-                          if (dashboard == null) {
-                            if (user != null && _isHrRole(user.role)) {
-                              _showHrRoleReport(
-                                hrEmployees: hrEmployees,
-                                followUps: followUpsProvider.leads,
-                              );
-                              return;
-                            }
-
-                            _showReportUnavailableMessage(
-                              managerDashboardProvider,
-                            );
-                            return;
-                          }
-
-                          _showAgencyReport(dashboard);
-                        },
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.primary,
-                          side: BorderSide(color: AppColors.primary),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                        ),
-                        child: Text(
-                          'View full report',
-                          style: GoogleFonts.manrope(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          SizedBox(height: 25.h),
+          SizedBox(height: 16.h),
 
           // Lost Customers
           _buildConnectivitySection(
@@ -1715,9 +1665,9 @@ class _HomeViewState extends State<HomeView> {
                   children: [
                     Text(
                       'LOST CUSTOMERS',
-                      style: GoogleFonts.manrope(
+                      style: GoogleFonts.inter(
                         color: Colors.white,
-                        fontSize: 22,
+                        fontSize: 22.sp,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0.5,
                       ),
@@ -1731,17 +1681,17 @@ class _HomeViewState extends State<HomeView> {
                           children: [
                             Text(
                               '24',
-                              style: GoogleFonts.manrope(
+                              style: GoogleFonts.inter(
                                 color: Colors.white,
-                                fontSize: 54,
+                                fontSize: 54.sp,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
                             Text(
                               'LOST THIS MONTH',
-                              style: GoogleFonts.manrope(
+                              style: GoogleFonts.inter(
                                 color: const Color(0xFFA8A29E),
-                                fontSize: 15,
+                                fontSize: 15.sp,
                                 fontWeight: FontWeight.w800,
                                 height: 1.50,
                                 letterSpacing: -0.50,
@@ -1802,9 +1752,9 @@ class _HomeViewState extends State<HomeView> {
                         ),
                         child: Text(
                           'VIEW FULL REPORT',
-                          style: GoogleFonts.manrope(
+                          style: GoogleFonts.inter(
                             color: Color(0xFFF2F1EE),
-                            fontSize: 15,
+                            fontSize: 15.sp,
                             fontWeight: FontWeight.w700,
                             height: 1.50,
                             letterSpacing: 1,
@@ -1817,7 +1767,7 @@ class _HomeViewState extends State<HomeView> {
               ),
             ),
           ),
-          SizedBox(height: 25.h),
+          SizedBox(height: 16.h),
 
           // Automation Efficiency
           _buildConnectivitySection(
@@ -1846,8 +1796,8 @@ class _HomeViewState extends State<HomeView> {
                           padding: const EdgeInsets.all(8.0),
                           child: Text(
                             '94%',
-                            style: GoogleFonts.manrope(
-                              fontSize: 12,
+                            style: GoogleFonts.inter(
+                              fontSize: 12.sp,
                               fontWeight: FontWeight.w800,
                               color: AppColors.whatsappGreen,
                             ),
@@ -1864,18 +1814,19 @@ class _HomeViewState extends State<HomeView> {
                             'Automation Efficiency',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.manrope(
+                            style: GoogleFonts.inter(
+                              color: AppColors.titleColor,
                               fontWeight: FontWeight.w700,
-                              fontSize: 18,
+                              fontSize: 18.sp,
                             ),
                           ),
                           Text(
                             '420 auto-actions triggered today',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.manrope(
-                              color: Colors.grey[500],
-                              fontSize: 12,
+                            style: GoogleFonts.inter(
+                              color: AppColors.titleColor,
+                              fontSize: 12.sp,
                             ),
                           ),
                         ],
@@ -1901,8 +1852,138 @@ class _HomeViewState extends State<HomeView> {
               ),
             ),
           ),
-          SizedBox(height: 122.h),
         ],
+      ),
+    );
+  }
+
+  Widget _buildAgencyGrowthProjection({
+    required ManagerDashboard? dashboard,
+    required ManagerAgencyPerformance? agencyPerformance,
+    required String? userRole,
+    required List<HrEmployeeItem> hrEmployees,
+    required List<LeadFollowUpItem> followUps,
+    required ManagerDashboardProvider managerDashboardProvider,
+  }) {
+    return _buildConnectivitySection(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: _ownerCardDecoration(),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  Text(
+                    'Agency Growth Projection',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFF181C1F),
+                      fontSize: 20.sp,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 8.h),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Based on current RM performance and lead inflow',
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF424754),
+                    fontSize: 16.sp,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+              ),
+              SizedBox(height: 40.h),
+              Stack(
+                alignment: Alignment.center,
+                children: [
+                  SizedBox(
+                    width: 180,
+                    height: 180,
+                    child: CircularProgressIndicator(
+                      value: _safeProgress(
+                        agencyPerformance?.overallConversionRate ?? 0,
+                        100,
+                      ),
+                      strokeWidth: 18,
+                      backgroundColor: Colors.grey[200],
+                      color: _primaryColor,
+                      strokeCap: StrokeCap.round,
+                    ),
+                  ),
+                  Text(
+                    '${agencyPerformance?.overallConversionRate ?? 0}%',
+                    style: GoogleFonts.inter(
+                      color: AppColors.primary,
+                      fontSize: 44.sp,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 40.h),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildGrowthStat(
+                      'Closed Clients',
+                      '${agencyPerformance?.closedClients ?? 0}',
+                    ),
+                  ),
+                  Container(width: 1, height: 50, color: Colors.grey[200]),
+                  Expanded(
+                    child: _buildGrowthStat(
+                      'Task Completion',
+                      '${agencyPerformance?.taskCompletionRate ?? 0}%',
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 15.h),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  onPressed: () {
+                    if (dashboard == null) {
+                      if (userRole != null && _isHrRole(userRole)) {
+                        _showHrRoleReport(
+                          hrEmployees: hrEmployees,
+                          followUps: followUps,
+                        );
+                        return;
+                      }
+
+                      _showReportUnavailableMessage(managerDashboardProvider);
+                      return;
+                    }
+
+                    _showAgencyReport(dashboard);
+                  },
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.primary,
+                    side: const BorderSide(color: AppColors.primary),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                  child: Text(
+                    'View full report',
+                    style: GoogleFonts.inter(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14.sp,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -1943,18 +2024,19 @@ class _HomeViewState extends State<HomeView> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'PROFILES NEEDING SHORTLIST',
-                        style: GoogleFonts.manrope(
-                          fontSize: 16,
+                        'PROFILES READY FOR SHORTLISTING',
+                        style: GoogleFonts.inter(
+                          color: AppColors.titleColor,
+                          fontSize: 16.sp,
                           fontWeight: FontWeight.w800,
                         ),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         '${profiles.length} profiles waiting for shortlist action.',
-                        style: GoogleFonts.manrope(
-                          fontSize: 13,
-                          color: Colors.grey.shade700,
+                        style: GoogleFonts.inter(
+                          color: AppColors.titleColor,
+                          fontSize: 13.sp,
                         ),
                       ),
                     ],
@@ -2030,7 +2112,10 @@ class _HomeViewState extends State<HomeView> {
                       width: 60,
                       height: 60,
                       color: Colors.grey.shade200,
-                      child: const Icon(Icons.person, color: Colors.grey),
+                      child: const Icon(
+                        Icons.person,
+                        color: AppColors.titleColor,
+                      ),
                     );
                   },
                 ),
@@ -2045,8 +2130,9 @@ class _HomeViewState extends State<HomeView> {
                       profile.name,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.manrope(
-                        fontSize: 18,
+                      style: GoogleFonts.inter(
+                        color: AppColors.titleColor,
+                        fontSize: 18.sp,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
@@ -2055,7 +2141,10 @@ class _HomeViewState extends State<HomeView> {
                     Text.rich(
                       TextSpan(
                         text: 'Client: ',
-                        style: GoogleFonts.manrope(fontSize: 15),
+                        style: GoogleFonts.inter(
+                          color: AppColors.titleColor,
+                          fontSize: 15.sp,
+                        ),
                         children: [
                           TextSpan(
                             text: profile.name,
@@ -2068,7 +2157,10 @@ class _HomeViewState extends State<HomeView> {
                     Text.rich(
                       TextSpan(
                         text: 'Owner: ',
-                        style: GoogleFonts.manrope(fontSize: 15),
+                        style: GoogleFonts.inter(
+                          color: AppColors.titleColor,
+                          fontSize: 15.sp,
+                        ),
                         children: const [
                           TextSpan(
                             text: 'Relationship Manager',
@@ -2126,7 +2218,7 @@ class _HomeViewState extends State<HomeView> {
                 children: [
                   Text(
                     'OPEN SHORTLIST',
-                    style: GoogleFonts.manrope(
+                    style: GoogleFonts.inter(
                       color: Colors.white,
                       fontWeight: FontWeight.w700,
                     ),
@@ -2155,8 +2247,8 @@ class _HomeViewState extends State<HomeView> {
       ),
       child: Text(
         text,
-        style: GoogleFonts.manrope(
-          fontSize: 12,
+        style: GoogleFonts.inter(
+          fontSize: 12.sp,
           fontWeight: FontWeight.w600,
           color: color,
         ),
@@ -2206,17 +2298,17 @@ class _HomeViewState extends State<HomeView> {
           children: [
             Text(
               label,
-              style: GoogleFonts.manrope(
+              style: GoogleFonts.inter(
                 color: Color(0xFF2C2B2B),
-                fontSize: 12,
+                fontSize: 12.sp,
                 fontWeight: FontWeight.bold,
               ),
             ),
             Text(
               value,
-              style: GoogleFonts.manrope(
+              style: GoogleFonts.inter(
                 color: Color(0xFF2C2B2B),
-                fontSize: 17,
+                fontSize: 17.sp,
                 fontWeight: FontWeight.w800,
               ),
             ),
@@ -2228,9 +2320,9 @@ class _HomeViewState extends State<HomeView> {
             alignment: Alignment.centerLeft,
             child: Text(
               pendingText,
-              style: GoogleFonts.manrope(
-                color: Colors.grey[600],
-                fontSize: 14,
+              style: GoogleFonts.inter(
+                color: AppColors.titleColor,
+                fontSize: 14.sp,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -2256,9 +2348,9 @@ class _HomeViewState extends State<HomeView> {
         Text(
           label,
           textAlign: TextAlign.center,
-          style: GoogleFonts.manrope(
+          style: GoogleFonts.inter(
             color: const Color(0xFF424754),
-            fontSize: 17,
+            fontSize: 17.sp,
             fontWeight: FontWeight.w500,
             height: 1.14,
           ),
@@ -2266,7 +2358,11 @@ class _HomeViewState extends State<HomeView> {
         SizedBox(height: 8.h),
         Text(
           value,
-          style: GoogleFonts.manrope(fontSize: 30, fontWeight: FontWeight.bold),
+          style: GoogleFonts.inter(
+            color: AppColors.titleColor,
+            fontSize: 30.sp,
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ],
     );
@@ -2278,7 +2374,7 @@ class _HomeViewState extends State<HomeView> {
       children: [
         Text(
           label,
-          style: GoogleFonts.manrope(color: Colors.white, fontSize: 14),
+          style: GoogleFonts.inter(color: Colors.white, fontSize: 14.sp),
         ),
         SizedBox(height: 6.h),
         ClipRRect(
@@ -2332,6 +2428,21 @@ class _HomeViewState extends State<HomeView> {
     final convertedLeads = leadsProvider.leads
         .where((lead) => _leadStageKey(lead.stage) == 'CONVERTED')
         .toList();
+    final reportRmOptions = _agencyReportOptions([
+      ...dashboard.liveTeamStatus.map((item) => item.name),
+      ...convertedLeads.map((lead) => lead.assignedTo),
+    ]);
+    final reportConvertedByOptions = _agencyReportOptions(
+      convertedLeads.map((lead) => lead.assignedTo),
+    );
+    final reportCreatorOptions = _agencyReportOptions([
+      ...dashboard.recentActivity.map((activity) => activity.actorName),
+      ...dashboard.recentProfiles.map((profile) => profile.client),
+      ...convertedLeads.map((lead) => lead.assignedTo),
+    ]);
+    final reportStatusOptions = _agencyReportOptions(
+      convertedLeads.map((lead) => lead.stage),
+    );
     final totalTasksCompleted = dashboard.liveTeamStatus.fold<int>(
       0,
       (total, item) => total + item.tasksCompleted,
@@ -2340,12 +2451,6 @@ class _HomeViewState extends State<HomeView> {
       0,
       (total, item) => total + item.leadsHandled,
     );
-    final convertedCount = convertedLeads.isEmpty
-        ? performance.closedClients
-        : convertedLeads.length;
-    final taskTarget = totalLeadsHandled > totalTasksCompleted
-        ? totalLeadsHandled
-        : (totalTasksCompleted > 0 ? totalTasksCompleted : kpi.totalLeads);
     final initialVisibleCount = convertedLeads.length > 5
         ? 5
         : convertedLeads.length;
@@ -2356,11 +2461,82 @@ class _HomeViewState extends State<HomeView> {
       backgroundColor: Colors.transparent,
       builder: (context) {
         var visibleCount = initialVisibleCount;
+        var selectedReportPeriod = _AgencyReportPeriod.monthly;
+        DateTimeRange? customDateRange;
+        var selectedRms = <String>{};
+        String? selectedConvertedBy;
+        String? selectedProfileCreator;
+        String? selectedConversionStatus;
 
         return StatefulBuilder(
           builder: (context, setModalState) {
-            final visibleLeads = convertedLeads.take(visibleCount).toList();
-            final canLoadMore = visibleCount < convertedLeads.length;
+            final filteredConvertedLeads = convertedLeads.where((lead) {
+              if (!_matchesAgencyReportPeriod(
+                lead,
+                selectedReportPeriod,
+                customDateRange,
+              )) {
+                return false;
+              }
+              if (selectedRms.isNotEmpty &&
+                  !selectedRms.contains(lead.assignedTo)) {
+                return false;
+              }
+              if (selectedConvertedBy != null &&
+                  lead.assignedTo != selectedConvertedBy) {
+                return false;
+              }
+              if (selectedProfileCreator != null &&
+                  lead.assignedTo != selectedProfileCreator) {
+                return false;
+              }
+              if (selectedConversionStatus != null &&
+                  lead.stage != selectedConversionStatus) {
+                return false;
+              }
+              return true;
+            }).toList();
+            if (visibleCount > filteredConvertedLeads.length) {
+              visibleCount = filteredConvertedLeads.length;
+            }
+            final effectiveVisibleCount = visibleCount == 0
+                ? (filteredConvertedLeads.length > 5
+                      ? 5
+                      : filteredConvertedLeads.length)
+                : visibleCount;
+            final visibleLeads = filteredConvertedLeads
+                .take(effectiveVisibleCount)
+                .toList();
+            final canLoadMore =
+                effectiveVisibleCount < filteredConvertedLeads.length;
+            final filteredRmNames = selectedRms.isEmpty
+                ? reportRmOptions
+                : selectedRms;
+            final filteredTasksCompleted = selectedRms.isEmpty
+                ? totalTasksCompleted
+                : dashboard.liveTeamStatus
+                      .where((item) => filteredRmNames.contains(item.name))
+                      .fold<int>(
+                        0,
+                        (total, item) => total + item.tasksCompleted,
+                      );
+            final filteredLeadsHandled = selectedRms.isEmpty
+                ? totalLeadsHandled
+                : dashboard.liveTeamStatus
+                      .where((item) => filteredRmNames.contains(item.name))
+                      .fold<int>(0, (total, item) => total + item.leadsHandled);
+            final reportConvertedCount = filteredConvertedLeads.isEmpty
+                ? 0
+                : filteredConvertedLeads.length;
+            final reportTaskTarget =
+                filteredLeadsHandled > filteredTasksCompleted
+                ? filteredLeadsHandled
+                : (filteredTasksCompleted > 0
+                      ? filteredTasksCompleted
+                      : kpi.totalLeads);
+            final reportConversionRate = filteredConvertedLeads.isEmpty
+                ? 0
+                : performance.overallConversionRate;
 
             return SafeArea(
               child: FractionallySizedBox(
@@ -2403,7 +2579,7 @@ class _HomeViewState extends State<HomeView> {
                                 textAlign: TextAlign.center,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: GoogleFonts.playfairDisplay(
+                                style: GoogleFonts.inter(
                                   color: const Color(0xFF2C2626),
                                   fontSize: 18.sp,
                                   fontWeight: FontWeight.w700,
@@ -2430,7 +2606,7 @@ class _HomeViewState extends State<HomeView> {
                             children: [
                               Text(
                                 'Agency Performance Report',
-                                style: GoogleFonts.manrope(
+                                style: GoogleFonts.inter(
                                   color: const Color(0xFF222222),
                                   fontSize: 18.sp,
                                   fontWeight: FontWeight.w800,
@@ -2442,7 +2618,7 @@ class _HomeViewState extends State<HomeView> {
                                 dashboard.period.displayText.isNotEmpty
                                     ? dashboard.period.displayText
                                     : 'All-time overview of conversions, closed clients, and task completion',
-                                style: GoogleFonts.manrope(
+                                style: GoogleFonts.inter(
                                   color: const Color(0xFF343434),
                                   fontSize: 13.sp,
                                   fontWeight: FontWeight.w500,
@@ -2450,15 +2626,124 @@ class _HomeViewState extends State<HomeView> {
                                 ),
                               ),
                               SizedBox(height: 18.h),
+                              _buildAgencyReportFilters(
+                                selectedPeriod: selectedReportPeriod,
+                                customDateRange: customDateRange,
+                                rmOptions: reportRmOptions,
+                                selectedRms: selectedRms,
+                                convertedByOptions: reportConvertedByOptions,
+                                selectedConvertedBy: selectedConvertedBy,
+                                profileCreatorOptions: reportCreatorOptions,
+                                selectedProfileCreator: selectedProfileCreator,
+                                conversionStatusOptions: reportStatusOptions,
+                                selectedConversionStatus:
+                                    selectedConversionStatus,
+                                onPeriodChanged: (period) async {
+                                  if (period == _AgencyReportPeriod.custom) {
+                                    final now = DateTime.now();
+                                    final pickedRange = await showDateRangePicker(
+                                      context: context,
+                                      firstDate: DateTime(now.year - 5),
+                                      lastDate: DateTime(now.year + 1),
+                                      initialDateRange: customDateRange,
+                                      builder: (context, child) {
+                                        const pickerBackground = Color(
+                                          0xFFFFF8F4,
+                                        );
+                                        return Theme(
+                                          data: ThemeData.light().copyWith(
+                                            scaffoldBackgroundColor:
+                                                pickerBackground,
+                                            canvasColor: pickerBackground,
+                                            dialogTheme: const DialogThemeData(
+                                              backgroundColor: pickerBackground,
+                                              surfaceTintColor: AppColors.white,
+                                            ),
+                                            colorScheme:
+                                                const ColorScheme.light(
+                                                  primary: AppColors.primary,
+                                                  onPrimary: AppColors.white,
+                                                  surface: pickerBackground,
+                                                  onSurface: Color(0xFF211A1B),
+                                                ),
+                                            datePickerTheme:
+                                                const DatePickerThemeData(
+                                                  backgroundColor:
+                                                      pickerBackground,
+                                                  surfaceTintColor:
+                                                      AppColors.white,
+                                                  headerBackgroundColor:
+                                                      AppColors.primary,
+                                                  headerForegroundColor:
+                                                      AppColors.white,
+                                                  rangeSelectionBackgroundColor:
+                                                      Color(0xFFFFE6D7),
+                                                  rangePickerBackgroundColor:
+                                                      pickerBackground,
+                                                  rangePickerSurfaceTintColor:
+                                                      AppColors.white,
+                                                ),
+                                          ),
+                                          child: ColoredBox(
+                                            color: pickerBackground,
+                                            child:
+                                                child ??
+                                                const SizedBox.shrink(),
+                                          ),
+                                        );
+                                      },
+                                    );
+                                    if (pickedRange == null) {
+                                      return;
+                                    }
+                                    setModalState(() {
+                                      selectedReportPeriod = period;
+                                      customDateRange = pickedRange;
+                                      visibleCount = initialVisibleCount;
+                                    });
+                                    return;
+                                  }
+
+                                  setModalState(() {
+                                    selectedReportPeriod = period;
+                                    customDateRange = null;
+                                    visibleCount = initialVisibleCount;
+                                  });
+                                },
+                                onRmsChanged: (values) {
+                                  setModalState(() {
+                                    selectedRms = values;
+                                    visibleCount = initialVisibleCount;
+                                  });
+                                },
+                                onConvertedByChanged: (value) {
+                                  setModalState(() {
+                                    selectedConvertedBy = value;
+                                    visibleCount = initialVisibleCount;
+                                  });
+                                },
+                                onProfileCreatorChanged: (value) {
+                                  setModalState(() {
+                                    selectedProfileCreator = value;
+                                    visibleCount = initialVisibleCount;
+                                  });
+                                },
+                                onConversionStatusChanged: (value) {
+                                  setModalState(() {
+                                    selectedConversionStatus = value;
+                                    visibleCount = initialVisibleCount;
+                                  });
+                                },
+                              ),
+                              SizedBox(height: 18.h),
                               Row(
                                 children: [
                                   Expanded(
                                     child: _buildAgencyPerformanceMetricCard(
                                       title: 'OVERALL CONVERSION\nRATE',
-                                      value:
-                                          '${performance.overallConversionRate}%',
+                                      value: '$reportConversionRate%',
                                       caption:
-                                          'converted: $convertedCount /\nqualified: $convertedCount',
+                                          'converted: $reportConvertedCount /\nqualified: $reportConvertedCount',
                                       icon: Icons.trending_up,
                                       iconColor: const Color(0xFF11A36A),
                                     ),
@@ -2467,7 +2752,7 @@ class _HomeViewState extends State<HomeView> {
                                   Expanded(
                                     child: _buildAgencyPerformanceMetricCard(
                                       title: 'CONVERTED CLIENTS',
-                                      value: '$convertedCount',
+                                      value: '$reportConvertedCount',
                                       caption: 'all-time\nconverted clients',
                                       icon: Icons.check_circle_outline,
                                       iconColor: const Color(0xFF17B26A),
@@ -2480,7 +2765,7 @@ class _HomeViewState extends State<HomeView> {
                                 title: 'TASK COMPLETION',
                                 value: '${performance.taskCompletionRate}%',
                                 caption:
-                                    '$totalTasksCompleted/$taskTarget\ncompleted',
+                                    '$filteredTasksCompleted/$reportTaskTarget\ncompleted',
                                 icon: Icons.check_circle_outline,
                                 iconColor: const Color(0xFF17B26A),
                                 isWide: true,
@@ -2521,7 +2806,7 @@ class _HomeViewState extends State<HomeView> {
                                         children: [
                                           Text(
                                             'Converted Clients',
-                                            style: GoogleFonts.manrope(
+                                            style: GoogleFonts.inter(
                                               color: const Color(0xFF222222),
                                               fontSize: 18.sp,
                                               fontWeight: FontWeight.w800,
@@ -2530,7 +2815,7 @@ class _HomeViewState extends State<HomeView> {
                                           SizedBox(height: 4.h),
                                           Text(
                                             'Clients converted from leads across the CRM',
-                                            style: GoogleFonts.manrope(
+                                            style: GoogleFonts.inter(
                                               color: const Color(0xFF343434),
                                               fontSize: 13.sp,
                                               fontWeight: FontWeight.w500,
@@ -2549,8 +2834,8 @@ class _HomeViewState extends State<HomeView> {
                                                   BorderRadius.circular(10.r),
                                             ),
                                             child: Text(
-                                              '$convertedCount records found',
-                                              style: GoogleFonts.manrope(
+                                              '$reportConvertedCount records found',
+                                              style: GoogleFonts.inter(
                                                 color: const Color(0xFF2A2A2A),
                                                 fontSize: 10.sp,
                                                 fontWeight: FontWeight.w800,
@@ -2573,7 +2858,7 @@ class _HomeViewState extends State<HomeView> {
                                           leadsProvider.isLoading
                                               ? 'Loading converted clients...'
                                               : 'No converted clients available yet.',
-                                          style: GoogleFonts.manrope(
+                                          style: GoogleFonts.inter(
                                             color: const Color(0xFF6B6B6B),
                                             fontSize: 13.sp,
                                             fontWeight: FontWeight.w600,
@@ -2605,10 +2890,12 @@ class _HomeViewState extends State<HomeView> {
                                   child: OutlinedButton(
                                     onPressed: () {
                                       setModalState(() {
-                                        final nextCount = visibleCount + 5;
+                                        final nextCount =
+                                            effectiveVisibleCount + 5;
                                         visibleCount =
-                                            nextCount > convertedLeads.length
-                                            ? convertedLeads.length
+                                            nextCount >
+                                                filteredConvertedLeads.length
+                                            ? filteredConvertedLeads.length
                                             : nextCount;
                                       });
                                     },
@@ -2626,7 +2913,7 @@ class _HomeViewState extends State<HomeView> {
                                     ),
                                     child: Text(
                                       'Load More Records',
-                                      style: GoogleFonts.manrope(
+                                      style: GoogleFonts.inter(
                                         fontSize: 14.sp,
                                         fontWeight: FontWeight.w700,
                                       ),
@@ -2651,6 +2938,216 @@ class _HomeViewState extends State<HomeView> {
 
   String _leadStageKey(String stage) {
     return stage.trim().toUpperCase().replaceAll(' ', '_');
+  }
+
+  List<String> _agencyReportOptions(Iterable<String> values) {
+    final options = values
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty && value != '-')
+        .toSet()
+        .toList();
+    options.sort(
+      (first, second) => first.toLowerCase().compareTo(second.toLowerCase()),
+    );
+    return options;
+  }
+
+  bool _matchesAgencyReportPeriod(
+    LeadRegistryItem lead,
+    _AgencyReportPeriod period,
+    DateTimeRange? customRange,
+  ) {
+    final leadDate = _parseAgencyReportLeadDate(lead.createdOn);
+    if (leadDate == null) {
+      return true;
+    }
+
+    final today = DateTime.now();
+    final leadDay = DateTime(leadDate.year, leadDate.month, leadDate.day);
+    final currentDay = DateTime(today.year, today.month, today.day);
+
+    switch (period) {
+      case _AgencyReportPeriod.weekly:
+        return !leadDay.isBefore(
+              currentDay.subtract(const Duration(days: 6)),
+            ) &&
+            !leadDay.isAfter(currentDay);
+      case _AgencyReportPeriod.monthly:
+        return leadDay.year == today.year && leadDay.month == today.month;
+      case _AgencyReportPeriod.custom:
+        final range = customRange;
+        if (range == null) {
+          return true;
+        }
+        final start = DateTime(
+          range.start.year,
+          range.start.month,
+          range.start.day,
+        );
+        final end = DateTime(range.end.year, range.end.month, range.end.day);
+        return !leadDay.isBefore(start) && !leadDay.isAfter(end);
+    }
+  }
+
+  DateTime? _parseAgencyReportLeadDate(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty || trimmed == '-') {
+      return null;
+    }
+
+    final isoDate = DateTime.tryParse(trimmed);
+    if (isoDate != null) {
+      return isoDate.toLocal();
+    }
+
+    const months = {
+      'jan': 1,
+      'feb': 2,
+      'mar': 3,
+      'apr': 4,
+      'may': 5,
+      'jun': 6,
+      'jul': 7,
+      'aug': 8,
+      'sep': 9,
+      'oct': 10,
+      'nov': 11,
+      'dec': 12,
+    };
+    final parts = trimmed.split(RegExp(r'\s+'));
+    if (parts.length != 3) {
+      return null;
+    }
+
+    final day = int.tryParse(parts[0]);
+    final month = months[parts[1].toLowerCase()];
+    final year = int.tryParse(parts[2]);
+    if (day == null || month == null || year == null) {
+      return null;
+    }
+
+    return DateTime(year, month, day);
+  }
+
+  Widget _buildAgencyReportFilters({
+    required _AgencyReportPeriod selectedPeriod,
+    required DateTimeRange? customDateRange,
+    required List<String> rmOptions,
+    required Set<String> selectedRms,
+    required List<String> convertedByOptions,
+    required String? selectedConvertedBy,
+    required List<String> profileCreatorOptions,
+    required String? selectedProfileCreator,
+    required List<String> conversionStatusOptions,
+    required String? selectedConversionStatus,
+    required ValueChanged<_AgencyReportPeriod> onPeriodChanged,
+    required ValueChanged<Set<String>> onRmsChanged,
+    required ValueChanged<String?> onConvertedByChanged,
+    required ValueChanged<String?> onProfileCreatorChanged,
+    required ValueChanged<String?> onConversionStatusChanged,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.fromLTRB(12.w, 12.h, 12.w, 14.h),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(4.r),
+        border: Border.all(color: const Color(0xFFF0E2D8)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0FB25C18),
+            blurRadius: 12,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 8.w,
+            runSpacing: 8.h,
+            children: [
+              _AgencyReportPeriodButton(
+                label: 'Weekly',
+                selected: selectedPeriod == _AgencyReportPeriod.weekly,
+                onTap: () => onPeriodChanged(_AgencyReportPeriod.weekly),
+              ),
+              _AgencyReportPeriodButton(
+                label: 'Monthly',
+                selected: selectedPeriod == _AgencyReportPeriod.monthly,
+                onTap: () => onPeriodChanged(_AgencyReportPeriod.monthly),
+              ),
+              _AgencyReportPeriodButton(
+                label: customDateRange == null ? 'Custom' : 'Custom Set',
+                selected: selectedPeriod == _AgencyReportPeriod.custom,
+                onTap: () => onPeriodChanged(_AgencyReportPeriod.custom),
+              ),
+            ],
+          ),
+          SizedBox(height: 16.h),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isWide = constraints.maxWidth >= 720.w;
+              final itemWidth = isWide
+                  ? (constraints.maxWidth - 36.w) / 4
+                  : constraints.maxWidth;
+
+              return Wrap(
+                spacing: 12.w,
+                runSpacing: 12.h,
+                children: [
+                  SizedBox(
+                    width: itemWidth,
+                    child: _AgencyReportMultiSelectField(
+                      label: 'Assigned RM',
+                      valueText: selectedRms.isEmpty
+                          ? 'All relationship managers'
+                          : selectedRms.length == 1
+                          ? selectedRms.first
+                          : '${selectedRms.length} selected',
+                      options: rmOptions,
+                      selectedValues: selectedRms,
+                      onChanged: onRmsChanged,
+                    ),
+                  ),
+                  SizedBox(
+                    width: itemWidth,
+                    child: _AgencyReportDropdownField(
+                      label: 'Converted by',
+                      hintText: 'All converters',
+                      options: convertedByOptions,
+                      value: selectedConvertedBy,
+                      onChanged: onConvertedByChanged,
+                    ),
+                  ),
+                  SizedBox(
+                    width: itemWidth,
+                    child: _AgencyReportDropdownField(
+                      label: 'Profile creator',
+                      hintText: 'All creators',
+                      options: profileCreatorOptions,
+                      value: selectedProfileCreator,
+                      onChanged: onProfileCreatorChanged,
+                    ),
+                  ),
+                  SizedBox(
+                    width: itemWidth,
+                    child: _AgencyReportDropdownField(
+                      label: 'Conversion status',
+                      hintText: 'All conversion statuses',
+                      options: conversionStatusOptions,
+                      value: selectedConversionStatus,
+                      onChanged: onConversionStatusChanged,
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildAgencyPerformanceMetricCard({
@@ -2684,7 +3181,7 @@ class _HomeViewState extends State<HomeView> {
             title,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: const Color(0xFF393434),
               fontSize: 11.sp,
               fontWeight: FontWeight.w800,
@@ -2695,7 +3192,7 @@ class _HomeViewState extends State<HomeView> {
           SizedBox(height: 10.h),
           Text(
             value,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: AppColors.primary,
               fontSize: 25.sp,
               fontWeight: FontWeight.w900,
@@ -2709,7 +3206,7 @@ class _HomeViewState extends State<HomeView> {
               Expanded(
                 child: Text(
                   caption,
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     color: const Color(0xFF393434),
                     fontSize: 10.5.sp,
                     fontWeight: FontWeight.w700,
@@ -2758,7 +3255,7 @@ class _HomeViewState extends State<HomeView> {
                   lead.name,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     color: const Color(0xFF212121),
                     fontSize: 16.sp,
                     fontWeight: FontWeight.w800,
@@ -2775,7 +3272,7 @@ class _HomeViewState extends State<HomeView> {
                 ),
                 child: Text(
                   '[$packageLabel]',
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
                     color: AppColors.primary,
                     fontSize: 11.sp,
                     fontWeight: FontWeight.w700,
@@ -2831,7 +3328,7 @@ class _HomeViewState extends State<HomeView> {
             text,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: const Color(0xFF2F2F2F),
               fontSize: 12.sp,
               fontWeight: FontWeight.w500,
@@ -2857,7 +3354,7 @@ class _HomeViewState extends State<HomeView> {
             label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: const Color(0xFF6E5C61),
               fontSize: 12.sp,
               fontWeight: FontWeight.w700,
@@ -2868,7 +3365,7 @@ class _HomeViewState extends State<HomeView> {
             value,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: AppColors.rmPrimary,
               fontSize: 20.sp,
               fontWeight: FontWeight.w900,
@@ -2887,7 +3384,7 @@ class _HomeViewState extends State<HomeView> {
           Expanded(
             child: Text(
               label,
-              style: GoogleFonts.manrope(
+              style: GoogleFonts.inter(
                 color: const Color(0xFF424754),
                 fontSize: 14.sp,
                 fontWeight: FontWeight.w700,
@@ -2896,7 +3393,7 @@ class _HomeViewState extends State<HomeView> {
           ),
           Text(
             value,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: AppColors.rmPrimary,
               fontSize: 14.sp,
               fontWeight: FontWeight.w900,
@@ -2936,7 +3433,7 @@ class _HomeViewState extends State<HomeView> {
                     Expanded(
                       child: Text(
                         'Lost Customers Report',
-                        style: GoogleFonts.manrope(
+                        style: GoogleFonts.inter(
                           color: Colors.white,
                           fontSize: 22.sp,
                           fontWeight: FontWeight.w800,
@@ -2953,7 +3450,7 @@ class _HomeViewState extends State<HomeView> {
                   SizedBox(height: 2.h),
                   Text(
                     dashboard.period.displayText,
-                    style: GoogleFonts.manrope(
+                    style: GoogleFonts.inter(
                       color: const Color(0xFFA8A29E),
                       fontSize: 13.sp,
                       fontWeight: FontWeight.w700,
@@ -3029,7 +3526,7 @@ class _HomeViewState extends State<HomeView> {
             label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: const Color(0xFFA8A29E),
               fontSize: 12.sp,
               fontWeight: FontWeight.w700,
@@ -3040,7 +3537,7 @@ class _HomeViewState extends State<HomeView> {
             value,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: Colors.white,
               fontSize: 22.sp,
               fontWeight: FontWeight.w900,
@@ -3060,7 +3557,7 @@ class _HomeViewState extends State<HomeView> {
             Expanded(
               child: Text(
                 label,
-                style: GoogleFonts.manrope(
+                style: GoogleFonts.inter(
                   color: Colors.white,
                   fontSize: 13.sp,
                   fontWeight: FontWeight.w800,
@@ -3069,7 +3566,7 @@ class _HomeViewState extends State<HomeView> {
             ),
             Text(
               '$value%',
-              style: GoogleFonts.manrope(
+              style: GoogleFonts.inter(
                 color: const Color(0xFFA8A29E),
                 fontSize: 13.sp,
                 fontWeight: FontWeight.w800,
@@ -3099,7 +3596,7 @@ class _HomeViewState extends State<HomeView> {
           Expanded(
             child: Text(
               label,
-              style: GoogleFonts.manrope(
+              style: GoogleFonts.inter(
                 color: const Color(0xFFA8A29E),
                 fontSize: 14.sp,
                 fontWeight: FontWeight.w700,
@@ -3108,7 +3605,7 @@ class _HomeViewState extends State<HomeView> {
           ),
           Text(
             value,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: Colors.white,
               fontSize: 14.sp,
               fontWeight: FontWeight.w900,
@@ -3160,32 +3657,15 @@ class _HomeViewState extends State<HomeView> {
     return '$value';
   }
 
+  String _formatSignedPercent(int value) {
+    return value > 0 ? '+$value%' : '$value%';
+  }
+
   double _safeProgress(int numerator, int denominator) {
     if (denominator <= 0) {
       return 0;
     }
     return (numerator / denominator).clamp(0, 1).toDouble();
-  }
-
-  String _formatRoleLabel(String role) {
-    return role
-        .split('_')
-        .where((part) => part.isNotEmpty)
-        .map((part) => part[0].toUpperCase() + part.substring(1).toLowerCase())
-        .join(' ');
-  }
-
-  Color _statusColor(String status) {
-    switch (status.toLowerCase()) {
-      case 'online':
-      case 'present':
-        return Colors.green;
-      case 'offline':
-      case 'absent':
-        return Colors.red;
-      default:
-        return Colors.orange;
-    }
   }
 
   IconData _activityIconForItem(ManagerRecentActivityItem item) {
@@ -3233,9 +3713,9 @@ class _HomeViewState extends State<HomeView> {
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Text(
         message,
-        style: GoogleFonts.manrope(
+        style: GoogleFonts.inter(
           color: const Color(0xFF6E5C61),
-          fontSize: 14,
+          fontSize: 14.sp,
           fontWeight: FontWeight.w600,
         ),
       ),
@@ -3253,8 +3733,9 @@ class _HomeViewState extends State<HomeView> {
         children: [
           Text(
             'CLOSING PIPELINE',
-            style: GoogleFonts.manrope(
-              fontSize: 20,
+            style: GoogleFonts.inter(
+              color: AppColors.titleColor,
+              fontSize: 20.sp,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.5,
             ),
@@ -3311,7 +3792,8 @@ class _HomeViewState extends State<HomeView> {
                 children: [
                   Text(
                     title,
-                    style: GoogleFonts.manrope(
+                    style: GoogleFonts.inter(
+                      color: AppColors.titleColor,
                       fontSize: 14.sp,
                       fontWeight: FontWeight.w600,
                     ),
@@ -3319,7 +3801,7 @@ class _HomeViewState extends State<HomeView> {
                   SizedBox(height: 4.h),
                   Text(
                     subtitle,
-                    style: GoogleFonts.manrope(
+                    style: GoogleFonts.inter(
                       fontSize: 12.sp,
                       color: const Color(0xFF6B7280),
                       fontWeight: FontWeight.w600,
@@ -3350,9 +3832,9 @@ class _HomeViewState extends State<HomeView> {
         children: [
           Text(
             label,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: AppColors.darkGray,
-              fontSize: 10,
+              fontSize: 10.sp,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -3360,9 +3842,9 @@ class _HomeViewState extends State<HomeView> {
           Text(
             value,
             textAlign: TextAlign.center,
-            style: GoogleFonts.manrope(
+            style: GoogleFonts.inter(
               color: color,
-              fontSize: 26,
+              fontSize: 26.sp,
               fontWeight: FontWeight.w800,
               height: 1.40,
             ),
@@ -3380,7 +3862,9 @@ class _HomeViewState extends State<HomeView> {
         onTap: onTap,
         borderRadius: BorderRadius.circular(22),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+          width: double.infinity,
+          alignment: Alignment.center,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
           decoration: isSelected
               ? BoxDecoration(
                   color: _primaryColor,
@@ -3390,8 +3874,11 @@ class _HomeViewState extends State<HomeView> {
               : _segmentControl(radius: 22),
           child: Text(
             text,
-            style: GoogleFonts.manrope(
-              fontSize: 12,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: GoogleFonts.inter(
+              fontSize: 11.sp,
               color: isSelected ? Colors.white : Colors.black87,
               fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
             ),
@@ -3406,145 +3893,151 @@ class _HomeViewState extends State<HomeView> {
     String value, {
     String? trend,
     Color? trendColor,
-    bool hasTrendIcon = false,
-    bool hasCycleIcon = false,
+    IconData? trendIcon,
+    IconData? titleIcon,
     String? label,
     Color? labelColor,
-    IconData? labelIcon,
+    VoidCallback? onTap,
   }) {
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(18),
-      child: InkWell(
-        onTap: () {},
-        borderRadius: BorderRadius.circular(18),
-        splashColor: _primaryColor.withValues(alpha: 0.05),
-        child: Container(
-          width: double.infinity,
-          constraints: BoxConstraints(minHeight: 96.h),
-          padding: const EdgeInsets.all(8),
-          decoration: _ownerCardDecoration(radius: 18),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
+    final metricColor = const Color(0xFFD76322);
+    final resolvedTrendColor = trendColor ?? const Color(0xFF009D71);
+    final statusColor = labelColor ?? resolvedTrendColor;
+    final cardBorderRadius = BorderRadius.circular(8.r);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: cardBorderRadius,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.18),
+            blurRadius: 1.5.r,
+            offset: Offset(0, 1.h),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: cardBorderRadius,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: cardBorderRadius,
+          splashColor: _primaryColor.withValues(alpha: 0.05),
+          child: SizedBox(
+            width: double.infinity,
+            height: 80.h,
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(15.w, 13.h, 10.w, 10.h),
+              child: Stack(
                 children: [
-                  Center(
-                    child: Expanded(
-                      child: Text(
-                        title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.manrope(
-                          color: const Color(0xFF302D31),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
-                          height: 1.4,
-                          letterSpacing: 0.6,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              Padding(
-                padding: const EdgeInsets.only(bottom: 20, left: 12, right: 12),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.baseline,
-                  textBaseline: TextBaseline.alphabetic,
-                  children: [
-                    Expanded(
-                      flex: 2,
-                      child: Text(
-                        value,
-                        style: GoogleFonts.manrope(
-                          color: AppColors.primary,
-                          fontSize: 20,
-                          fontWeight: FontWeight.w900,
-                          height: 1.1,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    SizedBox(width: 3.w),
-                    Expanded(
-                      flex: 2,
-                      child: Align(
-                        alignment: Alignment.centerLeft,
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Padding(
+                        padding: EdgeInsets.only(right: 8.w),
                         child: Row(
-                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            if (trend != null)
-                              Flexible(
+                            Expanded(
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                alignment: Alignment.centerLeft,
                                 child: Text(
-                                  trend,
-                                  style: GoogleFonts.manrope(
-                                    color: trendColor ?? Colors.green[700],
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            if (hasTrendIcon)
-                              Padding(
-                                padding: EdgeInsets.only(
-                                  left: trend != null ? 4.0 : 0.0,
-                                ),
-                                child: Icon(
-                                  Icons.trending_up,
-                                  size: 14,
-                                  color: trendColor ?? Colors.green[700],
-                                ),
-                              ),
-                            if (hasCycleIcon)
-                              Padding(
-                                padding: const EdgeInsets.only(left: 4.0),
-                                child: Icon(
-                                  Icons.sync,
-                                  size: 14,
-                                  color: trendColor ?? const Color(0xFF388E3C),
-                                ),
-                              ),
-                            if (label != null)
-                              Flexible(
-                                child: Padding(
-                                  padding: EdgeInsets.only(bottom: 3.h),
-                                  child: Text(
-                                    label,
-                                    style: GoogleFonts.manrope(
-                                      color:
-                                          labelColor ??
-                                          (label == 'Stable'
-                                              ? Colors.orange[700]
-                                              : Colors.green[700]),
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w800,
-                                    ),
-                                    overflow: TextOverflow.ellipsis,
+                                  title,
+                                  maxLines: 1,
+                                  style: GoogleFonts.inter(
+                                    color: const Color(0xFF302D31),
+                                    fontSize: 10.8.sp,
+                                    fontWeight: FontWeight.w700,
+                                    height: 1.08,
+                                    letterSpacing: 0,
                                   ),
                                 ),
                               ),
-                            if (labelIcon != null)
-                              Padding(
-                                padding: EdgeInsets.only(
-                                  left: label != null ? 4.0 : 0.0,
-                                ),
-                                child: Icon(
-                                  labelIcon,
-                                  size: 14,
-                                  color: trendColor ?? Colors.green[700],
-                                ),
-                              ),
+                            ),
+                            if (titleIcon != null) ...[
+                              SizedBox(width: 3.w),
+                              Icon(titleIcon, size: 14.sp, color: metricColor),
+                            ],
                           ],
                         ),
                       ),
-                    ),
-                  ],
-                ),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Expanded(
+                            flex: 5,
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                value,
+                                maxLines: 1,
+                                style: GoogleFonts.inter(
+                                  color: metricColor,
+                                  fontSize: 23.sp,
+                                  fontWeight: FontWeight.w900,
+                                  height: 0.95,
+                                ),
+                              ),
+                            ),
+                          ),
+                          SizedBox(width: 4.w),
+                          Flexible(
+                            flex: 4,
+                            child: Align(
+                              alignment: Alignment.bottomRight,
+                              child: Padding(
+                                padding: EdgeInsets.only(bottom: 3.h),
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.centerRight,
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      if (trend != null)
+                                        Text(
+                                          trend,
+                                          maxLines: 1,
+                                          style: GoogleFonts.inter(
+                                            color: resolvedTrendColor,
+                                            fontSize: 10.5.sp,
+                                            fontWeight: FontWeight.w900,
+                                            height: 1,
+                                          ),
+                                        ),
+                                      if (label != null)
+                                        Text(
+                                          label,
+                                          maxLines: 1,
+                                          style: GoogleFonts.inter(
+                                            color: statusColor,
+                                            fontSize: 10.sp,
+                                            fontWeight: FontWeight.w900,
+                                            height: 1,
+                                          ),
+                                        ),
+                                      if (trendIcon != null) ...[
+                                        SizedBox(width: 2.w),
+                                        Icon(
+                                          trendIcon,
+                                          size: 12.sp,
+                                          color: statusColor,
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),
@@ -3572,7 +4065,7 @@ class _HomeViewState extends State<HomeView> {
       padding: const EdgeInsets.symmetric(horizontal: 14),
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(14),
         decoration: ShapeDecoration(
           color: const Color(0x66FFDAD6),
           shape: RoundedRectangleBorder(
@@ -3586,29 +4079,29 @@ class _HomeViewState extends State<HomeView> {
             Row(
               children: [
                 SizedBox(
-                  height: 30.h,
-                  width: 30.w,
+                  height: 15.h,
+                  width: 15.w,
                   child: Image.asset('assets/Triangle_Warning.png'),
                 ),
                 SizedBox(width: 12.w),
                 Text(
-                  'Critical Alerts',
-                  style: GoogleFonts.manrope(
+                  'Priority Updates',
+                  style: GoogleFonts.inter(
                     color: Color(0xFFBA1A1A),
-                    fontSize: 18,
+                    fontSize: 14.sp,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
               ],
             ),
-            SizedBox(height: 16.h),
+            SizedBox(height: 10.h),
             if (overdueFollowUps == 0 &&
                 pendingReplies == 0 &&
                 unassignedLeads == 0 &&
                 staleLeads == 0)
               _buildAlertRow(
                 'No urgent issues',
-                'The selected period has no critical dashboard alerts.',
+                'The selected period has no urgent dashboard updates.',
                 'Review',
                 Icons.check_circle_outline,
                 onPressed: null,
@@ -3622,7 +4115,7 @@ class _HomeViewState extends State<HomeView> {
                   Icons.call_outlined,
                   onPressed: () => _callPhoneNumber(overdueCallLead?.phone),
                 ),
-                SizedBox(height: 16.h),
+                SizedBox(height: 10.h),
               ],
               if (pendingReplies > 0) ...[
                 _buildAlertRow(
@@ -3632,7 +4125,7 @@ class _HomeViewState extends State<HomeView> {
                   Icons.mark_email_unread_outlined,
                   onPressed: null,
                 ),
-                SizedBox(height: 16.h),
+                SizedBox(height: 10.h),
               ],
               if (unassignedLeads > 0 || staleLeads > 0)
                 _buildAlertRow(
@@ -3679,9 +4172,10 @@ class _HomeViewState extends State<HomeView> {
                   title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.manrope(
+                  style: GoogleFonts.inter(
+                    color: AppColors.titleColor,
                     fontWeight: FontWeight.bold,
-                    fontSize: 14,
+                    fontSize: 14.sp,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -3689,7 +4183,11 @@ class _HomeViewState extends State<HomeView> {
                   subtitle,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.manrope(color: Colors.black, fontSize: 10),
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF211A1B),
+                    fontSize: 10.sp,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ],
             ),
@@ -3701,11 +4199,11 @@ class _HomeViewState extends State<HomeView> {
           /// BUTTON
           OutlinedButton.icon(
             onPressed: onPressed,
-            icon: Icon(icon, size: 17, color: AppColors.primary),
+            icon: Icon(icon, size: 17.sp, color: AppColors.primary),
             label: Text(
               buttonText,
-              style: GoogleFonts.manrope(
-                fontSize: 12,
+              style: GoogleFonts.inter(
+                fontSize: 12.sp,
                 fontWeight: FontWeight.bold,
                 color: AppColors.primary,
               ),
@@ -3764,184 +4262,110 @@ class _HomeViewState extends State<HomeView> {
     ManagerTeamStatusItem item, {
     required HrEmployeeItem? employee,
   }) {
-    final statusColor = _statusColor(item.status);
+    final isPresent =
+        item.todayAttendanceStatus.toLowerCase().trim() == 'present';
+    final statusColor = isPresent
+        ? const Color(0xFF22C55E)
+        : const Color(0xFFEF4444);
+    final statusText = isPresent ? 'Present' : 'Absent';
 
     return Container(
-      width: 180,
-      margin: const EdgeInsets.only(right: 8),
-      decoration: _ownerCardDecoration(),
+      width: 124.w,
+      margin: EdgeInsets.only(right: 6.w),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8.r),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
       child: Material(
         color: Colors.transparent,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8.r),
         child: InkWell(
           onTap: () => _openEmployeeDetail(item, employee: employee),
-          borderRadius: BorderRadius.circular(12),
-          child: Center(
+          borderRadius: BorderRadius.circular(8.r),
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(6.w, 6.h, 6.w, 7.h),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.only(top: 12, left: 2, right: 2),
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.vertical(
-                      top: Radius.circular(16),
+                Stack(
+                  children: [
+                    SizedBox(
+                      height: 94.h,
+                      width: double.infinity,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(4.r),
+                        child: (item.image != null && item.image!.isNotEmpty)
+                            ? Image.network(
+                                item.image!,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return _buildTeamImageFallback(item.name);
+                                },
+                              )
+                            : _buildTeamImageFallback(item.name),
+                      ),
                     ),
-                  ),
-                  child: Center(
-                    child: Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        SizedBox(
-                          height: 90.h,
-                          width: 150.w,
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child:
-                                (item.image != null && item.image!.isNotEmpty)
-                                ? Image.network(
-                                    item.image!,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (context, error, stackTrace) {
-                                      return Container(
-                                        color: Colors.white,
-                                        alignment: Alignment.center,
-                                        child: Text(
-                                          item.name.isNotEmpty
-                                              ? item.name[0].toUpperCase()
-                                              : "?",
-                                          style: GoogleFonts.manrope(
-                                            fontSize: 38.sp,
-                                            fontWeight: FontWeight.w800,
-                                            color: Colors.grey.shade700,
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                  )
-                                : Container(
-                                    color: const Color(0xFFF3F4F5),
-                                    alignment: Alignment.center,
-                                    child: Text(
-                                      item.name.isNotEmpty
-                                          ? item.name[0].toUpperCase()
-                                          : "?",
-                                      style: GoogleFonts.manrope(
-                                        fontSize: 38.sp,
-                                        fontWeight: FontWeight.w800,
-                                        color: Colors.grey.shade700,
-                                      ),
-                                    ),
-                                  ),
+                    Positioned(
+                      top: 6.h,
+                      right: 6.w,
+                      child: Container(
+                        width: isPresent ? 11.r : 8.r,
+                        height: isPresent ? 11.r : 8.r,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: statusColor,
+                          border: Border.all(
+                            color: Colors.white,
+                            width: isPresent ? 1.8 : 1.4,
                           ),
                         ),
-
-                        // ==========================
-                        // Attendance Status Dot
-                        // ==========================
-                        Positioned(
-                          top: 5,
-                          right: 8,
-                          child: Container(
-                            width: 18.w,
-                            height: 18.w,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color:
-                                  item.todayAttendanceStatus
-                                          .toLowerCase()
-                                          .trim() ==
-                                      "present"
-                                  ? AppColors.darkGreen
-                                  : const Color(0xFFEF4444),
-                              border: Border.all(color: Colors.white, width: 3),
-                            ),
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
+                  ],
+                ),
+                SizedBox(height: 8.h),
+                Text(
+                  item.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.inter(
+                    fontSize: 11.sp,
+                    fontWeight: FontWeight.w800,
+                    color: const Color(0xFF1F1F1F),
+                    height: 1.1,
                   ),
                 ),
-
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Center(
-                        child: Text(
-                          item.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.manrope(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ),
-
-                      Center(
-                        child: Text(
-                          _formatRoleLabel(item.role),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.manrope(
-                            color: const Color(0xFF6E5C61),
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-
-                      Center(
-                        child: Text(
-                          item.todayAttendanceStatus,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.manrope(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            color: statusColor,
-                          ),
-                        ),
-                      ),
-
-                      // SizedBox(height: 4.h),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildMiniStat(
-                              '${item.leadsHandled}',
-                              'Leads',
-                            ),
-                          ),
-                          SizedBox(width: 6.w),
-                          Expanded(
-                            child: _buildMiniStat(
-                              '${item.tasksCompleted}',
-                              'Tasks',
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      // Uncomment if you want to show profiles handled
-                      /*
-                    SizedBox(height: 8.h),
-                    Text(
-                      '${item.profilesHandled} profiles handled',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.manrope(
-                        color: const Color(0xFF6E5C61),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    */
-                    ],
+                SizedBox(height: 4.h),
+                Text(
+                  statusText,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.inter(
+                    fontSize: 9.sp,
+                    fontWeight: FontWeight.w800,
+                    color: statusColor,
+                    height: 1,
                   ),
+                ),
+                const Spacer(),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildMiniStat('${item.leadsHandled}', 'Leads'),
+                    ),
+                    SizedBox(width: 5.w),
+                    Expanded(
+                      child: _buildMiniStat('${item.tasksCompleted}', 'Calls'),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -3951,42 +4375,94 @@ class _HomeViewState extends State<HomeView> {
     );
   }
 
-  Widget _buildMiniStat(String value, String label) {
-    return Padding(
-      padding: const EdgeInsets.all(8.0),
-      child: Center(
-        child: Container(
-          decoration: BoxDecoration(
-            color: AppColors.lightGray,
+  Widget _buildTeamImageFallback(String name) {
+    return Container(
+      color: const Color(0xFFF3F4F5),
+      alignment: Alignment.center,
+      child: Text(
+        name.isNotEmpty ? name[0].toUpperCase() : "?",
+        style: GoogleFonts.inter(
+          fontSize: 34.sp,
+          fontWeight: FontWeight.w800,
+          color: AppColors.titleColor,
+        ),
+      ),
+    );
+  }
 
-            borderRadius: BorderRadius.circular(3.11),
-          ),
-          width: 70.w,
+  Widget _buildTeamStatusPill(String label, int count, Color color) {
+    final isPresentPill = label.toLowerCase() == 'present';
 
-          // height: 36.h,
-          child: Padding(
-            padding: const EdgeInsets.only(top: 5, bottom: 5),
-            child: Column(
-              children: [
-                Text(
-                  value,
-                  style: GoogleFonts.manrope(
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(
-                  label,
-                  style: GoogleFonts.manrope(
-                    color: Colors.black,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: isPresentPill ? 8.5.w : 7.w,
+        vertical: isPresentPill ? 5.h : 4.h,
+      ),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: isPresentPill ? 0.14 : 0.10),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            '$count',
+            style: GoogleFonts.inter(
+              color: color,
+              fontSize: isPresentPill ? 12.sp : 11.sp,
+              fontWeight: FontWeight.w900,
+              height: 1,
             ),
           ),
-        ),
+          SizedBox(width: 3.w),
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              color: color,
+              fontSize: isPresentPill ? 9.6.sp : 9.sp,
+              fontWeight: FontWeight.w800,
+              height: 1,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMiniStat(String value, String label) {
+    return Container(
+      height: 38.h,
+      decoration: BoxDecoration(
+        color: AppColors.lightGray,
+        borderRadius: BorderRadius.circular(3.r),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.inter(
+              fontSize: 12.sp,
+              fontWeight: FontWeight.w900,
+              color: Colors.black,
+              height: 1,
+            ),
+          ),
+          SizedBox(height: 3.h),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.inter(
+              color: Colors.black,
+              fontSize: 9.sp,
+              fontWeight: FontWeight.w700,
+              height: 1,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -3996,10 +4472,13 @@ class _HomeViewState extends State<HomeView> {
     ManagerDashboard? dashboard,
   ) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.symmetric(horizontal: 14),
       child: Container(
-        padding: const EdgeInsets.all(24),
-        decoration: _ownerCardDecoration(),
+        padding: EdgeInsets.fromLTRB(14.w, 14.h, 14.w, 16.h),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12.r),
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -4009,11 +4488,11 @@ class _HomeViewState extends State<HomeView> {
                 Expanded(
                   child: Text(
                     'FOLLOW-UP CONTROL',
-                    style: GoogleFonts.manrope(
+                    style: GoogleFonts.inter(
                       color: Color(0xFF211A1B),
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1,
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1.1,
                     ),
                   ),
                 ),
@@ -4024,7 +4503,13 @@ class _HomeViewState extends State<HomeView> {
                   style: OutlinedButton.styleFrom(
                     foregroundColor: _primaryColor,
                     side: BorderSide(color: _primaryColor),
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 8,
+                    ),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    visualDensity: VisualDensity.compact,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(24),
                     ),
@@ -4032,31 +4517,35 @@ class _HomeViewState extends State<HomeView> {
                   child: Text(
                     'Remind All',
                     textAlign: TextAlign.center,
-                    style: GoogleFonts.manrope(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
+                    style: GoogleFonts.inter(
+                      color: _primaryColor,
+                      fontSize: 9.sp,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: 12.h),
             if ((dashboard?.followUpControl.isEmpty ?? true))
               _buildSectionEmptyState(
                 'No follow-up ownership data in the selected period.',
               )
             else
-              Column(
-                children: [
-                  for (
-                    var index = 0;
-                    index < dashboard!.followUpControl.take(4).length;
-                    index++
-                  ) ...[
-                    if (index > 0) const Divider(),
-                    _buildFollowUpRow(dashboard.followUpControl[index]),
-                  ],
-                ],
+              SizedBox(
+                height: dashboard!.followUpControl.length > 3 ? 150.h : null,
+                child: ListView.separated(
+                  itemCount: dashboard.followUpControl.length,
+                  shrinkWrap: dashboard.followUpControl.length <= 3,
+                  physics: dashboard.followUpControl.length > 3
+                      ? const BouncingScrollPhysics()
+                      : const NeverScrollableScrollPhysics(),
+                  padding: EdgeInsets.zero,
+                  separatorBuilder: (context, index) => SizedBox(height: 12.h),
+                  itemBuilder: (context, index) {
+                    return _buildFollowUpRow(dashboard.followUpControl[index]);
+                  },
+                ),
               ),
           ],
         ),
@@ -4065,97 +4554,237 @@ class _HomeViewState extends State<HomeView> {
   }
 
   Widget _buildFollowUpRow(ManagerFollowUpControlItem item) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 27,
-            backgroundColor: AppColors.rmPrimary.withValues(alpha: 0.12),
-            child: Text(
-              _initialsForName(item.name),
-              style: GoogleFonts.manrope(
-                color: AppColors.rmPrimary,
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
+    final actionsProvider = context.watch<FollowUpControlActionsProvider>();
+    final teamMemberId = item.id.trim();
+    final isSendingMessage = actionsProvider.isSendingMessage(teamMemberId);
+    final isSendingVoiceNote = actionsProvider.isSendingVoiceNote(teamMemberId);
+
+    return Row(
+      children: [
+        _buildFollowUpAvatar(item),
+        SizedBox(width: 12.w),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                _shortName(item.name),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF1A1C1A),
+                  fontSize: 14.sp,
+                  fontWeight: FontWeight.w900,
+                  height: 1.05,
+                ),
               ),
-            ),
-          ),
-          SizedBox(width: 12.w),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item.name,
-                  style: GoogleFonts.manrope(
-                    color: const Color(0xFF1A1C1A),
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                SizedBox(height: 3.h),
-                RichText(
-                  text: TextSpan(
-                    children: [
-                      TextSpan(
-                        text: '${item.pendingFollowUps} Pending',
-                        style: GoogleFonts.manrope(
-                          color: Colors.red.shade700,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
-                        ),
+              SizedBox(height: 4.h),
+              RichText(
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                text: TextSpan(
+                  children: [
+                    TextSpan(
+                      text: '${item.pendingFollowUps} Pending',
+                      style: GoogleFonts.inter(
+                        color: Colors.red.shade700,
+                        fontSize: 11.sp,
+                        fontWeight: FontWeight.w900,
+                        height: 1,
                       ),
-                      TextSpan(
-                        text: ' / ${item.completedFollowUps} Done',
-                        style: GoogleFonts.manrope(
-                          color: const Color(0xFF6E5C61),
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
+                    ),
+                    TextSpan(
+                      text: ' / ${item.completedFollowUps} Done',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF211A1B),
+                        fontSize: 11.sp,
+                        fontWeight: FontWeight.w600,
+                        height: 1,
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-          _buildRoundIconButton(
-            icon: Icons.chat_bubble_outline,
-            background: AppColors.rmPrimary.withValues(alpha: 0.10),
-            iconColor: AppColors.rmPrimary,
-            onTap: () {
-              // TODO: open chat/message action for item
-            },
-          ),
-          SizedBox(width: 10.w),
-          _buildRoundIconButton(
-            icon: Icons.mic_none_rounded,
-            background: AppColors.rmPrimary,
-            iconColor: Colors.white,
-            onTap: () {
-              // TODO: trigger voice reminder for item
-            },
-          ),
-        ],
+        ),
+        SizedBox(width: 8.w),
+        _buildRoundIconButton(
+          icon: Icons.chat_bubble_outline_rounded,
+          background: AppColors.rmPrimary.withValues(alpha: 0.10),
+          iconColor: AppColors.rmPrimary,
+          isLoading: isSendingMessage,
+          onTap: isSendingMessage
+              ? null
+              : () => _showFollowUpMessageDialog(item),
+        ),
+        SizedBox(width: 8.w),
+        _buildRoundIconButton(
+          icon: Icons.mic_none_rounded,
+          background: AppColors.rmPrimary,
+          iconColor: Colors.white,
+          isLoading: isSendingVoiceNote,
+          onTap: isSendingVoiceNote
+              ? null
+              : () => _showFollowUpVoiceNoteDialog(item),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _showFollowUpMessageDialog(
+    ManagerFollowUpControlItem item,
+  ) async {
+    final message = await showDialog<String>(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) => _FollowUpMessageDialog(
+        recipientName: item.name,
+        initialMessage: _followUpControlMessage(item),
       ),
     );
+
+    final normalizedMessage = message?.trim();
+    if (normalizedMessage == null || normalizedMessage.isEmpty) {
+      return;
+    }
+
+    await _sendFollowUpControlMessage(item, normalizedMessage);
+  }
+
+  Future<void> _sendFollowUpControlMessage(
+    ManagerFollowUpControlItem item,
+    String message,
+  ) async {
+    final provider = context.read<FollowUpControlActionsProvider>();
+    final success = await provider.sendMessage(
+      accessToken: context.read<AuthProvider>().userModel?.accessToken,
+      teamMemberId: item.id,
+      message: message,
+    );
+    debugPrint(
+      'Owner follow-up message result -> success=$success teamMemberId=${item.id}',
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    _showDashboardMessage(
+      success
+          ? 'Follow-up message sent for ${_shortName(item.name)}.'
+          : provider.error ?? 'Unable to send follow-up message.',
+    );
+  }
+
+  Future<void> _showFollowUpVoiceNoteDialog(
+    ManagerFollowUpControlItem item,
+  ) async {
+    final voiceNote = await showDialog<_RecordedVoiceNote>(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) => _FollowUpVoiceNoteDialog(recipientName: item.name),
+    );
+
+    if (voiceNote == null) {
+      return;
+    }
+
+    await _sendFollowUpControlVoiceNote(item, voiceNote);
+  }
+
+  Future<void> _sendFollowUpControlVoiceNote(
+    ManagerFollowUpControlItem item,
+    _RecordedVoiceNote voiceNote,
+  ) async {
+    final provider = context.read<FollowUpControlActionsProvider>();
+    final success = await provider.sendVoiceNote(
+      accessToken: context.read<AuthProvider>().userModel?.accessToken,
+      teamMemberId: item.id,
+      audioPath: voiceNote.path,
+      durationSeconds: voiceNote.durationSeconds,
+    );
+    debugPrint(
+      'Owner follow-up voice-note result -> success=$success teamMemberId=${item.id}',
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    _showDashboardMessage(
+      success
+          ? 'Voice note triggered for ${_shortName(item.name)}.'
+          : provider.error ?? 'Unable to send follow-up voice note.',
+    );
+  }
+
+  Widget _buildFollowUpAvatar(ManagerFollowUpControlItem item) {
+    final image = item.image?.trim();
+
+    return CircleAvatar(
+      radius: 19.r,
+      backgroundColor: AppColors.rmPrimary.withValues(alpha: 0.10),
+      backgroundImage: image != null && image.isNotEmpty
+          ? NetworkImage(image)
+          : null,
+      child: image == null || image.isEmpty
+          ? Text(
+              _initialsForName(item.name),
+              style: GoogleFonts.inter(
+                color: AppColors.rmPrimary,
+                fontSize: 12.sp,
+                fontWeight: FontWeight.w900,
+              ),
+            )
+          : null,
+    );
+  }
+
+  String _followUpControlMessage(ManagerFollowUpControlItem item) {
+    final pendingText = item.pendingFollowUps == 1
+        ? '1 pending follow-up'
+        : '${item.pendingFollowUps} pending follow-ups';
+    return 'Please complete $pendingText for your assigned leads.';
+  }
+
+  String _shortName(String name) {
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) {
+      return 'Team Member';
+    }
+
+    final parts = trimmed.split(RegExp(r'\s+'));
+    if (parts.length == 1) {
+      return parts.first;
+    }
+
+    return '${parts.first} ${parts.last[0].toUpperCase()}.';
   }
 
   Widget _buildRoundIconButton({
     required IconData icon,
     required Color background,
     required Color iconColor,
-    required VoidCallback onTap,
+    required VoidCallback? onTap,
+    bool isLoading = false,
   }) {
     return InkWell(
       onTap: onTap,
       customBorder: const CircleBorder(),
       child: Container(
-        width: 40,
-        height: 40,
+        width: 34.r,
+        height: 34.r,
         decoration: BoxDecoration(color: background, shape: BoxShape.circle),
-        child: Icon(icon, size: 20, color: iconColor),
+        child: isLoading
+            ? Padding(
+                padding: EdgeInsets.all(9.r),
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: iconColor,
+                ),
+              )
+            : Icon(icon, size: 17.sp, color: iconColor),
       ),
     );
   }
@@ -4175,9 +4804,9 @@ class _HomeViewState extends State<HomeView> {
             ),
             child: Text(
               'NEGOTIATION',
-              style: GoogleFonts.manrope(
+              style: GoogleFonts.inter(
                 color: Colors.orange[700],
-                fontSize: 13,
+                fontSize: 13.sp,
                 fontWeight: FontWeight.w800,
               ),
             ),
@@ -4206,16 +4835,17 @@ class _HomeViewState extends State<HomeView> {
                 children: [
                   Text(
                     name,
-                    style: GoogleFonts.manrope(
-                      fontSize: 22,
+                    style: GoogleFonts.inter(
+                      color: AppColors.titleColor,
+                      fontSize: 22.sp,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   Text(
                     details,
-                    style: GoogleFonts.manrope(
-                      color: Colors.grey[500],
-                      fontSize: 17,
+                    style: GoogleFonts.inter(
+                      color: AppColors.titleColor,
+                      fontSize: 17.sp,
                     ),
                   ),
                 ],
@@ -4228,15 +4858,17 @@ class _HomeViewState extends State<HomeView> {
             children: [
               Text(
                 'Closing Probability',
-                style: GoogleFonts.manrope(
-                  fontSize: 16,
+                style: GoogleFonts.inter(
+                  color: AppColors.titleColor,
+                  fontSize: 16.sp,
                   fontWeight: FontWeight.bold,
                 ),
               ),
               Text(
                 '${(probability * 100).toInt()}%',
-                style: GoogleFonts.manrope(
-                  fontSize: 16,
+                style: GoogleFonts.inter(
+                  color: AppColors.titleColor,
+                  fontSize: 16.sp,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -4265,9 +4897,9 @@ class _HomeViewState extends State<HomeView> {
               ),
               child: Text(
                 'Push Match',
-                style: GoogleFonts.manrope(
+                style: GoogleFonts.inter(
                   fontWeight: FontWeight.bold,
-                  fontSize: 20,
+                  fontSize: 20.sp,
                 ),
               ),
             ),
@@ -4295,7 +4927,7 @@ class _HomeViewState extends State<HomeView> {
         ),
         child: Text(
           title,
-          style: GoogleFonts.manrope(
+          style: GoogleFonts.inter(
             color: isSelected ? Colors.white : Colors.black87,
             fontWeight: FontWeight.w700,
             fontSize: 12.sp,
@@ -4308,4 +4940,1125 @@ class _HomeViewState extends State<HomeView> {
 
 class ProfileShortlistCard {
   const ProfileShortlistCard();
+}
+
+enum _AgencyReportPeriod { weekly, monthly, custom }
+
+class _AgencyReportPeriodButton extends StatelessWidget {
+  const _AgencyReportPeriodButton({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 38.h,
+      child: OutlinedButton(
+        onPressed: onTap,
+        style: OutlinedButton.styleFrom(
+          backgroundColor: selected ? AppColors.primary : AppColors.white,
+          foregroundColor: selected ? AppColors.white : const Color(0xFF111111),
+          side: BorderSide(
+            color: selected ? AppColors.primary : const Color(0xFFE8DED6),
+          ),
+          padding: EdgeInsets.symmetric(horizontal: 17.w),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(6.r),
+          ),
+          textStyle: GoogleFonts.inter(
+            fontSize: 13.sp,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        child: Text(label),
+      ),
+    );
+  }
+}
+
+class _AgencyReportDropdownField extends StatelessWidget {
+  const _AgencyReportDropdownField({
+    required this.label,
+    required this.hintText,
+    required this.options,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final String label;
+  final String hintText;
+  final List<String> options;
+  final String? value;
+  final ValueChanged<String?> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final currentValue = options.contains(value) ? value : null;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _AgencyReportFilterLabel(label),
+        SizedBox(height: 7.h),
+        DropdownButtonFormField<String>(
+          initialValue: currentValue,
+          isExpanded: true,
+          dropdownColor: AppColors.white,
+          icon: Icon(
+            Icons.keyboard_arrow_down_rounded,
+            color: const Color(0xFFE3CABE),
+            size: 19.sp,
+          ),
+          decoration: _agencyReportFieldDecoration(),
+          hint: _AgencyReportOptionText(hintText, muted: true),
+          items: [
+            DropdownMenuItem<String>(
+              value: '',
+              child: _AgencyReportOptionText(hintText, muted: true),
+            ),
+            ...options.map(
+              (option) => DropdownMenuItem<String>(
+                value: option,
+                child: _AgencyReportOptionText(option),
+              ),
+            ),
+          ],
+          onChanged: (nextValue) => onChanged(
+            nextValue == null || nextValue.isEmpty ? null : nextValue,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _AgencyReportMultiSelectField extends StatelessWidget {
+  const _AgencyReportMultiSelectField({
+    required this.label,
+    required this.valueText,
+    required this.options,
+    required this.selectedValues,
+    required this.onChanged,
+  });
+
+  final String label;
+  final String valueText;
+  final List<String> options;
+  final Set<String> selectedValues;
+  final ValueChanged<Set<String>> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _AgencyReportFilterLabel(label),
+        SizedBox(height: 7.h),
+        InkWell(
+          borderRadius: BorderRadius.circular(6.r),
+          onTap: () async {
+            final selected = await showModalBottomSheet<Set<String>>(
+              context: context,
+              isScrollControlled: true,
+              backgroundColor: Colors.transparent,
+              builder: (context) => _AgencyReportRmSelectorSheet(
+                options: options,
+                selectedValues: selectedValues,
+              ),
+            );
+
+            if (selected != null) {
+              onChanged(selected);
+            }
+          },
+          child: InputDecorator(
+            decoration: _agencyReportFieldDecoration(),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _AgencyReportOptionText(
+                    valueText,
+                    muted: selectedValues.isEmpty,
+                  ),
+                ),
+                Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  color: const Color(0xFFE3CABE),
+                  size: 19.sp,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _AgencyReportRmSelectorSheet extends StatefulWidget {
+  const _AgencyReportRmSelectorSheet({
+    required this.options,
+    required this.selectedValues,
+  });
+
+  final List<String> options;
+  final Set<String> selectedValues;
+
+  @override
+  State<_AgencyReportRmSelectorSheet> createState() =>
+      _AgencyReportRmSelectorSheetState();
+}
+
+class _AgencyReportRmSelectorSheetState
+    extends State<_AgencyReportRmSelectorSheet> {
+  late Set<String> _selectedValues;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedValues = {...widget.selectedValues};
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      top: false,
+      child: Container(
+        constraints: BoxConstraints(maxHeight: 0.72.sh),
+        decoration: BoxDecoration(
+          color: AppColors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(22.r)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: EdgeInsets.fromLTRB(18.w, 12.h, 18.w, 10.h),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Select Relationship Managers',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF1F1C19),
+                        fontSize: 17.sp,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => setState(() => _selectedValues.clear()),
+                    child: Text(
+                      'Clear',
+                      style: GoogleFonts.inter(
+                        color: AppColors.primary,
+                        fontSize: 13.sp,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1, color: Color(0xFFF0E2D8)),
+            Flexible(
+              child: widget.options.isEmpty
+                  ? Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(24.w),
+                        child: Text(
+                          'No relationship managers available.',
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFF6B6662),
+                            fontSize: 13.sp,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    )
+                  : ListView.separated(
+                      shrinkWrap: true,
+                      padding: EdgeInsets.symmetric(vertical: 8.h),
+                      itemCount: widget.options.length,
+                      separatorBuilder: (context, index) =>
+                          const Divider(height: 1, color: Color(0xFFF7EEE9)),
+                      itemBuilder: (context, index) {
+                        final option = widget.options[index];
+                        return CheckboxListTile(
+                          value: _selectedValues.contains(option),
+                          onChanged: (selected) {
+                            setState(() {
+                              if (selected == true) {
+                                _selectedValues.add(option);
+                              } else {
+                                _selectedValues.remove(option);
+                              }
+                            });
+                          },
+                          activeColor: AppColors.primary,
+                          checkColor: AppColors.white,
+                          controlAffinity: ListTileControlAffinity.leading,
+                          title: Text(
+                            option,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFF211A1B),
+                              fontSize: 13.sp,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+            ),
+            Padding(
+              padding: EdgeInsets.fromLTRB(18.w, 12.h, 18.w, 16.h),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.of(context).pop(_selectedValues),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: AppColors.white,
+                    elevation: 0,
+                    minimumSize: Size.fromHeight(46.h),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12.r),
+                    ),
+                  ),
+                  child: Text(
+                    'Apply Selection',
+                    style: GoogleFonts.inter(
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AgencyReportFilterLabel extends StatelessWidget {
+  const _AgencyReportFilterLabel(this.label);
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      label,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: GoogleFonts.inter(
+        color: const Color(0xFF211A1B),
+        fontSize: 13.sp,
+        fontWeight: FontWeight.w900,
+      ),
+    );
+  }
+}
+
+class _AgencyReportOptionText extends StatelessWidget {
+  const _AgencyReportOptionText(this.text, {this.muted = false});
+
+  final String text;
+  final bool muted;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: GoogleFonts.inter(
+        color: muted ? const Color(0xFF77716C) : const Color(0xFF211A1B),
+        fontSize: 12.sp,
+        fontWeight: FontWeight.w800,
+      ),
+    );
+  }
+}
+
+InputDecoration _agencyReportFieldDecoration() {
+  return InputDecoration(
+    filled: true,
+    fillColor: AppColors.white,
+    isDense: true,
+    contentPadding: EdgeInsets.symmetric(horizontal: 13.w, vertical: 12.h),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(6.r),
+      borderSide: const BorderSide(color: Color(0xFFF0E2D8)),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(6.r),
+      borderSide: const BorderSide(color: AppColors.primary),
+    ),
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(6.r),
+      borderSide: const BorderSide(color: Color(0xFFF0E2D8)),
+    ),
+  );
+}
+
+class _FollowUpMessageDialog extends StatefulWidget {
+  const _FollowUpMessageDialog({
+    required this.recipientName,
+    required this.initialMessage,
+  });
+
+  final String recipientName;
+  final String initialMessage;
+
+  @override
+  State<_FollowUpMessageDialog> createState() => _FollowUpMessageDialogState();
+}
+
+class _FollowUpMessageDialogState extends State<_FollowUpMessageDialog> {
+  static const int _maxMessageLength = 500;
+  late final TextEditingController _messageController;
+
+  @override
+  void initState() {
+    super.initState();
+    _messageController = TextEditingController(text: widget.initialMessage)
+      ..addListener(_onMessageChanged);
+  }
+
+  @override
+  void dispose() {
+    _messageController
+      ..removeListener(_onMessageChanged)
+      ..dispose();
+    super.dispose();
+  }
+
+  void _onMessageChanged() {
+    setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final messageLength = _messageController.text.characters.length;
+    final canSend = _messageController.text.trim().isNotEmpty;
+
+    return Dialog(
+      backgroundColor: AppColors.white,
+      surfaceTintColor: AppColors.white,
+      insetPadding: EdgeInsets.symmetric(horizontal: 22.w, vertical: 24.h),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22.r)),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: 430.w),
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(24.w, 24.h, 24.w, 18.h),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Send Message',
+                      style: GoogleFonts.inter(
+                        color: AppColors.rmHeading,
+                        fontSize: 25.sp,
+                        fontWeight: FontWeight.w800,
+                        height: 1.1,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    padding: EdgeInsets.zero,
+                    constraints: BoxConstraints.tight(Size(30.r, 30.r)),
+                    onPressed: () => Navigator.of(context).maybePop(),
+                    icon: Icon(
+                      Icons.close_rounded,
+                      color: AppColors.rmMutedText,
+                      size: 19.sp,
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 12.h),
+              Text(
+                'Send an internal message to ${widget.recipientName}.',
+                style: GoogleFonts.inter(
+                  color: AppColors.rmBodyText,
+                  fontSize: 13.sp,
+                  fontWeight: FontWeight.w600,
+                  height: 1.35,
+                ),
+              ),
+              SizedBox(height: 20.h),
+              Container(
+                width: double.infinity,
+                padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFCF7F8),
+                  borderRadius: BorderRadius.circular(12.r),
+                  border: Border.all(color: const Color(0xFFE6D7DC)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'RECIPIENT',
+                      style: GoogleFonts.inter(
+                        color: AppColors.rmMutedText,
+                        fontSize: 10.sp,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1.4,
+                      ),
+                    ),
+                    SizedBox(height: 8.h),
+                    Text(
+                      widget.recipientName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.inter(
+                        color: AppColors.rmHeading,
+                        fontSize: 13.sp,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(height: 16.h),
+              Text(
+                'Message',
+                style: GoogleFonts.inter(
+                  color: AppColors.rmHeading,
+                  fontSize: 13.sp,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              SizedBox(height: 8.h),
+              TextField(
+                controller: _messageController,
+                maxLength: _maxMessageLength,
+                maxLines: 5,
+                minLines: 5,
+                textInputAction: TextInputAction.newline,
+                decoration: InputDecoration(
+                  counterText: '',
+                  hintText: 'Type your message here',
+                  hintStyle: GoogleFonts.inter(
+                    color: const Color(0xFFB7ADB1),
+                    fontSize: 13.sp,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  filled: true,
+                  fillColor: AppColors.white,
+                  contentPadding: EdgeInsets.fromLTRB(16.w, 14.h, 16.w, 14.h),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16.r),
+                    borderSide: const BorderSide(color: Color(0xFFD9D4D6)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16.r),
+                    borderSide: const BorderSide(
+                      color: Color(0xFFD9D4D6),
+                      width: 2,
+                    ),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16.r),
+                    borderSide: const BorderSide(
+                      color: AppColors.rmPrimary,
+                      width: 1.6,
+                    ),
+                  ),
+                ),
+                style: GoogleFonts.inter(
+                  color: AppColors.rmHeading,
+                  fontSize: 13.sp,
+                  fontWeight: FontWeight.w500,
+                  height: 1.35,
+                ),
+              ),
+              SizedBox(height: 10.h),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Maximum 500 characters',
+                      style: GoogleFonts.inter(
+                        color: AppColors.rmBodyText,
+                        fontSize: 11.sp,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    '$messageLength/$_maxMessageLength',
+                    style: GoogleFonts.inter(
+                      color: AppColors.rmBodyText,
+                      fontSize: 11.sp,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 28.h),
+              const Divider(height: 1, color: Color(0xFFEDE6E8)),
+              SizedBox(height: 18.h),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  OutlinedButton(
+                    onPressed: () => Navigator.of(context).maybePop(),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.rmHeading,
+                      side: const BorderSide(color: Color(0xFFE6D7DC)),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 18.w,
+                        vertical: 12.h,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12.r),
+                      ),
+                      textStyle: GoogleFonts.inter(
+                        fontSize: 13.sp,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    child: const Text('Cancel'),
+                  ),
+                  SizedBox(width: 14.w),
+                  ElevatedButton(
+                    onPressed: canSend
+                        ? () => Navigator.of(
+                            context,
+                          ).pop(_messageController.text.trim())
+                        : null,
+                    style: ElevatedButton.styleFrom(
+                      elevation: 0,
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: AppColors.white,
+                      disabledBackgroundColor: AppColors.primary.withValues(
+                        alpha: 0.45,
+                      ),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 18.w,
+                        vertical: 12.h,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12.r),
+                      ),
+                      textStyle: GoogleFonts.inter(
+                        fontSize: 13.sp,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    child: const Text('Send Message'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RecordedVoiceNote {
+  const _RecordedVoiceNote({required this.path, required this.durationSeconds});
+
+  final String path;
+  final int durationSeconds;
+}
+
+class _FollowUpVoiceNoteDialog extends StatefulWidget {
+  const _FollowUpVoiceNoteDialog({required this.recipientName});
+
+  final String recipientName;
+
+  @override
+  State<_FollowUpVoiceNoteDialog> createState() =>
+      _FollowUpVoiceNoteDialogState();
+}
+
+class _FollowUpVoiceNoteDialogState extends State<_FollowUpVoiceNoteDialog> {
+  static const int _maxDurationSeconds = 60;
+
+  final AudioRecorder _recorder = AudioRecorder();
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  Timer? _timer;
+  bool _isRecording = false;
+  bool _isPreparing = false;
+  bool _isPlayingPreview = false;
+  String? _recordingPath;
+  int _durationSeconds = 0;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _audioPlayer.onPlayerComplete.listen((_) {
+      if (mounted) {
+        setState(() => _isPlayingPreview = false);
+      }
+    });
+    _audioPlayer.onPlayerStateChanged.listen((state) {
+      if (mounted && state != PlayerState.playing && _isPlayingPreview) {
+        setState(() => _isPlayingPreview = false);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _recorder.dispose();
+    _audioPlayer.dispose();
+    super.dispose();
+  }
+
+  Future<void> _toggleRecording() async {
+    if (_isRecording) {
+      await _stopRecording();
+      return;
+    }
+
+    await _startRecording();
+  }
+
+  Future<void> _startRecording() async {
+    setState(() {
+      _isPreparing = true;
+      _error = null;
+    });
+
+    try {
+      await _stopPreview();
+      final hasPermission = await _recorder.hasPermission();
+      if (!hasPermission) {
+        setState(() {
+          _error = 'Microphone permission is required to record a voice note.';
+          _isPreparing = false;
+        });
+        return;
+      }
+
+      final tempDir = await getTemporaryDirectory();
+      final path =
+          '${tempDir.path}/follow_up_voice_${DateTime.now().microsecondsSinceEpoch}.wav';
+
+      await _recorder.start(
+        const RecordConfig(
+          encoder: AudioEncoder.wav,
+          sampleRate: 44100,
+          numChannels: 1,
+        ),
+        path: path,
+      );
+
+      _timer?.cancel();
+      setState(() {
+        _recordingPath = null;
+        _durationSeconds = 0;
+        _isRecording = true;
+        _isPreparing = false;
+      });
+      _timer = Timer.periodic(const Duration(seconds: 1), (timer) async {
+        if (!mounted) {
+          timer.cancel();
+          return;
+        }
+
+        final nextDuration = _durationSeconds + 1;
+        setState(() {
+          _durationSeconds = nextDuration;
+        });
+
+        if (nextDuration >= _maxDurationSeconds) {
+          await _stopRecording();
+        }
+      });
+    } catch (error) {
+      setState(() {
+        _error = 'Unable to start recording.';
+        _isPreparing = false;
+        _isRecording = false;
+      });
+    }
+  }
+
+  Future<void> _stopRecording() async {
+    _timer?.cancel();
+    _timer = null;
+
+    try {
+      final path = await _recorder.stop();
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _recordingPath = path;
+        _isRecording = false;
+        _isPreparing = false;
+        if (_durationSeconds == 0) {
+          _durationSeconds = 1;
+        }
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _error = 'Unable to stop recording.';
+        _isRecording = false;
+        _isPreparing = false;
+      });
+    }
+  }
+
+  Future<void> _togglePreview() async {
+    final path = _recordingPath;
+    if (path == null || _isRecording || _isPreparing) {
+      return;
+    }
+
+    if (_isPlayingPreview) {
+      await _stopPreview();
+      return;
+    }
+
+    try {
+      await _audioPlayer.stop();
+      await _audioPlayer.play(DeviceFileSource(path));
+      if (mounted) {
+        setState(() {
+          _isPlayingPreview = true;
+          _error = null;
+        });
+      }
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _isPlayingPreview = false;
+        _error = 'Unable to preview this recording.';
+      });
+    }
+  }
+
+  Future<void> _stopPreview() async {
+    await _audioPlayer.stop();
+    if (mounted && _isPlayingPreview) {
+      setState(() => _isPlayingPreview = false);
+    }
+  }
+
+  String _formatDuration(int seconds) {
+    final minutes = seconds ~/ 60;
+    final remainingSeconds = seconds % 60;
+    return '$minutes:${remainingSeconds.toString().padLeft(2, '0')}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hasRecording = _recordingPath != null;
+    final canSend = hasRecording && !_isRecording && !_isPreparing;
+    final statusText = _isRecording
+        ? 'Recording...'
+        : hasRecording
+        ? 'Recording ready'
+        : 'No recording yet';
+
+    return Dialog(
+      backgroundColor: AppColors.white,
+      surfaceTintColor: AppColors.white,
+      insetPadding: EdgeInsets.symmetric(horizontal: 22.w, vertical: 24.h),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22.r)),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: 430.w),
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(24.w, 24.h, 24.w, 18.h),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Send Voice Note',
+                      style: GoogleFonts.inter(
+                        color: AppColors.rmHeading,
+                        fontSize: 25.sp,
+                        fontWeight: FontWeight.w800,
+                        height: 1.1,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    padding: EdgeInsets.zero,
+                    constraints: BoxConstraints.tight(Size(30.r, 30.r)),
+                    onPressed: () => Navigator.of(context).maybePop(),
+                    icon: Icon(
+                      Icons.close_rounded,
+                      color: AppColors.rmMutedText,
+                      size: 19.sp,
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 12.h),
+              Text(
+                'Record and send an internal voice note to ${widget.recipientName}.',
+                style: GoogleFonts.inter(
+                  color: AppColors.rmBodyText,
+                  fontSize: 13.sp,
+                  fontWeight: FontWeight.w600,
+                  height: 1.35,
+                ),
+              ),
+              SizedBox(height: 20.h),
+              Container(
+                width: double.infinity,
+                padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFCF7F8),
+                  borderRadius: BorderRadius.circular(12.r),
+                  border: Border.all(color: const Color(0xFFE6D7DC)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'RECIPIENT',
+                      style: GoogleFonts.inter(
+                        color: AppColors.rmMutedText,
+                        fontSize: 10.sp,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1.4,
+                      ),
+                    ),
+                    SizedBox(height: 8.h),
+                    Text(
+                      widget.recipientName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.inter(
+                        color: AppColors.rmHeading,
+                        fontSize: 13.sp,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(height: 18.h),
+              Container(
+                width: double.infinity,
+                padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 16.h),
+                decoration: BoxDecoration(
+                  color: AppColors.white,
+                  borderRadius: BorderRadius.circular(12.r),
+                  border: Border.all(color: const Color(0xFFE6D7DC)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            statusText,
+                            style: GoogleFonts.inter(
+                              color: _isRecording
+                                  ? AppColors.primary
+                                  : AppColors.rmHeading,
+                              fontSize: 13.sp,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                        Text(
+                          _formatDuration(_durationSeconds),
+                          style: GoogleFonts.inter(
+                            color: AppColors.rmHeading,
+                            fontSize: 13.sp,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 8.h),
+                    Text(
+                      'Maximum duration: 60 seconds',
+                      style: GoogleFonts.inter(
+                        color: AppColors.rmBodyText,
+                        fontSize: 12.sp,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    if (_error != null) ...[
+                      SizedBox(height: 8.h),
+                      Text(
+                        _error!,
+                        style: GoogleFonts.inter(
+                          color: AppColors.error,
+                          fontSize: 11.sp,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                    SizedBox(height: 18.h),
+                    OutlinedButton(
+                      onPressed: _isPreparing ? null : _toggleRecording,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.primary,
+                        side: const BorderSide(color: Color(0xFFEED7CF)),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 16.w,
+                          vertical: 12.h,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12.r),
+                        ),
+                        textStyle: GoogleFonts.inter(
+                          fontSize: 13.sp,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      child: Text(
+                        _isPreparing
+                            ? 'Preparing...'
+                            : _isRecording
+                            ? 'Stop Recording'
+                            : hasRecording
+                            ? 'Record Again'
+                            : 'Start Recording',
+                      ),
+                    ),
+                    if (hasRecording && !_isRecording) ...[
+                      SizedBox(height: 10.h),
+                      OutlinedButton.icon(
+                        onPressed: _isPreparing ? null : _togglePreview,
+                        icon: Icon(
+                          _isPlayingPreview
+                              ? Icons.stop_rounded
+                              : Icons.play_arrow_rounded,
+                          size: 18.sp,
+                        ),
+                        label: Text(
+                          _isPlayingPreview ? 'Stop Preview' : 'Preview Audio',
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.rmHeading,
+                          side: const BorderSide(color: Color(0xFFE6D7DC)),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 16.w,
+                            vertical: 12.h,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12.r),
+                          ),
+                          textStyle: GoogleFonts.inter(
+                            fontSize: 13.sp,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              SizedBox(height: 40.h),
+              const Divider(height: 1, color: Color(0xFFEDE6E8)),
+              SizedBox(height: 18.h),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  OutlinedButton(
+                    onPressed: () async {
+                      await _stopPreview();
+                      if (context.mounted) {
+                        Navigator.of(context).maybePop();
+                      }
+                    },
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.rmHeading,
+                      side: const BorderSide(color: Color(0xFFE6D7DC)),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 18.w,
+                        vertical: 12.h,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12.r),
+                      ),
+                      textStyle: GoogleFonts.inter(
+                        fontSize: 13.sp,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    child: const Text('Cancel'),
+                  ),
+                  SizedBox(width: 14.w),
+                  ElevatedButton(
+                    onPressed: canSend
+                        ? () async {
+                            await _stopPreview();
+                            if (context.mounted) {
+                              Navigator.of(context).pop(
+                                _RecordedVoiceNote(
+                                  path: _recordingPath!,
+                                  durationSeconds: _durationSeconds,
+                                ),
+                              );
+                            }
+                          }
+                        : null,
+                    style: ElevatedButton.styleFrom(
+                      elevation: 0,
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: AppColors.white,
+                      disabledBackgroundColor: AppColors.primary.withValues(
+                        alpha: 0.45,
+                      ),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 18.w,
+                        vertical: 12.h,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12.r),
+                      ),
+                      textStyle: GoogleFonts.inter(
+                        fontSize: 13.sp,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    child: const Text('Send Voice Note'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
