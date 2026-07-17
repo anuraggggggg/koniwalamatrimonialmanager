@@ -1,13 +1,17 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:koniwalamatrimonial/constants/api_constants.dart';
 import 'package:koniwalamatrimonial/constants/app_colors.dart';
 import 'package:koniwalamatrimonial/owner/models/hr_employee_item.dart';
+import 'package:koniwalamatrimonial/owner/models/lead_registry_item.dart';
 import 'package:koniwalamatrimonial/owner/providers/hr_employees_provider.dart';
+import 'package:koniwalamatrimonial/owner/providers/leads_provider.dart';
 import 'package:koniwalamatrimonial/providers/auth_provider.dart';
 import 'package:koniwalamatrimonial/routes/app_routes.dart';
 import 'package:provider/provider.dart';
@@ -251,6 +255,20 @@ class _EmployeeManagementScreenState extends State<EmployeeManagementScreen> {
       _selectedIncentiveFilter = result.incentiveFilter;
       _selectedSalaryFilter = result.salaryFilter;
     });
+  }
+
+  Future<void> _showEmployeeHistorySheet(HrEmployeeItem employee) async {
+    final accessToken = context.read<AuthProvider>().userModel?.accessToken;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.transparent,
+      builder: (_) => _EmployeeHistoryBottomSheet(
+        employee: employee,
+        accessToken: accessToken,
+      ),
+    );
   }
 
   Future<void> _showEditEmployeeDialog({
@@ -720,6 +738,9 @@ class _EmployeeManagementScreenState extends State<EmployeeManagementScreen> {
                           if (index > 0) SizedBox(height: 12.h),
                           _EmployeeRegistryCard(
                             employee: previewEmployees[index],
+                            onTap: () => _showEmployeeHistorySheet(
+                              previewEmployees[index],
+                            ),
                             onEdit: () {
                               final employee = previewEmployees[index];
                               final messenger = ScaffoldMessenger.of(context);
@@ -1389,6 +1410,13 @@ class _StaffFilterDropdown extends StatelessWidget {
     return DropdownButtonFormField<String>(
       initialValue: currentValue,
       isExpanded: true,
+      dropdownColor: AppColors.white,
+      borderRadius: BorderRadius.circular(12.r),
+      style: GoogleFonts.inter(
+        color: const Color(0xFF1F1C19),
+        fontSize: 14.sp,
+        fontWeight: FontWeight.w700,
+      ),
       icon: Icon(
         Icons.keyboard_arrow_down_rounded,
         color: const Color(0xFF71757F),
@@ -1405,6 +1433,14 @@ class _StaffFilterDropdown extends StatelessWidget {
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8.r),
           borderSide: const BorderSide(color: Color(0xFFD76322)),
+        ),
+        disabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8.r),
+          borderSide: const BorderSide(color: Color(0xFFD3D3D3)),
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8.r),
+          borderSide: const BorderSide(color: Color(0xFFD3D3D3)),
         ),
       ),
       hint: Text(
@@ -1591,11 +1627,13 @@ class _SearchFilterRow extends StatelessWidget {
 class _EmployeeRegistryCard extends StatelessWidget {
   const _EmployeeRegistryCard({
     required this.employee,
+    this.onTap,
     this.onEdit,
     this.onDelete,
   });
 
   final HrEmployeeItem employee;
+  final VoidCallback? onTap;
   final VoidCallback? onEdit;
   final VoidCallback? onDelete;
 
@@ -1625,170 +1663,177 @@ class _EmployeeRegistryCard extends StatelessWidget {
         ? const Color(0xFF188748)
         : const Color(0xFFD1213E);
 
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.fromLTRB(8.w, 10.h, 8.w, 10.h),
-      decoration: BoxDecoration(
-        color: AppColors.white,
+    return Material(
+      color: AppColors.transparent,
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(12.r),
-        border: Border.all(color: const Color(0xFFE5D8D0)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x12000000),
-            blurRadius: 10,
-            offset: Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              InkWell(
-                onTap: onEdit,
-                borderRadius: BorderRadius.circular(20.r),
-                child: CircleAvatar(
-                  radius: 20.r,
-                  backgroundColor: const Color(0xFFDDF4E7),
-                  backgroundImage: imageProvider,
-                  child: hasImage
-                      ? null
-                      : Text(
-                          employee.initials,
-                          style: GoogleFonts.inter(
-                            color: const Color(0xFF1E5D47),
-                            fontSize: 13.sp,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                ),
+        child: Container(
+          width: double.infinity,
+          padding: EdgeInsets.fromLTRB(8.w, 10.h, 8.w, 10.h),
+          decoration: BoxDecoration(
+            color: AppColors.white,
+            borderRadius: BorderRadius.circular(12.r),
+            border: Border.all(color: const Color(0xFFE5D8D0)),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x12000000),
+                blurRadius: 10,
+                offset: Offset(0, 4),
               ),
-              SizedBox(width: 10.w),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+            ],
+          ),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  InkWell(
+                    onTap: onEdit,
+                    borderRadius: BorderRadius.circular(20.r),
+                    child: CircleAvatar(
+                      radius: 20.r,
+                      backgroundColor: const Color(0xFFDDF4E7),
+                      backgroundImage: imageProvider,
+                      child: hasImage
+                          ? null
+                          : Text(
+                              employee.initials,
+                              style: GoogleFonts.inter(
+                                color: const Color(0xFF1E5D47),
+                                fontSize: 13.sp,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                    ),
+                  ),
+                  SizedBox(width: 10.w),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: Text(
-                            employee.name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.inter(
-                              color: const Color(0xFF1F1C19),
-                              fontSize: 18.sp,
-                              fontWeight: FontWeight.w900,
-                              height: 1.05,
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                employee.name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.inter(
+                                  color: const Color(0xFF1F1C19),
+                                  fontSize: 18.sp,
+                                  fontWeight: FontWeight.w900,
+                                  height: 1.05,
+                                ),
+                              ),
                             ),
-                          ),
+                            SizedBox(width: 8.w),
+                            Container(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 9.w,
+                                vertical: 3.h,
+                              ),
+                              decoration: BoxDecoration(
+                                color: statusBackground,
+                                borderRadius: BorderRadius.circular(12.r),
+                              ),
+                              child: Text(
+                                _statusLabel,
+                                style: GoogleFonts.inter(
+                                  color: statusForeground,
+                                  fontSize: 9.sp,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 0.35,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                        SizedBox(width: 8.w),
-                        Container(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 9.w,
-                            vertical: 3.h,
-                          ),
-                          decoration: BoxDecoration(
-                            color: statusBackground,
-                            borderRadius: BorderRadius.circular(12.r),
-                          ),
-                          child: Text(
-                            _statusLabel,
-                            style: GoogleFonts.inter(
-                              color: statusForeground,
-                              fontSize: 9.sp,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: 0.35,
-                            ),
+                        SizedBox(height: 2.h),
+                        Text(
+                          employee.email == '-'
+                              ? 'employee@koniwala.in'
+                              : employee.email,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFF1F1C19),
+                            fontSize: 13.sp,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                       ],
                     ),
-                    SizedBox(height: 2.h),
-                    Text(
-                      employee.email == '-'
-                          ? 'employee@koniwala.in'
-                          : employee.email,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFF1F1C19),
-                        fontSize: 13.sp,
-                        fontWeight: FontWeight.w500,
-                      ),
+                  ),
+                  IconButton(
+                    tooltip: 'Edit',
+                    onPressed: onEdit,
+                    visualDensity: VisualDensity.compact,
+                    padding: EdgeInsets.zero,
+                    constraints: BoxConstraints.tight(Size(28.w, 28.w)),
+                    icon: Icon(
+                      Icons.edit_outlined,
+                      color: const Color(0xFF5B3531),
+                      size: 18.sp,
                     ),
-                  ],
-                ),
+                  ),
+                  IconButton(
+                    tooltip: 'Delete',
+                    onPressed: onDelete,
+                    visualDensity: VisualDensity.compact,
+                    padding: EdgeInsets.zero,
+                    constraints: BoxConstraints.tight(Size(28.w, 28.w)),
+                    icon: Icon(
+                      Icons.delete_outline_rounded,
+                      color: const Color(0xFF5B3531),
+                      size: 18.sp,
+                    ),
+                  ),
+                ],
               ),
-              IconButton(
-                tooltip: 'Edit',
-                onPressed: onEdit,
-                visualDensity: VisualDensity.compact,
-                padding: EdgeInsets.zero,
-                constraints: BoxConstraints.tight(Size(28.w, 28.w)),
-                icon: Icon(
-                  Icons.edit_outlined,
-                  color: const Color(0xFF5B3531),
-                  size: 18.sp,
-                ),
+              SizedBox(height: 10.h),
+              Divider(height: 1.h, color: const Color(0xFFF0E5DF)),
+              SizedBox(height: 10.h),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: _EmployeeInfoBlock(
+                      title: 'Dept & Role',
+                      value:
+                          '${employee.department == '-' ? employee.designation : employee.department} • ${employee.displayRole}',
+                    ),
+                  ),
+                  SizedBox(width: 14.w),
+                  Expanded(
+                    child: _EmployeeInfoBlock(
+                      title: 'Manager',
+                      value: _reportingLabel,
+                    ),
+                  ),
+                ],
               ),
-              IconButton(
-                tooltip: 'Delete',
-                onPressed: onDelete,
-                visualDensity: VisualDensity.compact,
-                padding: EdgeInsets.zero,
-                constraints: BoxConstraints.tight(Size(28.w, 28.w)),
-                icon: Icon(
-                  Icons.delete_outline_rounded,
-                  color: const Color(0xFF5B3531),
-                  size: 18.sp,
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: 10.h),
-          Divider(height: 1.h, color: const Color(0xFFF0E5DF)),
-          SizedBox(height: 10.h),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: _EmployeeInfoBlock(
-                  title: 'Dept & Role',
-                  value:
-                      '${employee.department == '-' ? employee.designation : employee.department} • ${employee.displayRole}',
-                ),
-              ),
-              SizedBox(width: 14.w),
-              Expanded(
-                child: _EmployeeInfoBlock(
-                  title: 'Manager',
-                  value: _reportingLabel,
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: 10.h),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: _EmployeeInfoBlock(
-                  title: 'Incentive',
-                  value: employee.incentiveProgressLabel,
-                ),
-              ),
-              SizedBox(width: 14.w),
-              Expanded(
-                child: _EmployeeInfoBlock(
-                  title: 'Base Salary',
-                  value: _formatDirectorySalary(employee.baseSalary),
-                ),
+              SizedBox(height: 10.h),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: _EmployeeInfoBlock(
+                      title: 'Incentive',
+                      value: employee.incentiveProgressLabel,
+                    ),
+                  ),
+                  SizedBox(width: 14.w),
+                  Expanded(
+                    child: _EmployeeInfoBlock(
+                      title: 'Base Salary',
+                      value: _formatDirectorySalary(employee.baseSalary),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -1879,6 +1924,1144 @@ ImageProvider? _employeeImageProvider(String image) {
   }
 
   return null;
+}
+
+enum _EmployeeHistoryRange { all, today, weekly, monthly, yearly }
+
+class _EmployeeHistoryBottomSheet extends StatefulWidget {
+  const _EmployeeHistoryBottomSheet({
+    required this.employee,
+    required this.accessToken,
+  });
+
+  final HrEmployeeItem employee;
+  final String? accessToken;
+
+  @override
+  State<_EmployeeHistoryBottomSheet> createState() =>
+      _EmployeeHistoryBottomSheetState();
+}
+
+class _EmployeeHistoryBottomSheetState
+    extends State<_EmployeeHistoryBottomSheet> {
+  static const int _leadPageSize = 5;
+  static const int _eventPageSize = 20;
+
+  bool _isPreparing = true;
+  bool _isLoadingDetails = false;
+  String? _error;
+  List<LeadRegistryItem> _assignedLeads = const [];
+  final Map<String, Map<String, dynamic>> _leadDetailsById = {};
+  List<_EmployeeHistoryEvent> _events = const [];
+  int _loadedLeadCount = 0;
+  int _visibleEventCount = _eventPageSize;
+  _EmployeeHistoryRange _selectedRange = _EmployeeHistoryRange.all;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _loadInitialHistory();
+      }
+    });
+  }
+
+  Future<void> _loadInitialHistory({bool forceRefresh = false}) async {
+    final accessToken = widget.accessToken?.trim();
+    if (accessToken == null || accessToken.isEmpty) {
+      setState(() {
+        _isPreparing = false;
+        _error = 'Login required to load employee history.';
+      });
+      return;
+    }
+
+    setState(() {
+      _isPreparing = true;
+      _error = null;
+      _loadedLeadCount = 0;
+      _visibleEventCount = _eventPageSize;
+      _leadDetailsById.clear();
+      _events = const [];
+    });
+
+    try {
+      final leadsProvider = context.read<LeadsProvider>();
+      await leadsProvider.fetchLeads(accessToken, forceRefresh: forceRefresh);
+      final assignedLeads = _employeeAssignedLeads(
+        leadsProvider.leads,
+        widget.employee,
+      );
+      if (!mounted) return;
+      setState(() {
+        _assignedLeads = assignedLeads;
+        _isPreparing = false;
+      });
+      await _loadMoreLeadDetails();
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _isPreparing = false;
+        _error = 'Unable to load employee history.';
+      });
+    }
+  }
+
+  Future<void> _loadMoreLeadDetails() async {
+    if (_isLoadingDetails || _loadedLeadCount >= _assignedLeads.length) {
+      return;
+    }
+
+    final accessToken = widget.accessToken?.trim();
+    if (accessToken == null || accessToken.isEmpty) {
+      setState(() => _error = 'Login required to load lead details.');
+      return;
+    }
+
+    final nextLeads = _assignedLeads
+        .skip(_loadedLeadCount)
+        .take(_leadPageSize)
+        .toList(growable: false);
+    if (nextLeads.isEmpty) {
+      return;
+    }
+
+    setState(() {
+      _isLoadingDetails = true;
+      _error = null;
+    });
+
+    try {
+      for (final lead in nextLeads) {
+        final detail = await _fetchLeadDetail(accessToken, lead.id);
+        _leadDetailsById[lead.id] = detail;
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _loadedLeadCount += nextLeads.length;
+        _events = _buildEmployeeHistoryEvents(
+          leadDetailsById: _leadDetailsById,
+          leadSummaries: _assignedLeads,
+        );
+        _isLoadingDetails = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _isLoadingDetails = false;
+        _error = 'Unable to load some lead history. Please retry.';
+      });
+    }
+  }
+
+  Future<Map<String, dynamic>> _fetchLeadDetail(
+    String accessToken,
+    String leadId,
+  ) async {
+    final response = await http.get(
+      Uri.parse('${ApiConstants.baseUrl}${ApiConstants.lead(leadId)}'),
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': 'Bearer $accessToken',
+      },
+    );
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception('Lead detail API failed with ${response.statusCode}');
+    }
+
+    final decoded = response.body.trim().isEmpty
+        ? <String, dynamic>{}
+        : jsonDecode(response.body);
+    return _extractLeadDetailMap(decoded);
+  }
+
+  List<_EmployeeHistoryEvent> get _filteredEvents {
+    return _events
+        .where((event) => _matchesSelectedRange(event.createdAt))
+        .toList(growable: false);
+  }
+
+  bool _matchesSelectedRange(DateTime? createdAt) {
+    if (_selectedRange == _EmployeeHistoryRange.all) {
+      return true;
+    }
+    if (createdAt == null) {
+      return false;
+    }
+
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final eventDay = DateTime(createdAt.year, createdAt.month, createdAt.day);
+
+    switch (_selectedRange) {
+      case _EmployeeHistoryRange.all:
+        return true;
+      case _EmployeeHistoryRange.today:
+        return eventDay == today;
+      case _EmployeeHistoryRange.weekly:
+        return !eventDay.isBefore(today.subtract(const Duration(days: 6))) &&
+            !eventDay.isAfter(today);
+      case _EmployeeHistoryRange.monthly:
+        return eventDay.year == now.year && eventDay.month == now.month;
+      case _EmployeeHistoryRange.yearly:
+        return eventDay.year == now.year;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final filteredEvents = _filteredEvents;
+    final visibleEvents = filteredEvents
+        .take(_visibleEventCount)
+        .toList(growable: false);
+    final canLoadMoreDetails = _loadedLeadCount < _assignedLeads.length;
+    final canLoadMoreEvents = _visibleEventCount < filteredEvents.length;
+
+    return DraggableScrollableSheet(
+      initialChildSize: 0.92,
+      minChildSize: 0.55,
+      maxChildSize: 0.96,
+      expand: false,
+      builder: (context, scrollController) {
+        return Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFF9F6),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24.r)),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x26000000),
+                blurRadius: 24,
+                offset: Offset(0, -8),
+              ),
+            ],
+          ),
+          child: SafeArea(
+            top: false,
+            child: Column(
+              children: [
+                Expanded(
+                  child: RefreshIndicator(
+                    color: const Color(0xFFD76322),
+                    onRefresh: () => _loadInitialHistory(forceRefresh: true),
+                    child: ListView(
+                      controller: scrollController,
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: EdgeInsets.fromLTRB(18.w, 14.h, 18.w, 18.h),
+                      children: [
+                        _EmployeeHistoryHeader(employee: widget.employee),
+                        SizedBox(height: 14.h),
+                        _EmployeeHistoryRangeSelector(
+                          selectedRange: _selectedRange,
+                          onSelected: (range) {
+                            setState(() {
+                              _selectedRange = range;
+                              _visibleEventCount = _eventPageSize;
+                            });
+                          },
+                        ),
+                        SizedBox(height: 14.h),
+                        _EmployeeHistoryStats(
+                          assignedLeads: _assignedLeads.length,
+                          loadedLeads: _loadedLeadCount,
+                          events: filteredEvents.length,
+                        ),
+                        if (_isPreparing) ...[
+                          SizedBox(height: 34.h),
+                          const Center(child: CircularProgressIndicator()),
+                          SizedBox(height: 12.h),
+                          Center(
+                            child: Text(
+                              'Loading assigned leads and history...',
+                              style: GoogleFonts.inter(
+                                color: const Color(0xFF5F5753),
+                                fontSize: 13.sp,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ] else if (_error != null && _events.isEmpty) ...[
+                          SizedBox(height: 16.h),
+                          _EmployeeHistoryMessage(
+                            message: _error!,
+                            actionLabel: 'Retry',
+                            onPressed: () =>
+                                _loadInitialHistory(forceRefresh: true),
+                          ),
+                        ] else if (_assignedLeads.isEmpty) ...[
+                          SizedBox(height: 16.h),
+                          const _EmployeeHistoryMessage(
+                            message:
+                                'No leads are currently assigned to this employee.',
+                          ),
+                        ] else ...[
+                          if (_isLoadingDetails) ...[
+                            SizedBox(height: 14.h),
+                            LinearProgressIndicator(
+                              minHeight: 3.h,
+                              color: const Color(0xFFD76322),
+                              backgroundColor: const Color(
+                                0xFFD76322,
+                              ).withValues(alpha: 0.14),
+                            ),
+                          ],
+                          if (_error != null) ...[
+                            SizedBox(height: 12.h),
+                            _EmployeeHistoryMessage(
+                              message: _error!,
+                              actionLabel: 'Retry',
+                              onPressed: _loadMoreLeadDetails,
+                            ),
+                          ],
+                          SizedBox(height: 16.h),
+                          if (visibleEvents.isEmpty)
+                            const _EmployeeHistoryMessage(
+                              message:
+                                  'No logs were found for the selected period.',
+                            )
+                          else
+                            for (
+                              var index = 0;
+                              index < visibleEvents.length;
+                              index++
+                            ) ...[
+                              if (index > 0) SizedBox(height: 10.h),
+                              _EmployeeHistoryEventCard(
+                                event: visibleEvents[index],
+                              ),
+                            ],
+                          if (canLoadMoreEvents || canLoadMoreDetails) ...[
+                            SizedBox(height: 16.h),
+                            Row(
+                              children: [
+                                if (canLoadMoreEvents)
+                                  Expanded(
+                                    child: _EmployeeHistoryActionButton(
+                                      label: 'Show more logs',
+                                      outlined: true,
+                                      onPressed: () {
+                                        setState(() {
+                                          _visibleEventCount += _eventPageSize;
+                                        });
+                                      },
+                                    ),
+                                  ),
+                                if (canLoadMoreEvents && canLoadMoreDetails)
+                                  SizedBox(width: 10.w),
+                                if (canLoadMoreDetails)
+                                  Expanded(
+                                    child: _EmployeeHistoryActionButton(
+                                      label: _isLoadingDetails
+                                          ? 'Loading...'
+                                          : 'Load more leads',
+                                      onPressed: _isLoadingDetails
+                                          ? null
+                                          : _loadMoreLeadDetails,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ],
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _EmployeeHistoryHeader extends StatelessWidget {
+  const _EmployeeHistoryHeader({required this.employee});
+
+  final HrEmployeeItem employee;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasImage = employee.image.trim().isNotEmpty;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        CircleAvatar(
+          radius: 25.r,
+          backgroundColor: const Color(0xFFFFE9DD),
+          backgroundImage: _employeeImageProvider(employee.image),
+          child: hasImage
+              ? null
+              : Text(
+                  employee.initials,
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFFD76322),
+                    fontSize: 16.sp,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+        ),
+        SizedBox(width: 12.w),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                employee.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF1F1C19),
+                  fontSize: 20.sp,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              SizedBox(height: 4.h),
+              Text(
+                'Employee lead history, communication logs, tasks, comments, and resume activity.',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF5F5753),
+                  fontSize: 12.sp,
+                  fontWeight: FontWeight.w600,
+                  height: 1.35,
+                ),
+              ),
+            ],
+          ),
+        ),
+        IconButton(
+          tooltip: 'Close',
+          onPressed: () => Navigator.of(context).pop(),
+          icon: Icon(
+            Icons.close_rounded,
+            color: const Color(0xFF1F1C19),
+            size: 24.sp,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _EmployeeHistoryRangeSelector extends StatelessWidget {
+  const _EmployeeHistoryRangeSelector({
+    required this.selectedRange,
+    required this.onSelected,
+  });
+
+  final _EmployeeHistoryRange selectedRange;
+  final ValueChanged<_EmployeeHistoryRange> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    const options = [
+      (_EmployeeHistoryRange.all, 'All'),
+      (_EmployeeHistoryRange.today, 'Today'),
+      (_EmployeeHistoryRange.weekly, 'Weekly'),
+      (_EmployeeHistoryRange.monthly, 'Monthly'),
+      (_EmployeeHistoryRange.yearly, 'Yearly'),
+    ];
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          for (final option in options) ...[
+            _EmployeeHistoryChip(
+              label: option.$2,
+              selected: selectedRange == option.$1,
+              onTap: () => onSelected(option.$1),
+            ),
+            SizedBox(width: 8.w),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _EmployeeHistoryChip extends StatelessWidget {
+  const _EmployeeHistoryChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20.r),
+        child: Container(
+          height: 36.h,
+          padding: EdgeInsets.symmetric(horizontal: 15.w),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: selected ? const Color(0xFFD76322) : AppColors.white,
+            borderRadius: BorderRadius.circular(20.r),
+            border: Border.all(color: const Color(0xFFD76322)),
+          ),
+          child: Text(
+            label,
+            style: GoogleFonts.inter(
+              color: selected ? AppColors.white : const Color(0xFF1F1C19),
+              fontSize: 13.sp,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _EmployeeHistoryStats extends StatelessWidget {
+  const _EmployeeHistoryStats({
+    required this.assignedLeads,
+    required this.loadedLeads,
+    required this.events,
+  });
+
+  final int assignedLeads;
+  final int loadedLeads;
+  final int events;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: _EmployeeHistoryStatTile(
+            label: 'Assigned leads',
+            value: '$assignedLeads',
+          ),
+        ),
+        SizedBox(width: 8.w),
+        Expanded(
+          child: _EmployeeHistoryStatTile(
+            label: 'Loaded leads',
+            value: '$loadedLeads',
+          ),
+        ),
+        SizedBox(width: 8.w),
+        Expanded(
+          child: _EmployeeHistoryStatTile(label: 'Logs', value: '$events'),
+        ),
+      ],
+    );
+  }
+}
+
+class _EmployeeHistoryStatTile extends StatelessWidget {
+  const _EmployeeHistoryStatTile({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 10.h),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(12.r),
+        border: Border.all(color: const Color(0xFFEEDFD5)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF6B6662),
+              fontSize: 10.5.sp,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          SizedBox(height: 4.h),
+          Text(
+            value,
+            style: GoogleFonts.inter(
+              color: const Color(0xFFD76322),
+              fontSize: 20.sp,
+              fontWeight: FontWeight.w900,
+              height: 1,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EmployeeHistoryEventCard extends StatelessWidget {
+  const _EmployeeHistoryEventCard({required this.event});
+
+  final _EmployeeHistoryEvent event;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(13.w),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(14.r),
+        border: Border.all(color: const Color(0xFFE8DCD5)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0F000000),
+            blurRadius: 10,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 36.w,
+            height: 36.w,
+            decoration: BoxDecoration(
+              color: event.color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(11.r),
+            ),
+            child: Icon(event.icon, color: event.color, size: 19.sp),
+          ),
+          SizedBox(width: 11.w),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        event.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.inter(
+                          color: const Color(0xFF1F1C19),
+                          fontSize: 14.sp,
+                          fontWeight: FontWeight.w900,
+                          height: 1.2,
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: 8.w),
+                    Text(
+                      _formatHistoryDate(event.createdAt),
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF77716C),
+                        fontSize: 10.5.sp,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 4.h),
+                Text(
+                  event.leadName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFFD76322),
+                    fontSize: 12.sp,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                if (event.description.isNotEmpty) ...[
+                  SizedBox(height: 7.h),
+                  Text(
+                    event.description,
+                    maxLines: 5,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFF35302D),
+                      fontSize: 12.5.sp,
+                      fontWeight: FontWeight.w600,
+                      height: 1.35,
+                    ),
+                  ),
+                ],
+                if (event.meta.isNotEmpty) ...[
+                  SizedBox(height: 9.h),
+                  Wrap(
+                    spacing: 6.w,
+                    runSpacing: 6.h,
+                    children: [
+                      for (final item in event.meta.take(5))
+                        _EmployeeHistoryMetaPill(text: item),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EmployeeHistoryMetaPill extends StatelessWidget {
+  const _EmployeeHistoryMetaPill({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF4EE),
+        borderRadius: BorderRadius.circular(20.r),
+      ),
+      child: Text(
+        text,
+        style: GoogleFonts.inter(
+          color: const Color(0xFF5F5753),
+          fontSize: 10.5.sp,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+  }
+}
+
+class _EmployeeHistoryActionButton extends StatelessWidget {
+  const _EmployeeHistoryActionButton({
+    required this.label,
+    required this.onPressed,
+    this.outlined = false,
+  });
+
+  final String label;
+  final VoidCallback? onPressed;
+  final bool outlined;
+
+  @override
+  Widget build(BuildContext context) {
+    final shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(12.r),
+    );
+    if (outlined) {
+      return OutlinedButton(
+        onPressed: onPressed,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: const Color(0xFFD76322),
+          side: const BorderSide(color: Color(0xFFD76322)),
+          minimumSize: Size.fromHeight(44.h),
+          shape: shape,
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.inter(
+            fontSize: 12.sp,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      );
+    }
+
+    return ElevatedButton(
+      onPressed: onPressed,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color(0xFFD76322),
+        foregroundColor: AppColors.white,
+        elevation: 0,
+        minimumSize: Size.fromHeight(44.h),
+        shape: shape,
+      ),
+      child: Text(
+        label,
+        style: GoogleFonts.inter(fontSize: 12.sp, fontWeight: FontWeight.w900),
+      ),
+    );
+  }
+}
+
+class _EmployeeHistoryMessage extends StatelessWidget {
+  const _EmployeeHistoryMessage({
+    required this.message,
+    this.actionLabel,
+    this.onPressed,
+  });
+
+  final String message;
+  final String? actionLabel;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(14.w),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(14.r),
+        border: Border.all(color: const Color(0xFFEEDFD5)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            message,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF5F5753),
+              fontSize: 13.sp,
+              fontWeight: FontWeight.w700,
+              height: 1.35,
+            ),
+          ),
+          if (actionLabel != null && onPressed != null) ...[
+            SizedBox(height: 10.h),
+            _EmployeeHistoryActionButton(
+              label: actionLabel!,
+              onPressed: onPressed,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _EmployeeHistoryEvent {
+  const _EmployeeHistoryEvent({
+    required this.id,
+    required this.leadId,
+    required this.leadName,
+    required this.title,
+    required this.description,
+    required this.createdAt,
+    required this.icon,
+    required this.color,
+    required this.meta,
+  });
+
+  final String id;
+  final String leadId;
+  final String leadName;
+  final String title;
+  final String description;
+  final DateTime? createdAt;
+  final IconData icon;
+  final Color color;
+  final List<String> meta;
+}
+
+List<LeadRegistryItem> _employeeAssignedLeads(
+  List<LeadRegistryItem> leads,
+  HrEmployeeItem employee,
+) {
+  final employeeId = employee.id.trim();
+  final employeeName = employee.name.trim().toLowerCase();
+  final employeeEmail = employee.email.trim().toLowerCase();
+
+  return leads
+      .where((lead) {
+        if (employeeId.isNotEmpty && lead.assignedToId.trim() == employeeId) {
+          return true;
+        }
+        final assignedName = lead.assignedTo.trim().toLowerCase();
+        return assignedName.isNotEmpty &&
+            assignedName != '-' &&
+            (assignedName == employeeName || assignedName == employeeEmail);
+      })
+      .toList(growable: false);
+}
+
+Map<String, dynamic> _extractLeadDetailMap(dynamic payload) {
+  if (payload is Map<String, dynamic>) {
+    for (final key in const ['lead', 'data', 'item', 'result']) {
+      final value = payload[key];
+      if (value is Map<String, dynamic>) return value;
+      if (value is Map) return Map<String, dynamic>.from(value);
+    }
+    return payload;
+  }
+  if (payload is Map) {
+    return Map<String, dynamic>.from(payload);
+  }
+  return <String, dynamic>{};
+}
+
+List<_EmployeeHistoryEvent> _buildEmployeeHistoryEvents({
+  required Map<String, Map<String, dynamic>> leadDetailsById,
+  required List<LeadRegistryItem> leadSummaries,
+}) {
+  final summariesById = {for (final lead in leadSummaries) lead.id: lead};
+  final events = <_EmployeeHistoryEvent>[];
+
+  leadDetailsById.forEach((leadId, detail) {
+    final summary = summariesById[leadId];
+    final leadName = _historyFirstText([
+      detail['name'],
+      summary?.name,
+      detail['phone'],
+    ], fallback: 'Lead');
+    final phone = _historyFirstText([detail['phone'], summary?.phone]);
+    final stage = _historyFirstText([detail['stage'], summary?.stage]);
+    final source = _historyFirstText([detail['source'], summary?.source]);
+
+    final createdAt = _historyDate(detail['createdAt']);
+    if (createdAt != null) {
+      events.add(
+        _EmployeeHistoryEvent(
+          id: '$leadId-created',
+          leadId: leadId,
+          leadName: leadName,
+          title: 'Lead created',
+          description: _historyFirstText([
+            detail['notes'],
+            detail['requirements'],
+            'Lead record opened for $leadName.',
+          ]),
+          createdAt: createdAt,
+          icon: Icons.person_add_alt_1_outlined,
+          color: const Color(0xFF2F80ED),
+          meta: _historyMeta([
+            if (phone.isNotEmpty) 'Phone: $phone',
+            if (stage.isNotEmpty) 'Stage: $stage',
+            if (source.isNotEmpty) 'Source: $source',
+          ]),
+        ),
+      );
+    }
+
+    for (final log in _historyRows(detail['communicationLogs'])) {
+      final direction = _historyReadText(log['direction']);
+      final channel = _historyReadText(log['channel'], fallback: 'LOG');
+      final messageType = _historyReadText(log['whatsappMessageType']);
+      final status = _historyReadText(log['whatsappStatus']);
+      final templateName = _historyReadText(log['templateName']);
+      final content = _historyFirstText([
+        log['content'],
+        log['whatsappCaption'],
+        log['subject'],
+        templateName.isEmpty ? null : templateName,
+      ]);
+      events.add(
+        _EmployeeHistoryEvent(
+          id: _historyReadText(
+            log['id'],
+            fallback: '$leadId-log-${events.length}',
+          ),
+          leadId: leadId,
+          leadName: leadName,
+          title: '${_historyTitleCase(direction)} $channel',
+          description: content,
+          createdAt:
+              _historyDate(log['createdAt']) ??
+              _historyDate(log['whatsappTimestamp']) ??
+              _historyDate(log['whatsappStatusReadAt']) ??
+              _historyDate(log['whatsappStatusDeliveredAt']),
+          icon: direction.toUpperCase() == 'INBOUND'
+              ? Icons.call_received_rounded
+              : Icons.call_made_rounded,
+          color: direction.toUpperCase() == 'INBOUND'
+              ? const Color(0xFF0F9F6E)
+              : const Color(0xFFD76322),
+          meta: _historyMeta([
+            if (messageType.isNotEmpty) 'Type: $messageType',
+            if (status.isNotEmpty) 'Status: $status',
+            if (templateName.isNotEmpty) 'Template: $templateName',
+          ]),
+        ),
+      );
+    }
+
+    for (final task in _historyRows(detail['tasks'])) {
+      final title = _historyReadText(task['title'], fallback: 'Task');
+      final status = _historyReadText(task['status']);
+      final priority = _historyReadText(task['priority']);
+      final workflow = _historyReadText(task['workflowStatus']);
+      events.add(
+        _EmployeeHistoryEvent(
+          id: _historyReadText(
+            task['id'],
+            fallback: '$leadId-task-${events.length}',
+          ),
+          leadId: leadId,
+          leadName: leadName,
+          title: 'Task: $title',
+          description: _historyFirstText([
+            task['description'],
+            task['type'],
+            'Task activity for this lead.',
+          ]),
+          createdAt:
+              _historyDate(task['updatedAt']) ??
+              _historyDate(task['createdAt']) ??
+              _historyDate(task['dueAt']),
+          icon: Icons.task_alt_rounded,
+          color: const Color(0xFF7C3AED),
+          meta: _historyMeta([
+            if (status.isNotEmpty) 'Status: $status',
+            if (priority.isNotEmpty) 'Priority: $priority',
+            if (workflow.isNotEmpty) 'Workflow: $workflow',
+          ]),
+        ),
+      );
+    }
+
+    for (final comment in _historyRows(detail['comments'])) {
+      final author = _historyFirstText([
+        _historyMap(comment['createdBy'])?['name'],
+        _historyMap(comment['user'])?['name'],
+        comment['authorName'],
+      ]);
+      events.add(
+        _EmployeeHistoryEvent(
+          id: _historyReadText(
+            comment['id'],
+            fallback: '$leadId-comment-${events.length}',
+          ),
+          leadId: leadId,
+          leadName: leadName,
+          title: 'Comment added',
+          description: _historyFirstText([
+            comment['content'],
+            comment['comment'],
+            comment['note'],
+          ]),
+          createdAt:
+              _historyDate(comment['createdAt']) ??
+              _historyDate(comment['updatedAt']),
+          icon: Icons.mode_comment_outlined,
+          color: const Color(0xFF2F80ED),
+          meta: _historyMeta([if (author.isNotEmpty) 'By: $author']),
+        ),
+      );
+    }
+
+    for (final resume in [
+      ..._historyRows(detail['resumesReceived']),
+      ..._historyRows(detail['inboundResumeAttachments']),
+    ]) {
+      final filename = _historyFirstText([
+        resume['filename'],
+        resume['fileName'],
+        resume['name'],
+        'Resume attachment',
+      ]);
+      events.add(
+        _EmployeeHistoryEvent(
+          id: _historyReadText(
+            resume['id'],
+            fallback: '$leadId-resume-${events.length}',
+          ),
+          leadId: leadId,
+          leadName: leadName,
+          title: 'Resume activity',
+          description: filename,
+          createdAt:
+              _historyDate(resume['createdAt']) ??
+              _historyDate(resume['uploadedAt']) ??
+              _historyDate(resume['updatedAt']),
+          icon: Icons.description_outlined,
+          color: const Color(0xFF0F766E),
+          meta: _historyMeta([
+            _historyReadText(resume['mimeType']),
+            _historyReadText(resume['size']),
+          ]),
+        ),
+      );
+    }
+  });
+
+  events.sort((left, right) {
+    final leftDate = left.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+    final rightDate = right.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+    return rightDate.compareTo(leftDate);
+  });
+  return events;
+}
+
+List<Map<String, dynamic>> _historyRows(dynamic value) {
+  if (value is List) {
+    return value
+        .whereType<Map>()
+        .map((item) => Map<String, dynamic>.from(item))
+        .toList();
+  }
+  if (value is Map) {
+    return [Map<String, dynamic>.from(value)];
+  }
+  return const [];
+}
+
+Map<String, dynamic>? _historyMap(dynamic value) {
+  if (value is Map<String, dynamic>) return value;
+  if (value is Map) return Map<String, dynamic>.from(value);
+  return null;
+}
+
+String _historyReadText(dynamic value, {String fallback = ''}) {
+  if (value == null) return fallback;
+  final text = value.toString().trim();
+  return text.isEmpty ? fallback : text;
+}
+
+String _historyFirstText(List<dynamic> values, {String fallback = ''}) {
+  for (final value in values) {
+    final text = _historyReadText(value);
+    if (text.isNotEmpty) return text;
+  }
+  return fallback;
+}
+
+List<String> _historyMeta(List<String> values) {
+  return values
+      .map((value) => value.trim())
+      .where((value) => value.isNotEmpty && value != '-')
+      .toList(growable: false);
+}
+
+DateTime? _historyDate(dynamic value) {
+  final text = _historyReadText(value);
+  if (text.isEmpty) return null;
+  if (RegExp(r'^\d+$').hasMatch(text)) {
+    final seconds = int.tryParse(text);
+    if (seconds != null) {
+      return DateTime.fromMillisecondsSinceEpoch(seconds * 1000).toLocal();
+    }
+  }
+  return DateTime.tryParse(text)?.toLocal();
+}
+
+String _historyTitleCase(String value) {
+  final text = value.trim().replaceAll('_', ' ').toLowerCase();
+  if (text.isEmpty) return 'Activity';
+  return text
+      .split(RegExp(r'\s+'))
+      .map((word) => '${word[0].toUpperCase()}${word.substring(1)}')
+      .join(' ');
+}
+
+String _formatHistoryDate(DateTime? date) {
+  if (date == null) return '-';
+  final day = date.day.toString().padLeft(2, '0');
+  final month = date.month.toString().padLeft(2, '0');
+  final hour = date.hour.toString().padLeft(2, '0');
+  final minute = date.minute.toString().padLeft(2, '0');
+  return '$day/$month/${date.year} $hour:$minute';
 }
 
 class _MessageCard extends StatelessWidget {

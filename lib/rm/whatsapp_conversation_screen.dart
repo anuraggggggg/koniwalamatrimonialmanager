@@ -454,6 +454,98 @@ class _WhatsappConversationScreenState extends State<WhatsappConversationScreen>
     );
   }
 
+  Future<void> _refreshConversation() async {
+    final conversation = _conversation;
+    final accessToken = context.read<AuthProvider>().userModel?.accessToken;
+    if (conversation == null || accessToken == null || accessToken.isEmpty) {
+      _showSnack('Login required to refresh this conversation.');
+      return;
+    }
+
+    await context.read<WhatsappProvider>().fetchMessages(
+      accessToken: accessToken,
+      leadId: conversation.leadId,
+      forceRefresh: true,
+    );
+    if (!mounted) {
+      return;
+    }
+    _showSnack('Conversation refreshed.');
+    _scrollToBottom();
+  }
+
+  Future<void> _confirmClearConversation() async {
+    final conversation = _conversation;
+    if (conversation == null) {
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16.r),
+        ),
+        title: Text(
+          'Clear conversation?',
+          style: GoogleFonts.inter(
+            color: AppColors.rmHeading,
+            fontSize: 18.sp,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        content: Text(
+          'This will clear the WhatsApp conversation history for ${conversation.name}.',
+          style: GoogleFonts.inter(
+            color: AppColors.rmBodyText,
+            fontSize: 14.sp,
+            fontWeight: FontWeight.w600,
+            height: 1.35,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(
+              'Cancel',
+              style: GoogleFonts.inter(fontWeight: FontWeight.w700),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.rmPrimary,
+              foregroundColor: AppColors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10.r),
+              ),
+            ),
+            child: Text(
+              'Clear',
+              style: GoogleFonts.inter(fontWeight: FontWeight.w800),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) {
+      return;
+    }
+
+    final accessToken = context.read<AuthProvider>().userModel?.accessToken;
+    final message = await context.read<WhatsappProvider>().clearConversation(
+      accessToken: accessToken,
+      conversation: conversation,
+    );
+    if (!mounted) {
+      return;
+    }
+    _showSnack(message ?? 'Conversation cleared.');
+  }
+
   void _showSnack(String message) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
@@ -490,7 +582,12 @@ class _WhatsappConversationScreenState extends State<WhatsappConversationScreen>
       body: SafeArea(
         child: Column(
           children: [
-            _ChatHeader(conversation: conversation, lead: leadDetail),
+            _ChatHeader(
+              conversation: conversation,
+              lead: leadDetail,
+              onRefresh: _refreshConversation,
+              onClear: _confirmClearConversation,
+            ),
             Expanded(
               child: RefreshIndicator(
                 color: AppColors.rmPrimary,
@@ -535,10 +632,17 @@ class _WhatsappConversationScreenState extends State<WhatsappConversationScreen>
 }
 
 class _ChatHeader extends StatelessWidget {
-  const _ChatHeader({required this.conversation, this.lead});
+  const _ChatHeader({
+    required this.conversation,
+    required this.onRefresh,
+    required this.onClear,
+    this.lead,
+  });
 
   final WhatsappConversation conversation;
   final RmLeadItem? lead;
+  final VoidCallback onRefresh;
+  final VoidCallback onClear;
 
   void _openLeadDetails(BuildContext context) {
     if (conversation.leadId.isEmpty) {
@@ -629,6 +733,53 @@ class _ChatHeader extends StatelessWidget {
                 ),
               ),
             ),
+          ),
+          IconButton(
+            tooltip: 'Refresh',
+            onPressed: onRefresh,
+            icon: Icon(
+              Icons.refresh_rounded,
+              color: AppColors.rmHeading,
+              size: 21.sp,
+            ),
+          ),
+          PopupMenuButton<String>(
+            tooltip: 'Conversation actions',
+            color: AppColors.white,
+            surfaceTintColor: AppColors.white,
+            icon: Icon(
+              Icons.more_vert_rounded,
+              color: AppColors.rmHeading,
+              size: 21.sp,
+            ),
+            onSelected: (value) {
+              if (value == 'clear') {
+                onClear();
+              }
+            },
+            itemBuilder: (context) => [
+              PopupMenuItem<String>(
+                value: 'clear',
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.cleaning_services_outlined,
+                      color: AppColors.rmPrimary,
+                      size: 18.sp,
+                    ),
+                    SizedBox(width: 10.w),
+                    Text(
+                      'Clear conversation',
+                      style: GoogleFonts.inter(
+                        color: AppColors.rmHeading,
+                        fontSize: 13.sp,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ],
       ),

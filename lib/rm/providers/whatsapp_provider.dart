@@ -665,6 +665,38 @@ class WhatsappProvider extends ChangeNotifier {
     return appendMessages(leadId, result.items);
   }
 
+  Future<String?> clearConversation({
+    required String? accessToken,
+    required WhatsappConversation conversation,
+  }) async {
+    if (accessToken == null || accessToken.trim().isEmpty) {
+      return 'Login required to clear this conversation.';
+    }
+    if (conversation.leadId.isEmpty) {
+      return 'Lead id is missing for this conversation.';
+    }
+
+    try {
+      await _service.clearConversation(
+        accessToken: accessToken,
+        leadId: conversation.leadId,
+      );
+      _setMessages(conversation.leadId, const []);
+      _messageCursorByLead.remove(conversation.leadId);
+      _hasMoreMessagesByLead[conversation.leadId] = false;
+      await fetchConversations(
+        accessToken: accessToken,
+        search: _lastSearch,
+        includeArchived: _lastIncludeArchived,
+        forceRefresh: true,
+      );
+      notifyListeners();
+      return null;
+    } catch (error) {
+      return _cleanError(error, 'Unable to clear this conversation.');
+    }
+  }
+
   int appendMessages(String leadId, List<WhatsappMessage> incoming) {
     if (incoming.isEmpty) {
       return 0;

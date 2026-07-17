@@ -93,8 +93,12 @@ class TasksProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      final uri = _apiUri(ApiConstants.task(id));
+      if (kDebugMode) {
+        debugPrint('Mark task done API: PATCH $uri');
+      }
       final response = await http.patch(
-        Uri.parse('${ApiConstants.baseUrl}${ApiConstants.task(id)}'),
+        uri,
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
@@ -121,6 +125,12 @@ class TasksProvider extends ChangeNotifier {
       _completingTaskIds.remove(id);
       notifyListeners();
     }
+  }
+
+  static Uri _apiUri(String path) {
+    final base = ApiConstants.baseUrl.replaceFirst(RegExp(r'/+$'), '');
+    final normalizedPath = path.replaceFirst(RegExp(r'^/+'), '');
+    return Uri.parse('$base/$normalizedPath');
   }
 
   static String? _extractError(String body) {

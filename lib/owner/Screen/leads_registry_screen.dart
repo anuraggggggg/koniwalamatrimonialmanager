@@ -291,11 +291,64 @@ class _LeadsRegistryBodyState extends State<_LeadsRegistryBody> {
 
   int get _activeFilterCount {
     var count = 0;
+    if (_selectedStage != 0) count++;
     if (_selectedSource != null) count++;
     if (_selectedCity != null) count++;
     if (_selectedAssignee != null) count++;
     if (_selectedDateRange != _LeadDateRange.any) count++;
     return count;
+  }
+
+  String _leadFilterSummary(List<_StageFilter> stageFilters) {
+    if (_activeFilterCount == 0) {
+      return 'All stages, sources, cities, executives, and dates';
+    }
+
+    final filters = <String>[];
+    if (_selectedStage != 0 && _selectedStage < stageFilters.length) {
+      filters.add(stageFilters[_selectedStage].label);
+    }
+    if (_selectedSource != null) {
+      filters.add('Source: $_selectedSource');
+    }
+    if (_selectedCity != null) {
+      filters.add('City: $_selectedCity');
+    }
+    if (_selectedAssignee != null) {
+      filters.add('Assigned: $_selectedAssignee');
+    }
+    if (_selectedDateRange != _LeadDateRange.any) {
+      filters.add(_selectedDateRangeLabel());
+    }
+
+    return filters.join(' | ');
+  }
+
+  String _selectedDateRangeLabel() {
+    switch (_selectedDateRange) {
+      case _LeadDateRange.any:
+        return 'Any date';
+      case _LeadDateRange.today:
+        return 'Today';
+      case _LeadDateRange.last7Days:
+        return 'Last 7 days';
+      case _LeadDateRange.last30Days:
+        return 'Last 30 days';
+      case _LeadDateRange.custom:
+        final from = _formatLeadFilterDate(_customDateFrom) ?? 'Any';
+        final to = _formatLeadFilterDate(_customDateTo) ?? 'Any';
+        return 'Custom: $from - $to';
+    }
+  }
+
+  String? _formatLeadFilterDate(DateTime? date) {
+    if (date == null) {
+      return null;
+    }
+
+    final day = date.day.toString().padLeft(2, '0');
+    final month = date.month.toString().padLeft(2, '0');
+    return '$day/$month/${date.year}';
   }
 
   int _visibleLeadLimitFor(int totalLeadCount) {
@@ -405,9 +458,6 @@ class _LeadsRegistryBodyState extends State<_LeadsRegistryBody> {
     final authProvider = context.watch<AuthProvider>();
     final leads = leadsProvider.leads;
     final stageFilters = _stageFilters(leads);
-    final sourceOptions = _filterOptions(leads, (lead) => lead.source);
-    final cityOptions = _filterOptions(leads, (lead) => lead.city);
-    final assigneeOptions = _filterOptions(leads, (lead) => lead.assignedTo);
     final stageScopedLeads = _visibleLeads(leads, stageFilters);
     final visibleLeads = stageScopedLeads
         .where((lead) => _matchesSearch(lead, _searchQuery))
@@ -464,6 +514,13 @@ class _LeadsRegistryBodyState extends State<_LeadsRegistryBody> {
                         );
                       },
                     ),
+                    SizedBox(height: 12.h),
+                    _FilterHeader(
+                      activeFilterCount: _activeFilterCount,
+                      summaryText: _leadFilterSummary(stageFilters),
+                      onFilterPressed: () =>
+                          _showLeadFiltersSheet(leads, stageFilters),
+                    ),
                     SizedBox(height: 16.h),
                     _LeadsViewTabs(
                       selectedView: _selectedView,
@@ -472,50 +529,6 @@ class _LeadsRegistryBodyState extends State<_LeadsRegistryBody> {
                     ),
                     SizedBox(height: 22.h),
                     if (_selectedView == _LeadsView.registry) ...[
-                      _FilterHeader(
-                        activeFilterCount: _activeFilterCount,
-                        onFilterPressed: () =>
-                            _showLeadFiltersSheet(leads, stageFilters),
-                      ),
-                      SizedBox(height: 10.h),
-                      _StageFilterList(
-                        filters: stageFilters,
-                        selectedIndex: _selectedStage,
-                        onSelected: (index) {
-                          setState(() {
-                            _selectedStage = index;
-                            _registryLeadLimit = _registryPreviewCount;
-                          });
-                        },
-                      ),
-                      SizedBox(height: 18.h),
-                      _LeadsInlineFilters(
-                        sourceOptions: sourceOptions,
-                        cityOptions: cityOptions,
-                        assigneeOptions: assigneeOptions,
-                        selectedSource: _selectedSource,
-                        selectedCity: _selectedCity,
-                        selectedAssignee: _selectedAssignee,
-                        onSourceChanged: (value) {
-                          setState(() {
-                            _selectedSource = value;
-                            _registryLeadLimit = _registryPreviewCount;
-                          });
-                        },
-                        onCityChanged: (value) {
-                          setState(() {
-                            _selectedCity = value;
-                            _registryLeadLimit = _registryPreviewCount;
-                          });
-                        },
-                        onAssigneeChanged: (value) {
-                          setState(() {
-                            _selectedAssignee = value;
-                            _registryLeadLimit = _registryPreviewCount;
-                          });
-                        },
-                      ),
-                      SizedBox(height: 18.h),
                       _LeadsContent(
                         isLoading: leadsProvider.isLoading,
                         error: leadsProvider.error,
@@ -2042,236 +2055,113 @@ class _LeadQueueInfo extends StatelessWidget {
 class _FilterHeader extends StatelessWidget {
   const _FilterHeader({
     required this.activeFilterCount,
+    required this.summaryText,
     required this.onFilterPressed,
   });
 
   final int activeFilterCount;
+  final String summaryText;
   final VoidCallback onFilterPressed;
 
   @override
   Widget build(BuildContext context) {
-    final filterLabel = activeFilterCount == 0
-        ? 'Filters'
-        : 'Filters ($activeFilterCount)';
-
-    return Row(
-      children: [
-        Expanded(
-          child: Text(
-            'FILTER BY STAGE',
-            style: GoogleFonts.inter(
-              color: const Color(0xFF2F2C29),
-              fontSize: 14.sp,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ),
-        OutlinedButton.icon(
-          onPressed: onFilterPressed,
-          icon: Icon(Icons.tune_rounded, size: 18.sp),
-          label: Text(
-            filterLabel,
-            style: GoogleFonts.inter(
-              fontSize: 14.sp,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          style: OutlinedButton.styleFrom(
-            foregroundColor: AppColors.primary,
-            side: const BorderSide(color: AppColors.primary),
-            minimumSize: Size(86.w, 36.h),
-            padding: EdgeInsets.symmetric(horizontal: 16.w),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10.r),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _LeadsInlineFilters extends StatelessWidget {
-  const _LeadsInlineFilters({
-    required this.sourceOptions,
-    required this.cityOptions,
-    required this.assigneeOptions,
-    required this.selectedSource,
-    required this.selectedCity,
-    required this.selectedAssignee,
-    required this.onSourceChanged,
-    required this.onCityChanged,
-    required this.onAssigneeChanged,
-  });
-
-  final List<String> sourceOptions;
-  final List<String> cityOptions;
-  final List<String> assigneeOptions;
-  final String? selectedSource;
-  final String? selectedCity;
-  final String? selectedAssignee;
-  final ValueChanged<String?> onSourceChanged;
-  final ValueChanged<String?> onCityChanged;
-  final ValueChanged<String?> onAssigneeChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isWide = constraints.maxWidth >= 680.w;
-        final itemWidth = isWide
-            ? (constraints.maxWidth - 24.w) / 3
-            : constraints.maxWidth;
-
-        return Wrap(
-          spacing: 12.w,
-          runSpacing: 12.h,
-          children: [
-            SizedBox(
-              width: itemWidth,
-              child: _LeadInlineDropdown(
-                label: 'Source',
-                hintText: 'All Sources',
-                value: selectedSource,
-                options: sourceOptions,
-                onChanged: onSourceChanged,
+    return Material(
+      color: AppColors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14.r),
+        onTap: onFilterPressed,
+        child: Container(
+          width: double.infinity,
+          padding: EdgeInsets.fromLTRB(12.w, 11.h, 12.w, 11.h),
+          decoration: BoxDecoration(
+            color: AppColors.white,
+            borderRadius: BorderRadius.circular(14.r),
+            border: Border.all(color: const Color(0xFFEEDFD5)),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x0FB25C18),
+                blurRadius: 12,
+                offset: Offset(0, 5),
               ),
-            ),
-            SizedBox(
-              width: itemWidth,
-              child: _LeadInlineDropdown(
-                label: 'City',
-                hintText: 'Any City',
-                value: selectedCity,
-                options: cityOptions,
-                onChanged: onCityChanged,
-              ),
-            ),
-            SizedBox(
-              width: itemWidth,
-              child: _LeadInlineDropdown(
-                label: 'Executive',
-                hintText: 'All Executives',
-                value: selectedAssignee,
-                options: assigneeOptions,
-                onChanged: onAssigneeChanged,
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-}
-
-class _LeadInlineDropdown extends StatelessWidget {
-  const _LeadInlineDropdown({
-    required this.label,
-    required this.hintText,
-    required this.value,
-    required this.options,
-    required this.onChanged,
-  });
-
-  final String label;
-  final String hintText;
-  final String? value;
-  final List<String> options;
-  final ValueChanged<String?> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final currentValue = options.contains(value) ? value : null;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: GoogleFonts.inter(
-            color: const Color(0xFF1F1C19),
-            fontSize: 13.sp,
-            fontWeight: FontWeight.w800,
+            ],
           ),
-        ),
-        SizedBox(height: 7.h),
-        DropdownButtonFormField<String>(
-          initialValue: currentValue,
-          isExpanded: true,
-          dropdownColor: AppColors.white,
-          style: GoogleFonts.inter(
-            color: const Color(0xFF1F1C19),
-            fontSize: 12.sp,
-            fontWeight: FontWeight.w700,
-          ),
-          icon: Icon(
-            Icons.keyboard_arrow_down_rounded,
-            color: const Color(0xFF8B8784),
-            size: 18.sp,
-          ),
-          decoration: InputDecoration(
-            filled: true,
-            fillColor: AppColors.white,
-            isDense: true,
-            contentPadding: EdgeInsets.symmetric(
-              horizontal: 13.w,
-              vertical: 12.h,
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8.r),
-              borderSide: const BorderSide(color: Color(0xFFEEDFD5)),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8.r),
-              borderSide: const BorderSide(color: AppColors.primary),
-            ),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8.r),
-              borderSide: const BorderSide(color: Color(0xFFEEDFD5)),
-            ),
-          ),
-          hint: Text(
-            hintText,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.inter(
-              color: const Color(0xFF77716C),
-              fontSize: 12.sp,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          items: [
-            DropdownMenuItem<String>(
-              value: '',
-              child: Text(
-                hintText,
-                overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.inter(
-                  color: const Color(0xFF77716C),
-                  fontSize: 12.sp,
-                  fontWeight: FontWeight.w700,
+          child: Row(
+            children: [
+              Container(
+                width: 38.w,
+                height: 38.w,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF1E8),
+                  borderRadius: BorderRadius.circular(11.r),
+                ),
+                child: Icon(
+                  Icons.tune_rounded,
+                  color: AppColors.primary,
+                  size: 20.sp,
                 ),
               ),
-            ),
-            ...options.map(
-              (option) => DropdownMenuItem<String>(
-                value: option,
-                child: Text(
-                  option,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.inter(
-                    color: const Color(0xFF1F1C19),
-                    fontSize: 12.sp,
-                    fontWeight: FontWeight.w700,
-                  ),
+              SizedBox(width: 11.w),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          'Filters',
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFF1F1C19),
+                            fontSize: 14.sp,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        if (activeFilterCount > 0) ...[
+                          SizedBox(width: 8.w),
+                          Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 7.w,
+                              vertical: 2.h,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary,
+                              borderRadius: BorderRadius.circular(20.r),
+                            ),
+                            child: Text(
+                              '$activeFilterCount',
+                              style: GoogleFonts.inter(
+                                color: AppColors.white,
+                                fontSize: 10.sp,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    SizedBox(height: 3.h),
+                    Text(
+                      summaryText,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF6B6662),
+                        fontSize: 11.5.sp,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ),
-          ],
-          onChanged: (value) =>
-              onChanged(value == null || value.isEmpty ? null : value),
+              SizedBox(width: 8.w),
+              Icon(
+                Icons.keyboard_arrow_down_rounded,
+                color: const Color(0xFF7D706A),
+                size: 24.sp,
+              ),
+            ],
+          ),
         ),
-      ],
+      ),
     );
   }
 }
@@ -2532,7 +2422,7 @@ class _LeadFiltersBottomSheetState extends State<_LeadFiltersBottomSheet> {
                           child: Text(
                             'Clear All',
                             style: GoogleFonts.inter(
-                              fontSize: 14.sp,
+                              fontSize: 12.sp,
                               fontWeight: FontWeight.w800,
                             ),
                           ),
@@ -2864,122 +2754,6 @@ class _FilterDropdown extends StatelessWidget {
       ],
       onChanged: (value) =>
           onChanged(value == null || value.isEmpty ? null : value),
-    );
-  }
-}
-
-class _StageFilterList extends StatelessWidget {
-  const _StageFilterList({
-    required this.filters,
-    required this.selectedIndex,
-    required this.onSelected,
-  });
-
-  final List<_StageFilter> filters;
-  final int selectedIndex;
-  final ValueChanged<int> onSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: [
-          for (int index = 0; index < filters.length; index++) ...[
-            _StageChip(
-              filter: filters[index],
-              selected: index == selectedIndex,
-              onTap: () => onSelected(index),
-            ),
-            if (index != filters.length - 1) SizedBox(width: 10.w),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _StageChip extends StatelessWidget {
-  const _StageChip({
-    required this.filter,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final _StageFilter filter;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final hasDot = filter.dotColor != null;
-    final icon = filter.icon;
-
-    return Material(
-      color: AppColors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(18.r),
-        child: Container(
-          height: 30.h,
-          padding: EdgeInsets.symmetric(horizontal: 14.w),
-          decoration: BoxDecoration(
-            color: selected ? AppColors.primary : AppColors.white,
-            borderRadius: BorderRadius.circular(18.r),
-            border: Border.all(
-              color: selected ? AppColors.primary : const Color(0xFFE5CFC0),
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              if (!selected && hasDot) ...[
-                if (icon == null)
-                  Container(
-                    width: 8.w,
-                    height: 8.w,
-                    decoration: BoxDecoration(
-                      color: filter.dotColor,
-                      shape: BoxShape.circle,
-                    ),
-                  )
-                else
-                  Icon(icon, color: filter.dotColor, size: 13.sp),
-                SizedBox(width: 8.w),
-              ],
-              Text(
-                filter.label,
-                style: GoogleFonts.inter(
-                  color: selected ? AppColors.white : const Color(0xFF4C4744),
-                  fontSize: 14.sp,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              if (filter.count != null) ...[
-                SizedBox(width: 8.w),
-                Container(
-                  padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 1.h),
-                  decoration: BoxDecoration(
-                    color: selected ? AppColors.white : const Color(0xFFFFF6F1),
-                    borderRadius: BorderRadius.circular(10.r),
-                  ),
-                  child: Text(
-                    '${filter.count}',
-                    style: GoogleFonts.inter(
-                      color: selected
-                          ? AppColors.primary
-                          : const Color(0xFF6B6662),
-                      fontSize: 11.sp,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
     );
   }
 }

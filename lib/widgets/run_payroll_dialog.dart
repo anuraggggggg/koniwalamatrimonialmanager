@@ -197,13 +197,25 @@ class _RunPayrollDialogState extends State<RunPayrollDialog> {
         child: DropdownButton<String>(
           isExpanded: true,
           value: value,
+          dropdownColor: Colors.white,
+          borderRadius: BorderRadius.circular(12.r),
+          style: GoogleFonts.inter(
+            color: const Color(0xFF1D1B20),
+            fontSize: 14.sp,
+            fontWeight: FontWeight.w700,
+          ),
           onChanged: (val) => setState(
             () => val == '2026' || val == '2027'
                 ? _selectedYear = val!
                 : _selectedMonth = val!,
           ),
           items: items
-              .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+              .map(
+                (e) => DropdownMenuItem<String>(
+                  value: e,
+                  child: Text(e, maxLines: 1, overflow: TextOverflow.ellipsis),
+                ),
+              )
               .toList(),
         ),
       ),

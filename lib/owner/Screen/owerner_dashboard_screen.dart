@@ -1865,88 +1865,123 @@ class _HomeViewState extends State<HomeView> {
     required List<LeadFollowUpItem> followUps,
     required ManagerDashboardProvider managerDashboardProvider,
   }) {
+    final conversionRate = agencyPerformance?.overallConversionRate ?? 0;
+    final closedClients = agencyPerformance?.closedClients ?? 0;
+    final taskCompletionRate = agencyPerformance?.taskCompletionRate ?? 0;
+    final periodText = dashboard?.period.displayText;
+
     return _buildConnectivitySection(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 14),
         child: Container(
-          padding: const EdgeInsets.all(24),
+          padding: EdgeInsets.all(16.w),
           decoration: _ownerCardDecoration(),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Agency Growth Projection',
-                    style: GoogleFonts.inter(
-                      color: const Color(0xFF181C1F),
-                      fontSize: 20.sp,
-                      fontWeight: FontWeight.w700,
+                  Container(
+                    width: 42.w,
+                    height: 42.w,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF3EC),
+                      borderRadius: BorderRadius.circular(12.r),
                     ),
-                  ),
-                ],
-              ),
-              SizedBox(height: 8.h),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'Based on current RM performance and lead inflow',
-                  style: GoogleFonts.inter(
-                    color: const Color(0xFF424754),
-                    fontSize: 16.sp,
-                    fontWeight: FontWeight.w400,
-                  ),
-                ),
-              ),
-              SizedBox(height: 40.h),
-              Stack(
-                alignment: Alignment.center,
-                children: [
-                  SizedBox(
-                    width: 180,
-                    height: 180,
-                    child: CircularProgressIndicator(
-                      value: _safeProgress(
-                        agencyPerformance?.overallConversionRate ?? 0,
-                        100,
-                      ),
-                      strokeWidth: 18,
-                      backgroundColor: Colors.grey[200],
-                      color: _primaryColor,
-                      strokeCap: StrokeCap.round,
-                    ),
-                  ),
-                  Text(
-                    '${agencyPerformance?.overallConversionRate ?? 0}%',
-                    style: GoogleFonts.inter(
+                    child: Icon(
+                      Icons.query_stats_rounded,
                       color: AppColors.primary,
-                      fontSize: 44.sp,
-                      fontWeight: FontWeight.w800,
+                      size: 22.sp,
+                    ),
+                  ),
+                  SizedBox(width: 12.w),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Agency performance',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFF181C1F),
+                            fontSize: 18.sp,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        SizedBox(height: 4.h),
+                        Text(
+                          periodText?.isNotEmpty == true
+                              ? periodText!
+                              : 'Current owner dashboard summary',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFF626A75),
+                            fontSize: 12.sp,
+                            fontWeight: FontWeight.w500,
+                            height: 1.35,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
-              SizedBox(height: 40.h),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildGrowthStat(
-                      'Closed Clients',
-                      '${agencyPerformance?.closedClients ?? 0}',
-                    ),
-                  ),
-                  Container(width: 1, height: 50, color: Colors.grey[200]),
-                  Expanded(
-                    child: _buildGrowthStat(
-                      'Task Completion',
-                      '${agencyPerformance?.taskCompletionRate ?? 0}%',
-                    ),
-                  ),
-                ],
+              SizedBox(height: 18.h),
+              _buildAgencyMetricTile(
+                title: 'Overall conversion',
+                value: '$conversionRate%',
+                helperText: 'Closed clients compared with qualified lead flow',
+                icon: Icons.trending_up_rounded,
+                accentColor: const Color(0xFF0F9F6E),
+                progress: _safeProgress(conversionRate, 100),
+                isPrimary: true,
               ),
-              SizedBox(height: 15.h),
+              SizedBox(height: 10.h),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final useStackedLayout = constraints.maxWidth < 330;
+                  final closedClientsTile = _buildAgencyMetricTile(
+                    title: 'Closed clients',
+                    value: _formatCompactNumber(closedClients),
+                    helperText: '$closedClients total closed',
+                    icon: Icons.verified_user_outlined,
+                    accentColor: const Color(0xFF2F80ED),
+                  );
+                  final taskCompletionTile = _buildAgencyMetricTile(
+                    title: 'Task completion',
+                    value: '$taskCompletionRate%',
+                    helperText: 'Team tasks completed',
+                    icon: Icons.task_alt_rounded,
+                    accentColor: AppColors.primary,
+                    progress: _safeProgress(taskCompletionRate, 100),
+                  );
+
+                  if (useStackedLayout) {
+                    return Column(
+                      children: [
+                        closedClientsTile,
+                        SizedBox(height: 10.h),
+                        taskCompletionTile,
+                      ],
+                    );
+                  }
+
+                  return Row(
+                    children: [
+                      Expanded(child: closedClientsTile),
+                      SizedBox(width: 10.w),
+                      Expanded(child: taskCompletionTile),
+                    ],
+                  );
+                },
+              ),
+              SizedBox(height: 14.h),
               SizedBox(
                 width: double.infinity,
-                child: OutlinedButton(
+                child: OutlinedButton.icon(
                   onPressed: () {
                     if (dashboard == null) {
                       if (userRole != null && _isHrRole(userRole)) {
@@ -1963,27 +1998,123 @@ class _HomeViewState extends State<HomeView> {
 
                     _showAgencyReport(dashboard);
                   },
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.primary,
-                    side: const BorderSide(color: AppColors.primary),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                  ),
-                  child: Text(
+                  icon: Icon(Icons.assessment_outlined, size: 18.sp),
+                  label: Text(
                     'View full report',
                     style: GoogleFonts.inter(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13.sp,
                       color: AppColors.primary,
                     ),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.primary,
+                    side: const BorderSide(color: Color(0xFFE4A17C)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12.r),
+                    ),
+                    padding: EdgeInsets.symmetric(vertical: 13.h),
+                    backgroundColor: const Color(0xFFFFFBF8),
                   ),
                 ),
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildAgencyMetricTile({
+    required String title,
+    required String value,
+    required String helperText,
+    required IconData icon,
+    required Color accentColor,
+    double? progress,
+    bool isPrimary = false,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(isPrimary ? 14.w : 12.w),
+      decoration: BoxDecoration(
+        color: isPrimary ? const Color(0xFFFFFBF8) : Colors.white,
+        borderRadius: BorderRadius.circular(14.r),
+        border: Border.all(
+          color: isPrimary ? const Color(0xFFF0C6AE) : const Color(0xFFECE7E2),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 34.w,
+                height: 34.w,
+                decoration: BoxDecoration(
+                  color: accentColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10.r),
+                ),
+                child: Icon(icon, color: accentColor, size: 18.sp),
+              ),
+              SizedBox(width: 10.w),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF424754),
+                        fontSize: 12.sp,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    SizedBox(height: 3.h),
+                    Text(
+                      helperText,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF7A7F89),
+                        fontSize: 10.5.sp,
+                        fontWeight: FontWeight.w500,
+                        height: 1.25,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(width: 8.w),
+              Text(
+                value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF181C1F),
+                  fontSize: isPrimary ? 25.sp : 20.sp,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+          if (progress != null) ...[
+            SizedBox(height: 12.h),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(20.r),
+              child: LinearProgressIndicator(
+                value: progress,
+                minHeight: isPrimary ? 8.h : 6.h,
+                backgroundColor: accentColor.withValues(alpha: 0.12),
+                color: accentColor,
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -2342,32 +2473,6 @@ class _HomeViewState extends State<HomeView> {
     );
   }
 
-  Widget _buildGrowthStat(String label, String value) {
-    return Column(
-      children: [
-        Text(
-          label,
-          textAlign: TextAlign.center,
-          style: GoogleFonts.inter(
-            color: const Color(0xFF424754),
-            fontSize: 17.sp,
-            fontWeight: FontWeight.w500,
-            height: 1.14,
-          ),
-        ),
-        SizedBox(height: 8.h),
-        Text(
-          value,
-          style: GoogleFonts.inter(
-            color: AppColors.titleColor,
-            fontSize: 30.sp,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ],
-    );
-  }
-
   Widget _buildMiniProgress(String label, double value, Color color) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.end,
@@ -2461,12 +2566,13 @@ class _HomeViewState extends State<HomeView> {
       backgroundColor: Colors.transparent,
       builder: (context) {
         var visibleCount = initialVisibleCount;
-        var selectedReportPeriod = _AgencyReportPeriod.monthly;
+        var selectedReportPeriod = _AgencyReportPeriod.all;
         DateTimeRange? customDateRange;
         var selectedRms = <String>{};
         String? selectedConvertedBy;
         String? selectedProfileCreator;
         String? selectedConversionStatus;
+        var showReportFilters = false;
 
         return StatefulBuilder(
           builder: (context, setModalState) {
@@ -2537,6 +2643,13 @@ class _HomeViewState extends State<HomeView> {
             final reportConversionRate = filteredConvertedLeads.isEmpty
                 ? 0
                 : performance.overallConversionRate;
+            final activeFilterCount = _agencyReportActiveFilterCount(
+              selectedPeriod: selectedReportPeriod,
+              selectedRms: selectedRms,
+              selectedConvertedBy: selectedConvertedBy,
+              selectedProfileCreator: selectedProfileCreator,
+              selectedConversionStatus: selectedConversionStatus,
+            );
 
             return SafeArea(
               child: FractionallySizedBox(
@@ -2626,115 +2739,155 @@ class _HomeViewState extends State<HomeView> {
                                 ),
                               ),
                               SizedBox(height: 18.h),
-                              _buildAgencyReportFilters(
-                                selectedPeriod: selectedReportPeriod,
-                                customDateRange: customDateRange,
-                                rmOptions: reportRmOptions,
-                                selectedRms: selectedRms,
-                                convertedByOptions: reportConvertedByOptions,
-                                selectedConvertedBy: selectedConvertedBy,
-                                profileCreatorOptions: reportCreatorOptions,
-                                selectedProfileCreator: selectedProfileCreator,
-                                conversionStatusOptions: reportStatusOptions,
-                                selectedConversionStatus:
-                                    selectedConversionStatus,
-                                onPeriodChanged: (period) async {
-                                  if (period == _AgencyReportPeriod.custom) {
-                                    final now = DateTime.now();
-                                    final pickedRange = await showDateRangePicker(
-                                      context: context,
-                                      firstDate: DateTime(now.year - 5),
-                                      lastDate: DateTime(now.year + 1),
-                                      initialDateRange: customDateRange,
-                                      builder: (context, child) {
-                                        const pickerBackground = Color(
-                                          0xFFFFF8F4,
-                                        );
-                                        return Theme(
-                                          data: ThemeData.light().copyWith(
-                                            scaffoldBackgroundColor:
-                                                pickerBackground,
-                                            canvasColor: pickerBackground,
-                                            dialogTheme: const DialogThemeData(
-                                              backgroundColor: pickerBackground,
-                                              surfaceTintColor: AppColors.white,
-                                            ),
-                                            colorScheme:
-                                                const ColorScheme.light(
-                                                  primary: AppColors.primary,
-                                                  onPrimary: AppColors.white,
-                                                  surface: pickerBackground,
-                                                  onSurface: Color(0xFF211A1B),
-                                                ),
-                                            datePickerTheme:
-                                                const DatePickerThemeData(
-                                                  backgroundColor:
-                                                      pickerBackground,
-                                                  surfaceTintColor:
-                                                      AppColors.white,
-                                                  headerBackgroundColor:
-                                                      AppColors.primary,
-                                                  headerForegroundColor:
-                                                      AppColors.white,
-                                                  rangeSelectionBackgroundColor:
-                                                      Color(0xFFFFE6D7),
-                                                  rangePickerBackgroundColor:
-                                                      pickerBackground,
-                                                  rangePickerSurfaceTintColor:
-                                                      AppColors.white,
-                                                ),
-                                          ),
-                                          child: ColoredBox(
-                                            color: pickerBackground,
-                                            child:
-                                                child ??
-                                                const SizedBox.shrink(),
-                                          ),
-                                        );
-                                      },
-                                    );
-                                    if (pickedRange == null) {
-                                      return;
-                                    }
-                                    setModalState(() {
-                                      selectedReportPeriod = period;
-                                      customDateRange = pickedRange;
-                                      visibleCount = initialVisibleCount;
-                                    });
-                                    return;
-                                  }
-
+                              _buildAgencyReportFilterToggle(
+                                activeFilterCount: activeFilterCount,
+                                expanded: showReportFilters,
+                                summaryText: _agencyReportFilterSummaryText(
+                                  selectedPeriod: selectedReportPeriod,
+                                  customDateRange: customDateRange,
+                                  selectedRms: selectedRms,
+                                  selectedConvertedBy: selectedConvertedBy,
+                                  selectedProfileCreator:
+                                      selectedProfileCreator,
+                                  selectedConversionStatus:
+                                      selectedConversionStatus,
+                                ),
+                                onTap: () {
                                   setModalState(() {
-                                    selectedReportPeriod = period;
-                                    customDateRange = null;
-                                    visibleCount = initialVisibleCount;
-                                  });
-                                },
-                                onRmsChanged: (values) {
-                                  setModalState(() {
-                                    selectedRms = values;
-                                    visibleCount = initialVisibleCount;
-                                  });
-                                },
-                                onConvertedByChanged: (value) {
-                                  setModalState(() {
-                                    selectedConvertedBy = value;
-                                    visibleCount = initialVisibleCount;
-                                  });
-                                },
-                                onProfileCreatorChanged: (value) {
-                                  setModalState(() {
-                                    selectedProfileCreator = value;
-                                    visibleCount = initialVisibleCount;
-                                  });
-                                },
-                                onConversionStatusChanged: (value) {
-                                  setModalState(() {
-                                    selectedConversionStatus = value;
-                                    visibleCount = initialVisibleCount;
+                                    showReportFilters = !showReportFilters;
                                   });
                                 },
                               ),
+                              if (showReportFilters) ...[
+                                SizedBox(height: 10.h),
+                                _buildAgencyReportFilters(
+                                  selectedPeriod: selectedReportPeriod,
+                                  customDateRange: customDateRange,
+                                  rmOptions: reportRmOptions,
+                                  selectedRms: selectedRms,
+                                  convertedByOptions: reportConvertedByOptions,
+                                  selectedConvertedBy: selectedConvertedBy,
+                                  profileCreatorOptions: reportCreatorOptions,
+                                  selectedProfileCreator:
+                                      selectedProfileCreator,
+                                  conversionStatusOptions: reportStatusOptions,
+                                  selectedConversionStatus:
+                                      selectedConversionStatus,
+                                  onClearFilters: () {
+                                    setModalState(() {
+                                      selectedReportPeriod =
+                                          _AgencyReportPeriod.all;
+                                      customDateRange = null;
+                                      selectedRms = <String>{};
+                                      selectedConvertedBy = null;
+                                      selectedProfileCreator = null;
+                                      selectedConversionStatus = null;
+                                      visibleCount = initialVisibleCount;
+                                    });
+                                  },
+                                  onPeriodChanged: (period) async {
+                                    if (period == _AgencyReportPeriod.custom) {
+                                      final now = DateTime.now();
+                                      final pickedRange = await showDateRangePicker(
+                                        context: context,
+                                        firstDate: DateTime(now.year - 5),
+                                        lastDate: DateTime(now.year + 1),
+                                        initialDateRange: customDateRange,
+                                        builder: (context, child) {
+                                          const pickerBackground = Color(
+                                            0xFFFFF8F4,
+                                          );
+                                          return Theme(
+                                            data: ThemeData.light().copyWith(
+                                              scaffoldBackgroundColor:
+                                                  pickerBackground,
+                                              canvasColor: pickerBackground,
+                                              dialogTheme:
+                                                  const DialogThemeData(
+                                                    backgroundColor:
+                                                        pickerBackground,
+                                                    surfaceTintColor:
+                                                        AppColors.white,
+                                                  ),
+                                              colorScheme:
+                                                  const ColorScheme.light(
+                                                    primary: AppColors.primary,
+                                                    onPrimary: AppColors.white,
+                                                    surface: pickerBackground,
+                                                    onSurface: Color(
+                                                      0xFF211A1B,
+                                                    ),
+                                                  ),
+                                              datePickerTheme:
+                                                  const DatePickerThemeData(
+                                                    backgroundColor:
+                                                        pickerBackground,
+                                                    surfaceTintColor:
+                                                        AppColors.white,
+                                                    headerBackgroundColor:
+                                                        AppColors.primary,
+                                                    headerForegroundColor:
+                                                        AppColors.white,
+                                                    rangeSelectionBackgroundColor:
+                                                        Color(0xFFFFE6D7),
+                                                    rangePickerBackgroundColor:
+                                                        pickerBackground,
+                                                    rangePickerSurfaceTintColor:
+                                                        AppColors.white,
+                                                  ),
+                                            ),
+                                            child: ColoredBox(
+                                              color: pickerBackground,
+                                              child:
+                                                  child ??
+                                                  const SizedBox.shrink(),
+                                            ),
+                                          );
+                                        },
+                                      );
+                                      if (pickedRange == null) {
+                                        return;
+                                      }
+                                      setModalState(() {
+                                        selectedReportPeriod = period;
+                                        customDateRange = pickedRange;
+                                        visibleCount = initialVisibleCount;
+                                      });
+                                      return;
+                                    }
+
+                                    setModalState(() {
+                                      selectedReportPeriod = period;
+                                      customDateRange = null;
+                                      visibleCount = initialVisibleCount;
+                                    });
+                                  },
+                                  onRmsChanged: (values) {
+                                    setModalState(() {
+                                      selectedRms = values;
+                                      visibleCount = initialVisibleCount;
+                                    });
+                                  },
+                                  onConvertedByChanged: (value) {
+                                    setModalState(() {
+                                      selectedConvertedBy = value;
+                                      visibleCount = initialVisibleCount;
+                                    });
+                                  },
+                                  onProfileCreatorChanged: (value) {
+                                    setModalState(() {
+                                      selectedProfileCreator = value;
+                                      visibleCount = initialVisibleCount;
+                                    });
+                                  },
+                                  onConversionStatusChanged: (value) {
+                                    setModalState(() {
+                                      selectedConversionStatus = value;
+                                      visibleCount = initialVisibleCount;
+                                    });
+                                  },
+                                ),
+                              ],
                               SizedBox(height: 18.h),
                               Row(
                                 children: [
@@ -2967,6 +3120,8 @@ class _HomeViewState extends State<HomeView> {
     final currentDay = DateTime(today.year, today.month, today.day);
 
     switch (period) {
+      case _AgencyReportPeriod.all:
+        return true;
       case _AgencyReportPeriod.weekly:
         return !leadDay.isBefore(
               currentDay.subtract(const Duration(days: 6)),
@@ -3029,6 +3184,191 @@ class _HomeViewState extends State<HomeView> {
     return DateTime(year, month, day);
   }
 
+  int _agencyReportActiveFilterCount({
+    required _AgencyReportPeriod selectedPeriod,
+    required Set<String> selectedRms,
+    required String? selectedConvertedBy,
+    required String? selectedProfileCreator,
+    required String? selectedConversionStatus,
+  }) {
+    var count = selectedPeriod == _AgencyReportPeriod.all ? 0 : 1;
+    if (selectedRms.isNotEmpty) {
+      count++;
+    }
+    if (selectedConvertedBy != null) {
+      count++;
+    }
+    if (selectedProfileCreator != null) {
+      count++;
+    }
+    if (selectedConversionStatus != null) {
+      count++;
+    }
+    return count;
+  }
+
+  String _agencyReportFilterSummaryText({
+    required _AgencyReportPeriod selectedPeriod,
+    required DateTimeRange? customDateRange,
+    required Set<String> selectedRms,
+    required String? selectedConvertedBy,
+    required String? selectedProfileCreator,
+    required String? selectedConversionStatus,
+  }) {
+    final filters = <String>[
+      _agencyReportPeriodLabel(selectedPeriod, customDateRange),
+    ];
+
+    if (selectedRms.isNotEmpty) {
+      filters.add(
+        selectedRms.length == 1
+            ? 'RM: ${selectedRms.first}'
+            : 'RM: ${selectedRms.length} selected',
+      );
+    }
+    if (selectedConvertedBy != null) {
+      filters.add('Converted by: $selectedConvertedBy');
+    }
+    if (selectedProfileCreator != null) {
+      filters.add('Creator: $selectedProfileCreator');
+    }
+    if (selectedConversionStatus != null) {
+      filters.add('Status: $selectedConversionStatus');
+    }
+
+    return filters.join(' | ');
+  }
+
+  String _agencyReportPeriodLabel(
+    _AgencyReportPeriod period,
+    DateTimeRange? customDateRange,
+  ) {
+    switch (period) {
+      case _AgencyReportPeriod.all:
+        return 'All time';
+      case _AgencyReportPeriod.weekly:
+        return 'Weekly';
+      case _AgencyReportPeriod.monthly:
+        return 'Monthly';
+      case _AgencyReportPeriod.custom:
+        if (customDateRange == null) {
+          return 'Custom date';
+        }
+        return '${_formatAgencyReportDate(customDateRange.start)} - ${_formatAgencyReportDate(customDateRange.end)}';
+    }
+  }
+
+  String _formatAgencyReportDate(DateTime date) {
+    final day = date.day.toString().padLeft(2, '0');
+    final month = date.month.toString().padLeft(2, '0');
+    return '$day/$month/${date.year}';
+  }
+
+  Widget _buildAgencyReportFilterToggle({
+    required int activeFilterCount,
+    required bool expanded,
+    required String summaryText,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(14.r),
+      onTap: onTap,
+      child: Container(
+        width: double.infinity,
+        padding: EdgeInsets.fromLTRB(12.w, 11.h, 12.w, 11.h),
+        decoration: BoxDecoration(
+          color: AppColors.white,
+          borderRadius: BorderRadius.circular(14.r),
+          border: Border.all(color: const Color(0xFFE8DED6)),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x0FB25C18),
+              blurRadius: 12,
+              offset: Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 36.w,
+              height: 36.w,
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF1E8),
+                borderRadius: BorderRadius.circular(10.r),
+              ),
+              child: Icon(
+                Icons.tune_rounded,
+                color: AppColors.primary,
+                size: 19.sp,
+              ),
+            ),
+            SizedBox(width: 10.w),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        'Filters',
+                        style: GoogleFonts.inter(
+                          color: const Color(0xFF211A1B),
+                          fontSize: 14.sp,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      if (activeFilterCount > 0) ...[
+                        SizedBox(width: 7.w),
+                        Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 7.w,
+                            vertical: 2.h,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary,
+                            borderRadius: BorderRadius.circular(20.r),
+                          ),
+                          child: Text(
+                            '$activeFilterCount',
+                            style: GoogleFonts.inter(
+                              color: AppColors.white,
+                              fontSize: 10.sp,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  SizedBox(height: 3.h),
+                  Text(
+                    summaryText,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFF6B6662),
+                      fontSize: 11.5.sp,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(width: 8.w),
+            Icon(
+              expanded
+                  ? Icons.keyboard_arrow_up_rounded
+                  : Icons.keyboard_arrow_down_rounded,
+              color: const Color(0xFF7D706A),
+              size: 24.sp,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildAgencyReportFilters({
     required _AgencyReportPeriod selectedPeriod,
     required DateTimeRange? customDateRange,
@@ -3040,6 +3380,7 @@ class _HomeViewState extends State<HomeView> {
     required String? selectedProfileCreator,
     required List<String> conversionStatusOptions,
     required String? selectedConversionStatus,
+    required VoidCallback onClearFilters,
     required ValueChanged<_AgencyReportPeriod> onPeriodChanged,
     required ValueChanged<Set<String>> onRmsChanged,
     required ValueChanged<String?> onConvertedByChanged,
@@ -3064,10 +3405,46 @@ class _HomeViewState extends State<HomeView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Filter options',
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF211A1B),
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: onClearFilters,
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  padding: EdgeInsets.symmetric(horizontal: 8.w),
+                  minimumSize: Size(0, 34.h),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: Text(
+                  'Clear all',
+                  style: GoogleFonts.inter(
+                    fontSize: 12.sp,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 10.h),
           Wrap(
             spacing: 8.w,
             runSpacing: 8.h,
             children: [
+              _AgencyReportPeriodButton(
+                label: 'All',
+                selected: selectedPeriod == _AgencyReportPeriod.all,
+                onTap: () => onPeriodChanged(_AgencyReportPeriod.all),
+              ),
               _AgencyReportPeriodButton(
                 label: 'Weekly',
                 selected: selectedPeriod == _AgencyReportPeriod.weekly,
@@ -4942,7 +5319,7 @@ class ProfileShortlistCard {
   const ProfileShortlistCard();
 }
 
-enum _AgencyReportPeriod { weekly, monthly, custom }
+enum _AgencyReportPeriod { all, weekly, monthly, custom }
 
 class _AgencyReportPeriodButton extends StatelessWidget {
   const _AgencyReportPeriodButton({

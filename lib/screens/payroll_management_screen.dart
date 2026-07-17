@@ -1595,6 +1595,13 @@ class _PayrollFilterDropdown extends StatelessWidget {
     return DropdownButtonFormField<String>(
       initialValue: currentValue,
       isExpanded: true,
+      dropdownColor: Colors.white,
+      borderRadius: BorderRadius.circular(8.r),
+      style: GoogleFonts.inter(
+        color: const Color(0xFF1F1C19),
+        fontSize: 14.sp,
+        fontWeight: FontWeight.w600,
+      ),
       icon: Icon(
         Icons.keyboard_arrow_down_rounded,
         color: const Color(0xFF71757F),
@@ -1872,6 +1879,8 @@ class _RecalculatePayrollDialogState extends State<_RecalculatePayrollDialog> {
             child: DropdownButton<int>(
               value: value,
               isExpanded: true,
+              dropdownColor: Colors.white,
+              borderRadius: BorderRadius.circular(6.r),
               icon: Icon(
                 Icons.keyboard_arrow_down_rounded,
                 size: 20.sp,

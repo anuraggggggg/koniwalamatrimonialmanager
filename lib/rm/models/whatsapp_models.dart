@@ -554,7 +554,15 @@ class WhatsappMessage {
         senderType: senderType,
         isFromMe: isFromMe,
       ),
-      type: _readText(json['type'] ?? message['type'], fallback: 'text'),
+      type: _readText(
+        json['type'] ??
+            message['type'] ??
+            json['whatsappMessageType'] ??
+            json['whatsapp_message_type'] ??
+            message['whatsappMessageType'] ??
+            message['whatsapp_message_type'],
+        fallback: 'text',
+      ),
       content: _readText(
         json['content'] ??
             message['content'] ??
@@ -562,6 +570,10 @@ class WhatsappMessage {
             message['text'] ??
             _readMap(json['text'])['body'] ??
             _readMap(message['text'])['body'] ??
+            json['whatsappCaption'] ??
+            json['whatsapp_caption'] ??
+            message['whatsappCaption'] ??
+            message['whatsapp_caption'] ??
             document['caption'] ??
             image['caption'],
       ),
@@ -580,8 +592,12 @@ class WhatsappMessage {
             mediaSource['media_id'] ??
             json['mediaId'] ??
             json['media_id'] ??
+            json['whatsappMediaId'] ??
+            json['whatsapp_media_id'] ??
             message['mediaId'] ??
-            message['media_id'],
+            message['media_id'] ??
+            message['whatsappMediaId'] ??
+            message['whatsapp_media_id'],
       ),
       mediaUrl: _readText(
         mediaSource['url'] ??
@@ -591,8 +607,12 @@ class WhatsappMessage {
             mediaSource['file_url'] ??
             json['mediaUrl'] ??
             json['media_url'] ??
+            json['whatsappMediaUrl'] ??
+            json['whatsapp_media_url'] ??
             message['mediaUrl'] ??
-            message['media_url'],
+            message['media_url'] ??
+            message['whatsappMediaUrl'] ??
+            message['whatsapp_media_url'],
       ),
       mediaFileName: _readText(
         mediaSource['filename'] ??
@@ -601,8 +621,12 @@ class WhatsappMessage {
             mediaSource['name'] ??
             json['mediaFileName'] ??
             json['media_file_name'] ??
+            json['whatsappFilename'] ??
+            json['whatsapp_filename'] ??
             message['mediaFileName'] ??
-            message['media_file_name'],
+            message['media_file_name'] ??
+            message['whatsappFilename'] ??
+            message['whatsapp_filename'],
       ),
       mediaMimeType: _readText(
         mediaSource['mime_type'] ??
@@ -611,8 +635,12 @@ class WhatsappMessage {
             mediaSource['content_type'] ??
             json['mediaMimeType'] ??
             json['media_mime_type'] ??
+            json['whatsappMimeType'] ??
+            json['whatsapp_mime_type'] ??
             message['mediaMimeType'] ??
-            message['media_mime_type'],
+            message['media_mime_type'] ??
+            message['whatsappMimeType'] ??
+            message['whatsapp_mime_type'],
       ),
       mediaSize: _readInt(
         mediaSource['size'] ??

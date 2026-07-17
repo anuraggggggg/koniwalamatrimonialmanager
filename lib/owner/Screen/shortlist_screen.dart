@@ -32,7 +32,7 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
   final Set<String> _addingShortlistProfileIds = <String>{};
   final Set<String> _sendingShortlistCandidateIds = <String>{};
   String _shortlistSearchQuery = '';
-  bool _sortNewestFirst = true;
+  final bool _sortNewestFirst = true;
   bool _shortlistGridView = false;
 
   String get _currentProfileId {
@@ -462,6 +462,7 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
   Widget _buildGroomProfilesSheetList(
     RegistryProfilesProvider profilesProvider,
     String searchQuery,
+    _AddProfileFilterSelection filters,
   ) {
     if (profilesProvider.isLoading) {
       return Center(
@@ -493,27 +494,18 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
       );
     }
 
-    final normalizedQuery = searchQuery.trim().toLowerCase();
-    final candidateProfiles = profilesProvider.profiles
-        .where(
-          (profile) =>
-              profile.type == _candidateProfileLabel &&
-              profile.originalId != _currentProfileId &&
-              (normalizedQuery.isEmpty ||
-                  profile.name.toLowerCase().contains(normalizedQuery) ||
-                  profile.id.toLowerCase().contains(normalizedQuery) ||
-                  profile.city.toLowerCase().contains(normalizedQuery) ||
-                  profile.work.toLowerCase().contains(normalizedQuery) ||
-                  profile.profession.toLowerCase().contains(normalizedQuery)),
-        )
-        .toList();
+    final candidateProfiles = _filteredCandidateProfiles(
+      profilesProvider.profiles,
+      searchQuery,
+      filters,
+    );
 
     if (candidateProfiles.isEmpty) {
       return Center(
         child: _ShortlistMessage(
-          message: normalizedQuery.isEmpty
+          message: searchQuery.trim().isEmpty && !filters.hasActiveFilters
               ? 'No ${_candidateProfileLabel.toLowerCase()} profiles found.'
-              : 'No ${_candidateProfileLabel.toLowerCase()} profiles match your search.',
+              : 'No ${_candidateProfileLabel.toLowerCase()} profiles match your filters.',
         ),
       );
     }
@@ -528,6 +520,159 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
     );
   }
 
+  List<RegistryProfileItem> _candidateBaseProfiles(
+    List<RegistryProfileItem> profiles,
+  ) {
+    return profiles
+        .where(
+          (profile) =>
+              profile.type == _candidateProfileLabel &&
+              profile.originalId != _currentProfileId,
+        )
+        .toList();
+  }
+
+  List<RegistryProfileItem> _filteredCandidateProfiles(
+    List<RegistryProfileItem> profiles,
+    String searchQuery,
+    _AddProfileFilterSelection filters,
+  ) {
+    final normalizedQuery = searchQuery.trim().toLowerCase();
+    final candidateProfiles = _candidateBaseProfiles(profiles).where((profile) {
+      if (normalizedQuery.isNotEmpty) {
+        final searchIndex = [
+          profile.name,
+          profile.id,
+          profile.city,
+          profile.work,
+          profile.profession,
+          profile.community,
+          profile.religion,
+          profile.manglikLabel,
+        ].join(' ').toLowerCase();
+
+        if (!searchIndex.contains(normalizedQuery)) {
+          return false;
+        }
+      }
+
+      if (!_matchesAddProfileAge(profile, filters.ageFilter)) {
+        return false;
+      }
+
+      if (filters.city != null && _filterText(profile.city) != filters.city) {
+        return false;
+      }
+
+      if (filters.occupation != null &&
+          _filterText(profile.work) != filters.occupation) {
+        return false;
+      }
+
+      if (filters.community != null &&
+          _filterText(profile.community) != filters.community) {
+        return false;
+      }
+
+      if (filters.manglik != null &&
+          _filterText(profile.manglikLabel) != filters.manglik) {
+        return false;
+      }
+
+      switch (filters.tierFilter) {
+        case _AddProfileTierFilter.all:
+          return true;
+        case _AddProfileTierFilter.premium:
+          return profile.isPremium;
+        case _AddProfileTierFilter.standard:
+          return !profile.isPremium;
+      }
+    }).toList();
+
+    candidateProfiles.sort(
+      (first, second) =>
+          first.name.toLowerCase().compareTo(second.name.toLowerCase()),
+    );
+    return candidateProfiles;
+  }
+
+  bool _matchesAddProfileAge(
+    RegistryProfileItem profile,
+    _AddProfileAgeFilter filter,
+  ) {
+    final age = int.tryParse(profile.age);
+    switch (filter) {
+      case _AddProfileAgeFilter.all:
+        return true;
+      case _AddProfileAgeFilter.below25:
+        return age != null && age < 25;
+      case _AddProfileAgeFilter.twentyFiveToThirty:
+        return age != null && age >= 25 && age <= 30;
+      case _AddProfileAgeFilter.thirtyOneToThirtyFive:
+        return age != null && age >= 31 && age <= 35;
+      case _AddProfileAgeFilter.above35:
+        return age != null && age > 35;
+    }
+  }
+
+  List<String> _profileFilterOptions(
+    List<RegistryProfileItem> profiles,
+    String Function(RegistryProfileItem profile) valueForProfile,
+  ) {
+    final values = profiles
+        .map(valueForProfile)
+        .map(_filterText)
+        .where((value) => value != null)
+        .cast<String>()
+        .toSet()
+        .toList();
+    values.sort(
+      (first, second) => first.toLowerCase().compareTo(second.toLowerCase()),
+    );
+    return values;
+  }
+
+  String? _filterText(String value) {
+    final text = value.trim();
+    if (text.isEmpty || text == '-') {
+      return null;
+    }
+    return text;
+  }
+
+  Future<_AddProfileFilterSelection?> _showAddProfileFiltersSheet(
+    BuildContext context, {
+    required List<RegistryProfileItem> profiles,
+    required _AddProfileFilterSelection initialSelection,
+  }) {
+    return showModalBottomSheet<_AddProfileFilterSelection>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.transparent,
+      builder: (sheetContext) {
+        return _AddProfileFiltersSheet(
+          cityOptions: _profileFilterOptions(
+            profiles,
+            (profile) => profile.city,
+          ),
+          occupationOptions: _profileFilterOptions(
+            profiles,
+            (profile) => profile.work,
+          ),
+          communityOptions: _profileFilterOptions(
+            profiles,
+            (profile) => profile.community,
+          ),
+          manglikOptions: _profileFilterOptions(
+            profiles,
+            (profile) => profile.manglikLabel,
+          ),
+          initialSelection: initialSelection,
+        );
+      },
+    );
+  }
+
   void _showAddProfilesSheet(String displayName) {
     showModalBottomSheet(
       context: context,
@@ -535,6 +680,7 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
       backgroundColor: AppColors.transparent,
       builder: (sheetContext) {
         var searchQuery = '';
+        var filters = const _AddProfileFilterSelection();
 
         return StatefulBuilder(
           builder: (modalContext, setModalState) {
@@ -655,6 +801,51 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
                             ),
                           ),
                         ),
+                        Consumer<RegistryProfilesProvider>(
+                          builder: (context, profilesProvider, _) {
+                            final baseProfiles = _candidateBaseProfiles(
+                              profilesProvider.profiles,
+                            );
+                            final filteredCount = _filteredCandidateProfiles(
+                              profilesProvider.profiles,
+                              searchQuery,
+                              filters,
+                            ).length;
+
+                            return Padding(
+                              padding: EdgeInsets.fromLTRB(
+                                18.w,
+                                2.h,
+                                18.w,
+                                12.h,
+                              ),
+                              child: _AddProfileFilterBar(
+                                activeCount: filters.activeCount,
+                                resultCount: filteredCount,
+                                onFilterPressed: () async {
+                                  final result =
+                                      await _showAddProfileFiltersSheet(
+                                        modalContext,
+                                        profiles: baseProfiles,
+                                        initialSelection: filters,
+                                      );
+
+                                  if (result == null) {
+                                    return;
+                                  }
+
+                                  setModalState(() => filters = result);
+                                },
+                                onClearPressed: filters.hasActiveFilters
+                                    ? () => setModalState(
+                                        () => filters =
+                                            const _AddProfileFilterSelection(),
+                                      )
+                                    : null,
+                              ),
+                            );
+                          },
+                        ),
                         Expanded(
                           child: Padding(
                             padding: EdgeInsets.fromLTRB(18.w, 0, 18.w, 14.h),
@@ -663,6 +854,7 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
                                 return _buildGroomProfilesSheetList(
                                   profilesProvider,
                                   searchQuery,
+                                  filters,
                                 );
                               },
                             ),
@@ -2298,6 +2490,521 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
     }
 
     return DateFormat('d MMM yyyy, hh:mm a').format(value).toLowerCase();
+  }
+}
+
+enum _AddProfileAgeFilter {
+  all('All ages'),
+  below25('Below 25'),
+  twentyFiveToThirty('25 - 30'),
+  thirtyOneToThirtyFive('31 - 35'),
+  above35('36+');
+
+  const _AddProfileAgeFilter(this.label);
+
+  final String label;
+}
+
+enum _AddProfileTierFilter {
+  all('All profiles'),
+  premium('Premium'),
+  standard('Standard');
+
+  const _AddProfileTierFilter(this.label);
+
+  final String label;
+}
+
+class _AddProfileFilterSelection {
+  const _AddProfileFilterSelection({
+    this.ageFilter = _AddProfileAgeFilter.all,
+    this.city,
+    this.occupation,
+    this.community,
+    this.manglik,
+    this.tierFilter = _AddProfileTierFilter.all,
+  });
+
+  final _AddProfileAgeFilter ageFilter;
+  final String? city;
+  final String? occupation;
+  final String? community;
+  final String? manglik;
+  final _AddProfileTierFilter tierFilter;
+
+  bool get hasActiveFilters => activeCount > 0;
+
+  int get activeCount {
+    var count = 0;
+    if (ageFilter != _AddProfileAgeFilter.all) count++;
+    if (city != null) count++;
+    if (occupation != null) count++;
+    if (community != null) count++;
+    if (manglik != null) count++;
+    if (tierFilter != _AddProfileTierFilter.all) count++;
+    return count;
+  }
+}
+
+class _AddProfileFilterBar extends StatelessWidget {
+  const _AddProfileFilterBar({
+    required this.activeCount,
+    required this.resultCount,
+    required this.onFilterPressed,
+    required this.onClearPressed,
+  });
+
+  final int activeCount;
+  final int resultCount;
+  final VoidCallback onFilterPressed;
+  final VoidCallback? onClearPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        OutlinedButton.icon(
+          onPressed: onFilterPressed,
+          icon: Icon(Icons.tune_rounded, size: 16.sp),
+          label: Text(activeCount == 0 ? 'Filters' : 'Filters ($activeCount)'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: AppColors.rmPrimary,
+            side: const BorderSide(color: AppColors.rmPaleRoseBorder),
+            backgroundColor: AppColors.white,
+            minimumSize: Size(0, 36.h),
+            padding: EdgeInsets.symmetric(horizontal: 12.w),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(999.r),
+            ),
+            textStyle: GoogleFonts.inter(
+              fontSize: 12.sp,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+        if (onClearPressed != null) ...[
+          SizedBox(width: 8.w),
+          TextButton(
+            onPressed: onClearPressed,
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.rmMutedText,
+              minimumSize: Size(0, 34.h),
+              padding: EdgeInsets.symmetric(horizontal: 8.w),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: Text(
+              'Clear',
+              style: GoogleFonts.inter(
+                fontSize: 12.sp,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ],
+        const Spacer(),
+        Flexible(
+          child: Text(
+            '$resultCount matches',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.right,
+            style: GoogleFonts.inter(
+              color: AppColors.rmMutedText,
+              fontSize: 12.sp,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _AddProfileFiltersSheet extends StatefulWidget {
+  const _AddProfileFiltersSheet({
+    required this.cityOptions,
+    required this.occupationOptions,
+    required this.communityOptions,
+    required this.manglikOptions,
+    required this.initialSelection,
+  });
+
+  final List<String> cityOptions;
+  final List<String> occupationOptions;
+  final List<String> communityOptions;
+  final List<String> manglikOptions;
+  final _AddProfileFilterSelection initialSelection;
+
+  @override
+  State<_AddProfileFiltersSheet> createState() =>
+      _AddProfileFiltersSheetState();
+}
+
+class _AddProfileFiltersSheetState extends State<_AddProfileFiltersSheet> {
+  late _AddProfileAgeFilter _ageFilter;
+  String? _city;
+  String? _occupation;
+  String? _community;
+  String? _manglik;
+  late _AddProfileTierFilter _tierFilter;
+
+  @override
+  void initState() {
+    super.initState();
+    final selection = widget.initialSelection;
+    _ageFilter = selection.ageFilter;
+    _city = selection.city;
+    _occupation = selection.occupation;
+    _community = selection.community;
+    _manglik = selection.manglik;
+    _tierFilter = selection.tierFilter;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      top: false,
+      child: Container(
+        constraints: BoxConstraints(maxHeight: 0.82.sh),
+        decoration: BoxDecoration(
+          color: AppColors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(26.r)),
+        ),
+        child: Column(
+          children: [
+            Padding(
+              padding: EdgeInsets.only(top: 10.h),
+              child: Container(
+                width: 46.w,
+                height: 5.h,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE7DAD0),
+                  borderRadius: BorderRadius.circular(999.r),
+                ),
+              ),
+            ),
+            Padding(
+              padding: EdgeInsets.fromLTRB(18.w, 16.h, 12.w, 10.h),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Filter Profiles',
+                      style: GoogleFonts.inter(
+                        color: AppColors.rmHeading,
+                        fontSize: 20.sp,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: Icon(
+                      Icons.close_rounded,
+                      color: AppColors.rmMutedText,
+                      size: 20.sp,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: EdgeInsets.fromLTRB(18.w, 2.h, 18.w, 18.h),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const _AddProfileFilterSectionTitle(
+                      icon: Icons.cake_outlined,
+                      label: 'Age',
+                    ),
+                    Wrap(
+                      spacing: 8.w,
+                      runSpacing: 8.h,
+                      children: _AddProfileAgeFilter.values.map((filter) {
+                        return _AddProfileFilterChip(
+                          label: filter.label,
+                          selected: _ageFilter == filter,
+                          onTap: () => setState(() => _ageFilter = filter),
+                        );
+                      }).toList(),
+                    ),
+                    SizedBox(height: 18.h),
+                    const _AddProfileFilterSectionTitle(
+                      icon: Icons.workspace_premium_outlined,
+                      label: 'Profile Tier',
+                    ),
+                    Wrap(
+                      spacing: 8.w,
+                      runSpacing: 8.h,
+                      children: _AddProfileTierFilter.values.map((filter) {
+                        return _AddProfileFilterChip(
+                          label: filter.label,
+                          selected: _tierFilter == filter,
+                          onTap: () => setState(() => _tierFilter = filter),
+                        );
+                      }).toList(),
+                    ),
+                    SizedBox(height: 18.h),
+                    const _AddProfileFilterSectionTitle(
+                      icon: Icons.location_on_outlined,
+                      label: 'City',
+                    ),
+                    _AddProfileFilterDropdown(
+                      value: _city,
+                      hintText: 'All cities',
+                      options: widget.cityOptions,
+                      onChanged: (value) => setState(() => _city = value),
+                    ),
+                    SizedBox(height: 14.h),
+                    const _AddProfileFilterSectionTitle(
+                      icon: Icons.work_outline_rounded,
+                      label: 'Occupation',
+                    ),
+                    _AddProfileFilterDropdown(
+                      value: _occupation,
+                      hintText: 'All occupations',
+                      options: widget.occupationOptions,
+                      onChanged: (value) => setState(() => _occupation = value),
+                    ),
+                    SizedBox(height: 14.h),
+                    const _AddProfileFilterSectionTitle(
+                      icon: Icons.groups_2_outlined,
+                      label: 'Community',
+                    ),
+                    _AddProfileFilterDropdown(
+                      value: _community,
+                      hintText: 'All communities',
+                      options: widget.communityOptions,
+                      onChanged: (value) => setState(() => _community = value),
+                    ),
+                    SizedBox(height: 14.h),
+                    const _AddProfileFilterSectionTitle(
+                      icon: Icons.auto_awesome_outlined,
+                      label: 'Manglik',
+                    ),
+                    _AddProfileFilterDropdown(
+                      value: _manglik,
+                      hintText: 'Any manglik status',
+                      options: widget.manglikOptions,
+                      onChanged: (value) => setState(() => _manglik = value),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            Container(
+              padding: EdgeInsets.fromLTRB(18.w, 12.h, 18.w, 16.h),
+              decoration: const BoxDecoration(
+                color: Color(0xFFFFFBF8),
+                border: Border(top: BorderSide(color: Color(0xFFEFE2D9))),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: _clearFilters,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.rmPrimary,
+                        side: const BorderSide(
+                          color: AppColors.rmPaleRoseBorder,
+                        ),
+                        minimumSize: Size(double.infinity, 44.h),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14.r),
+                        ),
+                      ),
+                      child: Text(
+                        'Clear',
+                        style: GoogleFonts.inter(fontWeight: FontWeight.w800),
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: 12.w),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: _applyFilters,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.rmPrimary,
+                        foregroundColor: AppColors.white,
+                        elevation: 0,
+                        minimumSize: Size(double.infinity, 44.h),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14.r),
+                        ),
+                      ),
+                      child: Text(
+                        'Apply',
+                        style: GoogleFonts.inter(fontWeight: FontWeight.w900),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _clearFilters() {
+    Navigator.of(context).pop(const _AddProfileFilterSelection());
+  }
+
+  void _applyFilters() {
+    Navigator.of(context).pop(
+      _AddProfileFilterSelection(
+        ageFilter: _ageFilter,
+        city: _city,
+        occupation: _occupation,
+        community: _community,
+        manglik: _manglik,
+        tierFilter: _tierFilter,
+      ),
+    );
+  }
+}
+
+class _AddProfileFilterSectionTitle extends StatelessWidget {
+  const _AddProfileFilterSectionTitle({
+    required this.icon,
+    required this.label,
+  });
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: 9.h),
+      child: Row(
+        children: [
+          Icon(icon, color: AppColors.rmPrimary, size: 17.sp),
+          SizedBox(width: 7.w),
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              color: AppColors.rmHeading,
+              fontSize: 12.sp,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AddProfileFilterChip extends StatelessWidget {
+  const _AddProfileFilterChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(999.r),
+      onTap: onTap,
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 13.w, vertical: 8.h),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.rmPrimary : AppColors.white,
+          borderRadius: BorderRadius.circular(999.r),
+          border: Border.all(
+            color: selected ? AppColors.rmPrimary : AppColors.rmPaleRoseBorder,
+          ),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.inter(
+            color: selected ? AppColors.white : AppColors.rmBodyText,
+            fontSize: 12.sp,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AddProfileFilterDropdown extends StatelessWidget {
+  const _AddProfileFilterDropdown({
+    required this.value,
+    required this.hintText,
+    required this.options,
+    required this.onChanged,
+  });
+
+  final String? value;
+  final String hintText;
+  final List<String> options;
+  final ValueChanged<String?> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final currentValue = options.contains(value) ? value : null;
+
+    return DropdownButtonFormField<String>(
+      initialValue: currentValue,
+      isExpanded: true,
+      dropdownColor: AppColors.white,
+      borderRadius: BorderRadius.circular(14.r),
+      style: GoogleFonts.inter(
+        color: AppColors.rmHeading,
+        fontSize: 13.sp,
+        fontWeight: FontWeight.w700,
+      ),
+      icon: Icon(
+        Icons.keyboard_arrow_down_rounded,
+        color: AppColors.rmMutedText,
+        size: 22.sp,
+      ),
+      decoration: InputDecoration(
+        filled: true,
+        fillColor: const Color(0xFFFFFBF8),
+        contentPadding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14.r),
+          borderSide: const BorderSide(color: Color(0xFFE7DAD0)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14.r),
+          borderSide: const BorderSide(color: AppColors.rmPrimary),
+        ),
+      ),
+      hint: Text(
+        hintText,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: GoogleFonts.inter(
+          color: AppColors.rmMutedText,
+          fontSize: 13.sp,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+      items: [
+        DropdownMenuItem<String>(
+          value: '',
+          child: Text(hintText, maxLines: 1, overflow: TextOverflow.ellipsis),
+        ),
+        ...options.map(
+          (option) => DropdownMenuItem<String>(
+            value: option,
+            child: Text(option, maxLines: 1, overflow: TextOverflow.ellipsis),
+          ),
+        ),
+      ],
+      onChanged: (value) =>
+          onChanged(value == null || value.isEmpty ? null : value),
+    );
   }
 }
 
