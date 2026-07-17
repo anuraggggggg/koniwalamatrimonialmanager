@@ -28,9 +28,13 @@ import 'package:koniwalamatrimonial/providers/hr_attendance_calendar_provider.da
 import 'package:koniwalamatrimonial/services/holiday_service.dart';
 import 'package:koniwalamatrimonial/services/follow_up_control_service.dart';
 import 'package:koniwalamatrimonial/constants/app_colors.dart';
+import 'package:koniwalamatrimonial/routes/app_route_observer.dart';
 import 'package:koniwalamatrimonial/routes/app_router.dart';
 import 'package:koniwalamatrimonial/routes/app_routes.dart';
+import 'package:koniwalamatrimonial/rm/chat_updates/chat_updates_source.dart';
 import 'package:koniwalamatrimonial/rm/providers/rm_dashboard_summary_provider.dart';
+import 'package:koniwalamatrimonial/rm/providers/whatsapp_provider.dart';
+import 'package:koniwalamatrimonial/services/whatsapp_service.dart';
 import 'package:koniwalamatrimonial/utils/app_responsive.dart';
 import 'package:provider/provider.dart';
 
@@ -156,6 +160,17 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => MatchHistoryProvider()),
         ChangeNotifierProvider(create: (_) => TasksProvider()),
         Provider(create: (_) => FollowUpControlService()),
+        Provider(create: (_) => const WhatsappService()),
+        Provider<ChatUpdatesSourceFactory>(
+          create: (context) =>
+              () => PollingChatUpdatesSource(context.read<WhatsappService>()),
+        ),
+        ChangeNotifierProxyProvider<WhatsappService, WhatsappProvider>(
+          create: (context) =>
+              WhatsappProvider(context.read<WhatsappService>()),
+          update: (_, service, previous) =>
+              previous ?? WhatsappProvider(service),
+        ),
         ChangeNotifierProxyProvider<
           FollowUpControlService,
           FollowUpControlActionsProvider
@@ -205,6 +220,7 @@ class MyApp extends StatelessWidget {
             theme: _buildAppTheme(Brightness.light),
             darkTheme: _buildAppTheme(Brightness.dark),
             initialRoute: AppRoutes.splash,
+            navigatorObservers: [appRouteObserver],
             onGenerateRoute: AppRouter.onGenerateRoute,
           );
         },

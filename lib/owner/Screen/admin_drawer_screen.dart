@@ -280,6 +280,16 @@ class AdminDrawerScreen extends StatelessWidget {
                             },
                           ),
                           _AdminDrawerItem(
+                            label: 'WhatsApp',
+                            icon: Icons.chat_bubble_outline,
+                            selected: false,
+                            onTap: () {
+                              Navigator.of(
+                                context,
+                              ).pushNamed(AppRoutes.whatsappInbox);
+                            },
+                          ),
+                          _AdminDrawerItem(
                             label: 'Profile',
                             icon: Icons.person_outline_rounded,
                             selected: selectedIndex == 5,
@@ -676,6 +686,12 @@ class AdminDrawerContent extends StatelessWidget {
                     icon: Icons.event_available_outlined,
                     selected: false,
                     onTap: () => closeThenPush(AppRoutes.leadFollowUps),
+                  ),
+                  _AdminDrawerItem(
+                    label: 'WhatsApp',
+                    icon: Icons.chat_bubble_outline,
+                    selected: activeRoute == AppRoutes.whatsappInbox,
+                    onTap: () => closeThenPush(AppRoutes.whatsappInbox),
                   ),
                   _AdminDrawerItem(
                     label: 'Profile',

@@ -7,7 +7,9 @@ import 'package:koniwalamatrimonial/rm/relationship_manager_account_screen.dart'
 import 'package:koniwalamatrimonial/rm/relationship_manager_dashboard_screen.dart';
 import 'package:koniwalamatrimonial/rm/relationship_manager_leads_screen.dart';
 import 'package:koniwalamatrimonial/rm/whatsapp_conversation_screen.dart';
+import 'package:koniwalamatrimonial/rm/whatsapp_inbox_screen.dart';
 import 'package:koniwalamatrimonial/rm/models/rm_lead_item.dart';
+import 'package:koniwalamatrimonial/rm/models/whatsapp_models.dart';
 import 'package:koniwalamatrimonial/rm/providers/rm_leads_provider.dart';
 import 'package:koniwalamatrimonial/owner/Screen/owerner_dashboard_screen.dart';
 import 'package:koniwalamatrimonial/login_screen.dart';
@@ -167,16 +169,41 @@ class AppRouter {
             child: const RelationshipManagerLeadsScreen(),
           ),
         );
+      case AppRoutes.whatsappInbox:
+        return MaterialPageRoute(builder: (_) => const WhatsappInboxScreen());
       // LeadsRegistryScreen(
       // onMenuPressed: () =>
       // Navigator.of(context).pushNamed(AppRoutes.adminDrawer),
       // ),
       case AppRoutes.whatsappConversation:
-        final lead = settings.arguments is RmLeadItem
-            ? settings.arguments as RmLeadItem
+        final launch = settings.arguments is WhatsappConversationLaunch
+            ? settings.arguments as WhatsappConversationLaunch
+            : null;
+        final lead =
+            launch?.lead ??
+            (settings.arguments is RmLeadItem
+                ? settings.arguments as RmLeadItem
+                : null);
+        final conversation =
+            launch?.conversation ??
+            (settings.arguments is WhatsappConversation
+                ? settings.arguments as WhatsappConversation
+                : null);
+        return MaterialPageRoute(
+          builder: (_) => WhatsappConversationScreen(
+            lead: lead,
+            conversation: conversation,
+            openAttachmentOnStart: launch?.openAttachment ?? false,
+          ),
+        );
+      case AppRoutes.whatsappLeadDetails:
+        final conversation = settings.arguments is WhatsappConversation
+            ? settings.arguments as WhatsappConversation
             : null;
         return MaterialPageRoute(
-          builder: (_) => WhatsappConversationScreen(lead: lead),
+          builder: (_) => conversation == null
+              ? const _UnknownRouteScreen()
+              : WhatsappLeadDetailsScreen(conversation: conversation),
         );
       case AppRoutes.hrDashboard:
         return MaterialPageRoute(

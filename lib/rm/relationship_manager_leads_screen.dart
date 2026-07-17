@@ -11,7 +11,6 @@ import 'package:koniwalamatrimonial/rm/models/rm_lead_item.dart';
 import 'package:koniwalamatrimonial/rm/providers/rm_leads_provider.dart';
 import 'package:koniwalamatrimonial/routes/app_routes.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 class RelationshipManagerLeadsScreen extends StatefulWidget {
   const RelationshipManagerLeadsScreen({super.key});
@@ -86,53 +85,10 @@ class _RelationshipManagerLeadsScreenState
     );
   }
 
-  Future<void> _openChat(RmLeadItem lead) async {
-    var cleanPhone = lead.phone.replaceAll(RegExp(r'\D'), '');
-    if (cleanPhone.length == 10) {
-      cleanPhone = '91$cleanPhone';
-    }
-
-    if (cleanPhone.isEmpty) {
-      _showActionMessage('WhatsApp number not available for this contact.');
-      return;
-    }
-
-    final message =
-        'Hello ${lead.name}, I am following up from Koniwala Matrimonial.';
-    final whatsappUri = Uri(
-      scheme: 'whatsapp',
-      host: 'send',
-      queryParameters: {'phone': cleanPhone, 'text': message},
-    );
-    final webUri = Uri.https('wa.me', '/$cleanPhone', {'text': message});
-
-    try {
-      if (await canLaunchUrl(whatsappUri)) {
-        await launchUrl(whatsappUri, mode: LaunchMode.externalApplication);
-        return;
-      }
-
-      if (await canLaunchUrl(webUri)) {
-        await launchUrl(webUri, mode: LaunchMode.externalApplication);
-        return;
-      }
-
-      if (!mounted) {
-        return;
-      }
-      _showActionMessage('WhatsApp is not available on this device.');
-    } catch (_) {
-      if (!mounted) {
-        return;
-      }
-      _showActionMessage('Unable to open WhatsApp chat.');
-    }
-  }
-
-  void _showActionMessage(String message) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(message)));
+  void _openChat(RmLeadItem lead) {
+    Navigator.of(
+      context,
+    ).pushNamed(AppRoutes.whatsappConversation, arguments: lead);
   }
 
   void _openDashboardTab(int index) {
@@ -359,8 +315,7 @@ class _RelationshipManagerLeadsScreenState
                 for (int index = 0; index < assignedLeads.length; index++) ...[
                   _ManagerLeadCard(
                     lead: assignedLeads[index],
-                    onOpenChat: () =>
-                        unawaited(_openChat(assignedLeads[index])),
+                    onOpenChat: () => _openChat(assignedLeads[index]),
                     onViewTasks: () =>
                         _openTasksBottomSheet(assignedLeads[index]),
                   ),

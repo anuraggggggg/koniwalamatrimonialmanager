@@ -50,6 +50,8 @@ class ApiConstants {
   static const String dataEntryUsers = '/users/data-entry';
 
   static String lead(String leadId) => '/leads/${Uri.encodeComponent(leadId)}';
+  static String leadComments(String leadId) =>
+      '/leads/${Uri.encodeComponent(leadId)}/comments';
 
   // Customer Endpoints
   static const String customers = '/customers';
@@ -100,6 +102,29 @@ class ApiConstants {
       '/hr/leaves/${Uri.encodeComponent(leaveId)}/status';
 
   static const String notifications = '/notifications';
+
+  // WhatsApp Endpoints
+  static const String whatsappSend = '/whatsapp/send';
+  static const String whatsappConversations = '/whatsapp/conversations';
+  static const String whatsappMessagesRead = '/whatsapp/messages/read';
+  static const String whatsappTemplates = '/whatsapp/templates';
+  static const String whatsappStatus = '/whatsapp/status';
+  static const String whatsappProfilePicture = '/whatsapp/profile-picture';
+
+  static String whatsappConversationMessages(String leadId) =>
+      '$whatsappConversations/${Uri.encodeComponent(leadId)}/messages';
+
+  static String whatsappConversationRead(String leadId) =>
+      '$whatsappConversations/${Uri.encodeComponent(leadId)}/read';
+
+  static String whatsappConversation(String leadId) =>
+      '$whatsappConversations/${Uri.encodeComponent(leadId)}';
+
+  static String whatsappMessage(String messageId) =>
+      '/whatsapp/messages/${Uri.encodeComponent(messageId)}';
+
+  static String whatsappMedia(String mediaId) =>
+      '/whatsapp/media/${Uri.encodeComponent(mediaId)}';
 
   // External APIs
   static const String diceBearAvatar =

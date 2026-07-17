@@ -14,7 +14,9 @@ class AppRoutes {
   static const String relationshipManagerAccount =
       '/relationship-manager-account';
   static const String relationshipManagerLeads = '/relationship-manager-leads';
+  static const String whatsappInbox = '/whatsapp-inbox';
   static const String whatsappConversation = '/whatsapp-conversation';
+  static const String whatsappLeadDetails = '/whatsapp-lead-details';
   static const String hrDashboard = '/hr-dashboard';
   static const String registry = '/registry';
   static const String leadsRegistry = '/leads-registry';

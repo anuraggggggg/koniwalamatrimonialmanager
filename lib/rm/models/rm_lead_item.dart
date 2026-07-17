@@ -23,7 +23,11 @@ class RmLeadItem {
     required this.lastSystemActionAt,
     required this.communicationLogs,
     required this.tasks,
+    required this.comments,
+    required this.resumesReceived,
+    required this.inboundResumeAttachments,
     required this.resumeCount,
+    this.avatarUrl = '',
   });
 
   final String id;
@@ -49,50 +53,191 @@ class RmLeadItem {
   final DateTime? lastSystemActionAt;
   final List<RmCommunicationLog> communicationLogs;
   final List<RmLeadTask> tasks;
+  final List<RmLeadComment> comments;
+  final List<RmLeadAttachment> resumesReceived;
+  final List<RmLeadAttachment> inboundResumeAttachments;
   final int resumeCount;
+  final String avatarUrl;
 
   factory RmLeadItem.fromJson(Map<String, dynamic> json) {
-    final assignedTo = json['assignedTo'];
-    final count = json['_count'];
+    final source = _extractLeadPayload(json);
+    final assignedTo = _readMap(
+      source['assignedTo'] ?? source['assigned_to'] ?? source['owner'],
+    );
+    final count = _readMap(source['_count'] ?? source['count']);
+    final contact = _readMap(source['contact']);
+    final customer = _readMap(source['customer']);
+    final profile = _readMap(source['profile']);
 
     return RmLeadItem(
-      id: _readText(json['id']),
-      name: _readText(json['name'], fallback: 'Unnamed Lead'),
-      phone: _readText(json['phone'], fallback: '-'),
-      email: _readText(json['email'], fallback: '-'),
-      stage: _readText(json['stage'], fallback: 'NEW'),
-      source: _readText(json['source'], fallback: '-'),
-      leadFor: _readText(json['leadFor'], fallback: 'UNKNOWN'),
-      city: _readText(json['city'], fallback: 'Unknown City'),
-      community: _readText(json['community']),
-      notes: _readText(json['notes']),
-      petitionerRelation: _readText(json['petitionerRelation']),
-      assignedToId: assignedTo is Map<String, dynamic>
+      id: _readText(source['id']),
+      name: _readFirstText([
+        source['name'],
+        source['contactName'],
+        source['contact_name'],
+        contact['name'],
+        customer['name'],
+        profile['name'],
+      ], fallback: 'Unnamed Lead'),
+      phone: _readFirstText([
+        source['phone'],
+        source['mobile'],
+        source['contactPhone'],
+        source['contact_phone'],
+        contact['phone'],
+        customer['phone'],
+      ], fallback: '-'),
+      email: _readFirstText([
+        source['email'],
+        source['contactEmail'],
+        source['contact_email'],
+        contact['email'],
+        customer['email'],
+      ], fallback: '-'),
+      stage: _readText(source['stage'] ?? source['status'], fallback: 'NEW'),
+      source: _readText(source['source'], fallback: '-'),
+      leadFor: _readText(
+        source['leadFor'] ?? source['lead_for'] ?? source['project'],
+        fallback: 'UNKNOWN',
+      ),
+      city: _readFirstText([
+        source['city'],
+        source['location'],
+        source['addressCity'],
+        source['address_city'],
+        contact['city'],
+        customer['city'],
+      ], fallback: 'Unknown City'),
+      community: _readText(source['community']),
+      notes: _readFirstText([
+        source['notes'],
+        source['note'],
+        source['leadNotes'],
+        source['lead_notes'],
+        source['internalNotes'],
+        source['internal_notes'],
+        source['followUpNotes'],
+        source['follow_up_notes'],
+        source['remark'],
+        source['remarks'],
+        source['description'],
+      ]),
+      petitionerRelation: _readText(
+        source['petitionerRelation'] ?? source['petitioner_relation'],
+      ),
+      assignedToId: assignedTo.isNotEmpty
           ? _readText(assignedTo['id'])
-          : _readText(json['assignedToId']),
-      assignedToName: assignedTo is Map<String, dynamic>
+          : _readText(source['assignedToId'] ?? source['assigned_to_id']),
+      assignedToName: assignedTo.isNotEmpty
           ? _readText(assignedTo['name'], fallback: 'Unassigned')
-          : 'Unassigned',
-      assignedToRole: assignedTo is Map<String, dynamic>
+          : _readText(source['assignedToName'], fallback: 'Unassigned'),
+      assignedToRole: assignedTo.isNotEmpty
           ? _readText(assignedTo['role'])
           : '',
-      intentScore: _readInt(json['intentScore']),
-      createdAt: _readDate(json['createdAt']),
-      updatedAt: _readDate(json['updatedAt']),
-      convertedAt: _readDate(json['convertedAt']),
-      lastUserResponseAt: _readDate(json['lastUserResponseAt']),
-      lastRmActionAt: _readDate(json['lastRMActionAt']),
-      lastSystemActionAt: _readDate(json['lastSystemActionAt']),
-      communicationLogs: _readList(json['communicationLogs'])
+      intentScore: _readInt(source['intentScore'] ?? source['intent_score']),
+      createdAt: _readDate(source['createdAt'] ?? source['created_at']),
+      updatedAt: _readDate(source['updatedAt'] ?? source['updated_at']),
+      convertedAt: _readDate(source['convertedAt'] ?? source['converted_at']),
+      lastUserResponseAt: _readDate(
+        source['lastUserResponseAt'] ?? source['last_user_response_at'],
+      ),
+      lastRmActionAt: _readDate(
+        source['lastRMActionAt'] ??
+            source['lastRmActionAt'] ??
+            source['last_rm_action_at'],
+      ),
+      lastSystemActionAt: _readDate(
+        source['lastSystemActionAt'] ?? source['last_system_action_at'],
+      ),
+      communicationLogs: _readList(source['communicationLogs'])
           .whereType<Map<String, dynamic>>()
           .map(RmCommunicationLog.fromJson)
           .toList(),
       tasks: _readList(
-        json['tasks'],
+        source['tasks'],
       ).whereType<Map<String, dynamic>>().map(RmLeadTask.fromJson).toList(),
-      resumeCount: count is Map<String, dynamic>
-          ? _readInt(count['resumesReceived'])
-          : 0,
+      comments: _readList(
+        source['comments'],
+      ).whereType<Map<String, dynamic>>().map(RmLeadComment.fromJson).toList(),
+      resumesReceived: _readList(source['resumesReceived'])
+          .whereType<Map<String, dynamic>>()
+          .map(RmLeadAttachment.fromJson)
+          .toList(),
+      inboundResumeAttachments: _readList(source['inboundResumeAttachments'])
+          .whereType<Map<String, dynamic>>()
+          .map(RmLeadAttachment.fromJson)
+          .toList(),
+      resumeCount: _readInt(
+        count['resumesReceived'] ??
+            source['resumesSentCount'] ??
+            source['resumeCount'],
+      ),
+      avatarUrl: _readFirstText([
+        source['avatarUrl'],
+        source['avatar'],
+        source['photoUrl'],
+        source['photo_url'],
+        source['imageUrl'],
+        source['image_url'],
+        source['profileImage'],
+        source['profile_image'],
+        source['profilePicture'],
+        source['profilePictureUrl'],
+        source['profile_picture'],
+        source['profile_picture_url'],
+        source['profilePhoto'],
+        source['profile_photo'],
+        source['image'],
+        source['photo'],
+        contact['avatarUrl'],
+        contact['avatar'],
+        contact['photoUrl'],
+        contact['photo_url'],
+        contact['imageUrl'],
+        contact['image_url'],
+        contact['profileImage'],
+        contact['profile_image'],
+        contact['profilePicture'],
+        contact['profilePictureUrl'],
+        contact['profile_picture'],
+        contact['profile_picture_url'],
+        contact['profilePhoto'],
+        contact['profile_photo'],
+        contact['image'],
+        contact['photo'],
+        customer['avatarUrl'],
+        customer['avatar'],
+        customer['photoUrl'],
+        customer['photo_url'],
+        customer['imageUrl'],
+        customer['image_url'],
+        customer['profileImage'],
+        customer['profile_image'],
+        customer['profilePicture'],
+        customer['profilePictureUrl'],
+        customer['profile_picture'],
+        customer['profile_picture_url'],
+        customer['profilePhoto'],
+        customer['profile_photo'],
+        customer['image'],
+        customer['photo'],
+        profile['avatarUrl'],
+        profile['avatar'],
+        profile['photoUrl'],
+        profile['photo_url'],
+        profile['imageUrl'],
+        profile['image_url'],
+        profile['profileImage'],
+        profile['profile_image'],
+        profile['profilePicture'],
+        profile['profilePictureUrl'],
+        profile['profile_picture'],
+        profile['profile_picture_url'],
+        profile['profilePhoto'],
+        profile['profile_photo'],
+        profile['image'],
+        profile['photo'],
+      ]),
     );
   }
 
@@ -152,10 +297,7 @@ class RmLeadItem {
 
   DateTime? get latestActivityAt {
     final values = <DateTime>[
-      ...communicationLogs
-          .map((log) => log.createdAt)
-          .whereType<DateTime>()
-          .toList(growable: false),
+      ...communicationLogs.map((log) => log.createdAt).whereType<DateTime>(),
       ...[
         createdAt,
         updatedAt,
@@ -183,6 +325,86 @@ class RmLeadItem {
       return notes;
     }
     return 'No WhatsApp conversation synced yet.';
+  }
+}
+
+class RmLeadComment {
+  const RmLeadComment({
+    required this.id,
+    required this.content,
+    required this.createdAt,
+    required this.userName,
+    required this.userRole,
+  });
+
+  final String id;
+  final String content;
+  final DateTime? createdAt;
+  final String userName;
+  final String userRole;
+
+  factory RmLeadComment.fromJson(Map<String, dynamic> json) {
+    final user = _readMap(json['user'] ?? json['createdBy'] ?? json['author']);
+    return RmLeadComment(
+      id: _readText(json['id']),
+      content: _readText(json['content'] ?? json['comment'] ?? json['text']),
+      createdAt: _readDate(json['createdAt'] ?? json['created_at']),
+      userName: _readText(user['name'], fallback: 'Team Member'),
+      userRole: _readText(user['role'], fallback: 'Team Member'),
+    );
+  }
+}
+
+class RmLeadAttachment {
+  const RmLeadAttachment({
+    required this.id,
+    required this.name,
+    required this.url,
+    required this.createdAt,
+    required this.status,
+    required this.raw,
+  });
+
+  final String id;
+  final String name;
+  final String url;
+  final DateTime? createdAt;
+  final String status;
+  final Map<String, dynamic> raw;
+
+  factory RmLeadAttachment.fromJson(Map<String, dynamic> json) {
+    final profile = _readMap(json['profile']);
+    final file = _readMap(json['file'] ?? json['attachment'] ?? json['resume']);
+    return RmLeadAttachment(
+      id: _readText(json['id'] ?? file['id']),
+      name: _readFirstText([
+        json['name'],
+        json['fileName'],
+        json['filename'],
+        json['title'],
+        file['name'],
+        file['fileName'],
+        file['filename'],
+        profile['name'],
+      ], fallback: 'Resume'),
+      url: _readFirstText([
+        json['url'],
+        json['fileUrl'],
+        json['file_url'],
+        json['mediaUrl'],
+        file['url'],
+        file['fileUrl'],
+        file['file_url'],
+      ]),
+      createdAt: _readDate(
+        json['createdAt'] ??
+            json['created_at'] ??
+            json['sentAt'] ??
+            json['sent_at'],
+      ),
+      status: _readText(json['status'] ?? json['eventType']),
+      raw: json,
+    );
   }
 }
 
@@ -317,6 +539,52 @@ String _readText(dynamic value, {String fallback = ''}) {
 
   final text = value.toString().trim();
   return text.isEmpty ? fallback : text;
+}
+
+String _readFirstText(List<dynamic> values, {String fallback = ''}) {
+  for (final value in values) {
+    final text = _readText(value);
+    if (text.isNotEmpty) {
+      return text;
+    }
+  }
+  return fallback;
+}
+
+Map<String, dynamic> _readMap(dynamic value) {
+  if (value is Map<String, dynamic>) {
+    return value;
+  }
+  if (value is Map) {
+    return value.map((key, value) => MapEntry(key.toString(), value));
+  }
+  return const {};
+}
+
+Map<String, dynamic> _extractLeadPayload(Map<String, dynamic> json) {
+  if (_looksLikeLeadPayload(json)) {
+    return json;
+  }
+
+  for (final key in const ['lead', 'data', 'item', 'result']) {
+    final value = json[key];
+    if (value is Map) {
+      return _readMap(value);
+    }
+  }
+  final customer = json['customer'];
+  if (customer is Map) {
+    return _readMap(customer);
+  }
+  return json;
+}
+
+bool _looksLikeLeadPayload(Map<String, dynamic> json) {
+  return json.containsKey('id') ||
+      json.containsKey('name') ||
+      json.containsKey('phone') ||
+      json.containsKey('stage') ||
+      json.containsKey('leadFor');
 }
 
 int _readInt(dynamic value, {int fallback = 0}) {

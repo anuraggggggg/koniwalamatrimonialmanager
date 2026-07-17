@@ -11,7 +11,6 @@ import 'package:koniwalamatrimonial/rm/providers/rm_dashboard_summary_provider.d
 import 'package:koniwalamatrimonial/owner/Screen/registry_screen.dart';
 import 'package:koniwalamatrimonial/widgets/koniwala_primary_app_bar.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 class _RmMetrics {
   static const double cardPadding = 12;
@@ -1245,11 +1244,7 @@ class _WhatsAppConversations extends StatelessWidget {
       color: AppColors.transparent,
       child: InkWell(
         borderRadius: BorderRadius.circular(16.r),
-        onTap: () => _openWhatsAppChat(
-          context,
-          name: 'Harpreet Kaur',
-          phone: '+91 9000 0003',
-        ),
+        onTap: () => Navigator.of(context).pushNamed(AppRoutes.whatsappInbox),
         child: Container(
           width: double.infinity,
           padding: EdgeInsets.all(_RmMetrics.cardPadding.w),
@@ -1405,7 +1400,8 @@ class _WhatsAppConversations extends StatelessWidget {
               Align(
                 alignment: Alignment.centerLeft,
                 child: InkWell(
-                  onTap: () => _openRelationshipManagerLeadHub(context),
+                  onTap: () =>
+                      Navigator.of(context).pushNamed(AppRoutes.whatsappInbox),
                   borderRadius: BorderRadius.circular(8.r),
                   child: Padding(
                     padding: EdgeInsets.symmetric(
@@ -2902,41 +2898,7 @@ Future<void> _openWhatsAppChat(
   required String name,
   required String phone,
 }) async {
-  var cleanPhone = phone.replaceAll(RegExp(r'\D'), '');
-  if (cleanPhone.length == 10) {
-    cleanPhone = '91$cleanPhone';
-  }
-
-  if (cleanPhone.isEmpty) {
-    _showDashboardActionMessage(
-      context,
-      'WhatsApp number not available for this contact.',
-    );
-    return;
-  }
-
-  final message = 'Hello $name, I am following up from Koniwala Matrimonial.';
-  final uri = Uri.https('wa.me', '/$cleanPhone', {'text': message});
-
-  try {
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-      return;
-    }
-
-    if (!context.mounted) {
-      return;
-    }
-    _showDashboardActionMessage(
-      context,
-      'WhatsApp is not available on this device.',
-    );
-  } catch (error) {
-    if (!context.mounted) {
-      return;
-    }
-    _showDashboardActionMessage(context, 'Unable to open WhatsApp chat.');
-  }
+  Navigator.of(context).pushNamed(AppRoutes.whatsappInbox);
 }
 
 void _showDashboardActionMessage(BuildContext context, String message) {
