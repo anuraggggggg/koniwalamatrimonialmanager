@@ -8,6 +8,7 @@ class MatchHistoryProvider extends ChangeNotifier {
   String? _error;
   List<dynamic> _timeline = [];
   Map<String, dynamic> _summary = {};
+  String? _profileId;
   int _page = 1;
   int _limit = 20;
   int _total = 0;
@@ -17,6 +18,7 @@ class MatchHistoryProvider extends ChangeNotifier {
   String? get error => _error;
   List<dynamic> get timeline => _timeline;
   Map<String, dynamic> get summary => _summary;
+  String? get profileId => _profileId;
   int get page => _page;
   int get limit => _limit;
   int get total => _total;
@@ -31,13 +33,19 @@ class MatchHistoryProvider extends ChangeNotifier {
     final token = accessToken?.trim() ?? '';
     final id = profileId.trim();
 
+    _profileId = id;
+
     if (token.isEmpty) {
+      _timeline = [];
+      _summary = {};
       _error = 'Access token is required.';
       notifyListeners();
       return;
     }
 
     if (id.isEmpty) {
+      _timeline = [];
+      _summary = {};
       _error = 'Profile ID is required.';
       notifyListeners();
       return;
@@ -45,6 +53,8 @@ class MatchHistoryProvider extends ChangeNotifier {
 
     _isLoading = true;
     _error = null;
+    _timeline = [];
+    _summary = {};
     notifyListeners();
 
     try {

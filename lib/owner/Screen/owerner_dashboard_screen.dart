@@ -406,17 +406,18 @@ class _AdminDashboardDrawer extends StatelessWidget {
                     selected: selectedIndex == 5,
                     onTap: () => selectTab(5),
                   ),
-                  _AdminDrawerItem(
-                    label: 'Payroll Management',
-                    icon: Icons.payments_outlined,
-                    selected: false,
-                    onTap: () {
-                      Navigator.of(context).maybePop();
-                      Navigator.of(
-                        context,
-                      ).pushNamed(AppRoutes.payrollManagement);
-                    },
-                  ),
+                  // Payroll Management is hidden from the drawer for now.
+                  // _AdminDrawerItem(
+                  //   label: 'Payroll Management',
+                  //   icon: Icons.payments_outlined,
+                  //   selected: false,
+                  //   onTap: () {
+                  //     Navigator.of(context).maybePop();
+                  //     Navigator.of(
+                  //       context,
+                  //     ).pushNamed(AppRoutes.payrollManagement);
+                  //   },
+                  // ),
                   Divider(height: 28.h, color: AppColors.rmPaleRoseBorder),
                   _AdminDrawerItem(
                     label: 'AI Matchmaking',
@@ -693,6 +694,249 @@ class _HomeViewState extends State<HomeView> {
     );
   }
 
+  int _callsDoneToday(List<LeadFollowUpItem> leads) {
+    var count = 0;
+    for (final lead in leads) {
+      for (final task in lead.tasks) {
+        if (_isCallTask(task) && task.isDone && _isToday(task.createdAt)) {
+          count++;
+        }
+      }
+    }
+    return count;
+  }
+
+  bool _isCallTask(LeadFollowUpTask task) {
+    final type = _metricKey(task.type);
+    final title = task.title.toLowerCase();
+    return type == 'CALL' || title.contains('call');
+  }
+
+  bool _isToday(DateTime? value) {
+    if (value == null) {
+      return false;
+    }
+
+    final local = value.toLocal();
+    final now = DateTime.now();
+    return local.year == now.year &&
+        local.month == now.month &&
+        local.day == now.day;
+  }
+
+  int _relationshipManagerCount(List<ManagerTeamStatusItem> team) {
+    return team.where((item) {
+      final role = _metricKey(item.role);
+      return role == 'RM' ||
+          role == 'RELATIONSHIP_MANAGER' ||
+          role.contains('RELATIONSHIP_MANAGER');
+    }).length;
+  }
+
+  double _totalBaseSalary(List<HrEmployeeItem> employees) {
+    return employees.fold<double>(
+      0,
+      (total, employee) => total + _salaryAmount(employee.baseSalary),
+    );
+  }
+
+  double _salaryAmount(String value) {
+    final text = value.replaceAll(RegExp(r'[^0-9.]'), '');
+    return double.tryParse(text) ?? 0;
+  }
+
+  String _metricKey(String value) {
+    return value
+        .trim()
+        .toUpperCase()
+        .replaceAll(RegExp(r'[^A-Z0-9]+'), '_')
+        .replaceAll(RegExp(r'_+'), '_')
+        .replaceAll(RegExp(r'^_|_$'), '');
+  }
+
+  String _dashboardMetricText(
+    ManagerDashboard? dashboard,
+    List<String> aliases, {
+    required String fallback,
+    bool compactNumber = true,
+  }) {
+    final value = _dashboardMetricValue(dashboard, aliases);
+    if (value == null) {
+      return fallback;
+    }
+
+    final text = _metricValueText(value);
+    if (text.isEmpty) {
+      return fallback;
+    }
+
+    if (!compactNumber) {
+      return text;
+    }
+
+    final numeric = num.tryParse(text.replaceAll(RegExp(r'[^0-9.-]'), ''));
+    final isPlainNumber = RegExp(r'^\s*-?\d+(\.\d+)?\s*$').hasMatch(text);
+    return numeric != null && isPlainNumber
+        ? _formatCompactNumber(numeric.toInt())
+        : text;
+  }
+
+  String _dashboardCurrencyText(
+    ManagerDashboard? dashboard,
+    List<String> aliases, {
+    required String fallback,
+  }) {
+    final value = _dashboardMetricValue(dashboard, aliases);
+    if (value == null) {
+      return fallback;
+    }
+
+    final text = _metricValueText(value);
+    if (text.isEmpty) {
+      return fallback;
+    }
+
+    final numeric = num.tryParse(text.replaceAll(RegExp(r'[^0-9.]'), ''));
+    return numeric == null ? text : _formatCompactCurrency(numeric.toDouble());
+  }
+
+  dynamic _dashboardMetricValue(
+    ManagerDashboard? dashboard,
+    List<String> aliases,
+  ) {
+    final raw = dashboard?.raw;
+    if (raw == null || raw.isEmpty) {
+      return null;
+    }
+
+    final aliasKeys = aliases.map(_metricKey).toSet();
+    for (final container in _dashboardMetricContainers(raw)) {
+      final directValue = _findMetricValueInMap(container, aliasKeys);
+      if (directValue != null) {
+        return directValue;
+      }
+    }
+    return null;
+  }
+
+  List<Map<String, dynamic>> _dashboardMetricContainers(
+    Map<String, dynamic> raw,
+  ) {
+    final containers = <Map<String, dynamic>>[raw];
+    for (final key in const [
+      'topKpis',
+      'topKPIs',
+      'kpi',
+      'kpis',
+      'cards',
+      'dashboardCards',
+      'metrics',
+      'stats',
+      'summary',
+    ]) {
+      final map = _readDashboardMap(raw[key]);
+      if (map.isNotEmpty) {
+        containers.add(map);
+      }
+    }
+    return containers;
+  }
+
+  dynamic _findMetricValueInMap(Map<String, dynamic> map, Set<String> aliases) {
+    for (final entry in map.entries) {
+      if (aliases.contains(_metricKey(entry.key))) {
+        return entry.value;
+      }
+    }
+
+    for (final entry in map.entries) {
+      final value = entry.value;
+      if (value is Map || value is Map<String, dynamic>) {
+        final child = _readDashboardMap(value);
+        final childLabel = _firstMetricText(child, const [
+          'key',
+          'id',
+          'name',
+          'title',
+          'label',
+        ]);
+        if (childLabel != null && aliases.contains(_metricKey(childLabel))) {
+          return child;
+        }
+      }
+    }
+    return null;
+  }
+
+  String _metricValueText(dynamic value) {
+    if (value == null) {
+      return '';
+    }
+    if (value is num) {
+      return value.toString();
+    }
+    if (value is String) {
+      return value.trim();
+    }
+
+    final map = _readDashboardMap(value);
+    if (map.isEmpty) {
+      return value.toString().trim();
+    }
+
+    final present = _firstMetricText(map, const [
+      'present',
+      'presentCount',
+      'checkedIn',
+      'checkedInCount',
+    ]);
+    final total = _firstMetricText(map, const [
+      'total',
+      'totalCount',
+      'teamCount',
+      'employeeCount',
+    ]);
+    if (present != null && total != null) {
+      return '$present/$total';
+    }
+
+    return _firstMetricText(map, const [
+          'value',
+          'displayValue',
+          'displayText',
+          'count',
+          'total',
+          'amount',
+          'current',
+          'text',
+        ]) ??
+        '';
+  }
+
+  Map<String, dynamic> _readDashboardMap(dynamic value) {
+    if (value is Map<String, dynamic>) {
+      return value;
+    }
+    if (value is Map) {
+      return Map<String, dynamic>.from(value);
+    }
+    return const {};
+  }
+
+  String? _firstMetricText(Map<String, dynamic> map, List<String> keys) {
+    for (final key in keys) {
+      final value = map[key];
+      if (value == null) {
+        continue;
+      }
+      final text = value.toString().trim();
+      if (text.isNotEmpty) {
+        return text;
+      }
+    }
+    return null;
+  }
+
   Future<void> _callPhoneNumber(String? phone) async {
     final cleanPhone = (phone ?? '').replaceAll(RegExp(r'\D'), '');
     if (cleanPhone.isEmpty) {
@@ -918,6 +1162,83 @@ class _HomeViewState extends State<HomeView> {
         dashboard != null && dashboard.aiPanel.tasks.isNotEmpty
         ? dashboard.aiPanel.tasks.first
         : null;
+    final callsDoneToday = _callsDoneToday(followUpsProvider.leads);
+    final rmCount = _relationshipManagerCount(dashboard?.liveTeamStatus ?? []);
+    final matchedProfileCount = dashboard?.aiPanel.suggestedMatches.length ?? 0;
+    final salaryTotal = _totalBaseSalary(hrEmployees);
+    final totalLeadsText = _dashboardMetricText(dashboard, const [
+      'totalLeads',
+      'total leads',
+    ], fallback: _formatCompactNumber(kpi?.totalLeads ?? 0));
+    final newAddedProfileText = _dashboardMetricText(dashboard, const [
+      'newAddedProfile',
+      'newAddedProfiles',
+      'new profile',
+      'newProfiles',
+      'profilesAdded',
+      'profilesHandled',
+      'dataEntryProfiles',
+    ], fallback: _formatCompactNumber(totalProfilesHandled));
+    final newRegistrationText = _dashboardMetricText(dashboard, const [
+      'newRegistration',
+      'newRegistrations',
+      'registration',
+      'registrations',
+      'newLeads',
+      'new leads',
+    ], fallback: _formatCompactNumber(kpi?.matchesToday ?? 0));
+    final callsDoneTodayText = _dashboardMetricText(dashboard, const [
+      'callsDoneToday',
+      'calls today',
+      'doneCallsToday',
+      'todayCalls',
+    ], fallback: _formatCompactNumber(callsDoneToday));
+    final followUpsText = _dashboardMetricText(dashboard, const [
+      'followUps',
+      'followUpsDue',
+      'follow ups',
+      'pendingFollowUps',
+    ], fallback: _formatCompactNumber(kpi?.followUpsDue ?? 0));
+    final vipClientsText = _dashboardMetricText(dashboard, const [
+      'vipClients',
+      'vip clients',
+      'premiumClients',
+    ], fallback: _formatCompactNumber(kpi?.vipClients ?? 0));
+    final myRmText = _dashboardMetricText(dashboard, const [
+      'myRm',
+      'myRM',
+      'rm',
+      'rmCount',
+      'relationshipManagers',
+      'relationshipManagerCount',
+    ], fallback: _formatCompactNumber(rmCount));
+    final matchedProfileText = _dashboardMetricText(dashboard, const [
+      'matchedProfile',
+      'matchedProfiles',
+      'matched profile',
+      'matches',
+      'matchesToday',
+      'suggestedMatches',
+    ], fallback: _formatCompactNumber(matchedProfileCount));
+    final attendanceText = _dashboardMetricText(
+      dashboard,
+      const [
+        'attendance',
+        'todayAttendance',
+        'attendanceToday',
+        'presentToday',
+      ],
+      fallback: '$presentCount/$totalTeamCount',
+      compactNumber: false,
+    );
+    final salaryText = _dashboardCurrencyText(dashboard, const [
+      'salary',
+      'salaryTotal',
+      'totalSalary',
+      'payroll',
+      'payrollTotal',
+      'monthlySalary',
+    ], fallback: _formatCompactCurrency(salaryTotal));
 
     if (accessToken != null &&
         accessToken.isNotEmpty &&
@@ -1086,60 +1407,67 @@ class _HomeViewState extends State<HomeView> {
           // Stats Grid
           Padding(
             padding: EdgeInsets.symmetric(horizontal: 4.w),
-            child: Column(
-              children: [
-                Row(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final crossAxisCount = constraints.maxWidth >= 430 ? 3 : 2;
+                final spacing = 8.w;
+                final itemWidth =
+                    (constraints.maxWidth - (spacing * (crossAxisCount - 1))) /
+                    crossAxisCount;
+
+                return Wrap(
+                  spacing: spacing,
+                  runSpacing: 8.h,
                   children: [
-                    Expanded(
+                    SizedBox(
+                      width: itemWidth,
                       child: _buildStatCard(
-                        'NEW LEADS',
-                        _formatCompactNumber(kpi?.matchesToday ?? 0),
-                        trend: kpi == null
-                            ? null
-                            : _formatSignedPercent(kpi.newLeadsTrendPercent),
-                        trendColor: const Color(0xFF0E9F6E),
-                        trendIcon: Icons.trending_up_rounded,
-                        onTap: () => Navigator.of(
-                          context,
-                        ).pushNamed(AppRoutes.leadsRegistry, arguments: 'New'),
-                      ),
-                    ),
-                    SizedBox(width: 5.w),
-                    Expanded(
-                      child: _buildStatCard(
-                        'TOTAL LEADS',
-                        _formatCompactNumber(kpi?.totalLeads ?? 0),
-                        label: 'Active',
+                        'Total Leads',
+                        totalLeadsText,
                         trendIcon: Icons.groups_rounded,
                         onTap: () => Navigator.of(
                           context,
                         ).pushNamed(AppRoutes.leadsRegistry),
                       ),
                     ),
-                    SizedBox(width: 5.w),
-                    Expanded(
+                    SizedBox(
+                      width: itemWidth,
                       child: _buildStatCard(
-                        'CONVERSIONS',
-                        _formatCompactNumber(kpi?.conversions ?? 0),
-                        trend: kpi == null ? null : '${kpi.conversionRate}%',
-                        trendColor: const Color(0xFF0E9F6E),
-                        trendIcon: Icons.check_circle_outline_rounded,
+                        'New Added Profile',
+                        newAddedProfileText,
+                        trendIcon: Icons.person_add_alt_1_rounded,
+                        onTap: () =>
+                            context.read<DashboardProvider>().selectTab(1),
+                      ),
+                    ),
+                    SizedBox(
+                      width: itemWidth,
+                      child: _buildStatCard(
+                        'New Registration',
+                        newRegistrationText,
+                        trendIcon: Icons.app_registration_rounded,
                         onTap: () => Navigator.of(context).pushNamed(
-                          AppRoutes.leadsRegistry,
-                          arguments: 'Converted',
+                          AppRoutes.clientRegistry,
+                          arguments: ClientRegistryInitialFilter.all,
                         ),
                       ),
                     ),
-                  ],
-                ),
-                SizedBox(height: 5.h),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Expanded(
+                    SizedBox(
+                      width: itemWidth,
                       child: _buildStatCard(
-                        'FOLLOW-UPS',
-                        _formatCompactNumber(kpi?.followUpsDue ?? 0),
+                        'Calls Done Today',
+                        callsDoneTodayText,
+                        trendIcon: Icons.call_rounded,
+                        onTap: () => Navigator.of(
+                          context,
+                        ).pushNamed(AppRoutes.leadFollowUps),
+                      ),
+                    ),
+                    SizedBox(
+                      width: itemWidth,
+                      child: _buildStatCard(
+                        'Follow Ups',
+                        followUpsText,
                         label: 'Pending',
                         labelColor: const Color(0xFFC62828),
                         trendIcon: Icons.notifications_active_rounded,
@@ -1148,36 +1476,61 @@ class _HomeViewState extends State<HomeView> {
                         ).pushNamed(AppRoutes.leadFollowUps),
                       ),
                     ),
-                    SizedBox(width: 5.w),
-                    Expanded(
+                    SizedBox(
+                      width: itemWidth,
                       child: _buildStatCard(
-                        'ACTIVE CLIENTS',
-                        _formatCompactNumber(kpi?.activeProfiles ?? 0),
-                        label: 'Active',
-                        trendIcon: Icons.sync_rounded,
-                        onTap: () => Navigator.of(context).pushNamed(
-                          AppRoutes.clientRegistry,
-                          arguments: ClientRegistryInitialFilter.all,
-                        ),
-                      ),
-                    ),
-                    SizedBox(width: 5.w),
-                    Expanded(
-                      child: _buildStatCard(
-                        'VIP CLIENTS',
-                        _formatCompactNumber(kpi?.vipClients ?? 0),
+                        'VIP Clients',
+                        vipClientsText,
                         label: 'Priority',
-                        trendIcon: Icons.workspace_premium_outlined,
-                        titleIcon: Icons.workspace_premium_rounded,
+                        trendIcon: Icons.workspace_premium_rounded,
                         onTap: () => Navigator.of(context).pushNamed(
                           AppRoutes.clientRegistry,
                           arguments: ClientRegistryInitialFilter.vip,
                         ),
                       ),
                     ),
+                    SizedBox(
+                      width: itemWidth,
+                      child: _buildStatCard(
+                        'Team RM',
+                        myRmText,
+                        trendIcon: Icons.support_agent_rounded,
+                        onTap: () => Navigator.of(
+                          context,
+                        ).pushNamed(AppRoutes.employeeManagement),
+                      ),
+                    ),
+                    SizedBox(
+                      width: itemWidth,
+                      child: _buildStatCard(
+                        'Matched Profile',
+                        matchedProfileText,
+                        trendIcon: Icons.favorite_rounded,
+                        onTap: () => Navigator.of(
+                          context,
+                        ).pushNamed(AppRoutes.aiMatching),
+                      ),
+                    ),
+                    SizedBox(
+                      width: itemWidth,
+                      child: _buildStatCard(
+                        'Attendance',
+                        attendanceText,
+                        label: 'Present',
+                        trendIcon: Icons.how_to_reg_rounded,
+                      ),
+                    ),
+                    SizedBox(
+                      width: itemWidth,
+                      child: _buildStatCard(
+                        'Salary',
+                        salaryText,
+                        trendIcon: Icons.payments_rounded,
+                      ),
+                    ),
                   ],
-                ),
-              ],
+                );
+              },
             ),
           ),
 
@@ -1724,24 +2077,13 @@ class _HomeViewState extends State<HomeView> {
                     SizedBox(
                       width: double.infinity,
                       child: OutlinedButton(
-                        onPressed: () {
-                          if (dashboard == null) {
-                            if (user != null && _isHrRole(user.role)) {
-                              _showHrRoleReport(
-                                hrEmployees: hrEmployees,
-                                followUps: followUpsProvider.leads,
-                              );
-                              return;
-                            }
-
-                            _showReportUnavailableMessage(
-                              managerDashboardProvider,
-                            );
-                            return;
-                          }
-
-                          _showLostCustomersReport(dashboard);
-                        },
+                        onPressed: () => _openLostCustomersReport(
+                          dashboard: dashboard,
+                          userRole: user?.role,
+                          hrEmployees: hrEmployees,
+                          followUps: followUpsProvider.leads,
+                          managerDashboardProvider: managerDashboardProvider,
+                        ),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: Colors.white,
                           side: const BorderSide(color: Colors.white),
@@ -1982,22 +2324,13 @@ class _HomeViewState extends State<HomeView> {
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
-                  onPressed: () {
-                    if (dashboard == null) {
-                      if (userRole != null && _isHrRole(userRole)) {
-                        _showHrRoleReport(
-                          hrEmployees: hrEmployees,
-                          followUps: followUps,
-                        );
-                        return;
-                      }
-
-                      _showReportUnavailableMessage(managerDashboardProvider);
-                      return;
-                    }
-
-                    _showAgencyReport(dashboard);
-                  },
+                  onPressed: () => _openAgencyReport(
+                    dashboard: dashboard,
+                    userRole: userRole,
+                    hrEmployees: hrEmployees,
+                    followUps: followUps,
+                    managerDashboardProvider: managerDashboardProvider,
+                  ),
                   icon: Icon(Icons.assessment_outlined, size: 18.sp),
                   label: Text(
                     'View full report',
@@ -2516,6 +2849,83 @@ class _HomeViewState extends State<HomeView> {
     });
   }
 
+  Future<ManagerDashboard?> _dashboardForReport(
+    ManagerDashboard? dashboard,
+    ManagerDashboardProvider provider,
+  ) async {
+    if (dashboard != null) {
+      return dashboard;
+    }
+
+    final accessToken = context.read<AuthProvider>().userModel?.accessToken;
+    await provider.fetchDashboard(
+      accessToken,
+      period: _selectedPeriod,
+      forceRefresh: true,
+    );
+
+    if (!mounted) {
+      return null;
+    }
+    return provider.dashboard;
+  }
+
+  Future<void> _openAgencyReport({
+    required ManagerDashboard? dashboard,
+    required String? userRole,
+    required List<HrEmployeeItem> hrEmployees,
+    required List<LeadFollowUpItem> followUps,
+    required ManagerDashboardProvider managerDashboardProvider,
+  }) async {
+    final loadedDashboard = await _dashboardForReport(
+      dashboard,
+      managerDashboardProvider,
+    );
+    if (!mounted) {
+      return;
+    }
+
+    if (loadedDashboard != null) {
+      await _showAgencyReport(loadedDashboard);
+      return;
+    }
+
+    if (userRole != null && _isHrRole(userRole)) {
+      _showHrRoleReport(hrEmployees: hrEmployees, followUps: followUps);
+      return;
+    }
+
+    _showReportUnavailableMessage(managerDashboardProvider);
+  }
+
+  Future<void> _openLostCustomersReport({
+    required ManagerDashboard? dashboard,
+    required String? userRole,
+    required List<HrEmployeeItem> hrEmployees,
+    required List<LeadFollowUpItem> followUps,
+    required ManagerDashboardProvider managerDashboardProvider,
+  }) async {
+    final loadedDashboard = await _dashboardForReport(
+      dashboard,
+      managerDashboardProvider,
+    );
+    if (!mounted) {
+      return;
+    }
+
+    if (loadedDashboard != null) {
+      _showLostCustomersReport(loadedDashboard);
+      return;
+    }
+
+    if (userRole != null && _isHrRole(userRole)) {
+      _showHrRoleReport(hrEmployees: hrEmployees, followUps: followUps);
+      return;
+    }
+
+    _showReportUnavailableMessage(managerDashboardProvider);
+  }
+
   Future<void> _showAgencyReport(ManagerDashboard dashboard) async {
     final performance = dashboard.agencyPerformance;
     final kpi = dashboard.kpi;
@@ -2523,11 +2933,7 @@ class _HomeViewState extends State<HomeView> {
     final leadsProvider = context.read<LeadsProvider>();
 
     if (leadsProvider.leads.isEmpty && !leadsProvider.isLoading) {
-      await leadsProvider.fetchLeads(accessToken);
-    }
-
-    if (!mounted) {
-      return;
+      unawaited(leadsProvider.fetchLeads(accessToken));
     }
 
     final convertedLeads = leadsProvider.leads
@@ -2632,7 +3038,7 @@ class _HomeViewState extends State<HomeView> {
                       .where((item) => filteredRmNames.contains(item.name))
                       .fold<int>(0, (total, item) => total + item.leadsHandled);
             final reportConvertedCount = filteredConvertedLeads.isEmpty
-                ? 0
+                ? performance.closedClients
                 : filteredConvertedLeads.length;
             final reportTaskTarget =
                 filteredLeadsHandled > filteredTasksCompleted
@@ -2640,9 +3046,7 @@ class _HomeViewState extends State<HomeView> {
                 : (filteredTasksCompleted > 0
                       ? filteredTasksCompleted
                       : kpi.totalLeads);
-            final reportConversionRate = filteredConvertedLeads.isEmpty
-                ? 0
-                : performance.overallConversionRate;
+            final reportConversionRate = performance.overallConversionRate;
             final activeFilterCount = _agencyReportActiveFilterCount(
               selectedPeriod: selectedReportPeriod,
               selectedRms: selectedRms,
@@ -3010,6 +3414,8 @@ class _HomeViewState extends State<HomeView> {
                                         child: Text(
                                           leadsProvider.isLoading
                                               ? 'Loading converted clients...'
+                                              : reportConvertedCount > 0
+                                              ? 'Summary loaded from the dashboard API. Detailed lead records are still unavailable.'
                                               : 'No converted clients available yet.',
                                           style: GoogleFonts.inter(
                                             color: const Color(0xFF6B6B6B),
@@ -4034,8 +4440,25 @@ class _HomeViewState extends State<HomeView> {
     return '$value';
   }
 
-  String _formatSignedPercent(int value) {
-    return value > 0 ? '+$value%' : '$value%';
+  String _formatCompactCurrency(double value) {
+    if (value <= 0) {
+      return 'Rs. 0';
+    }
+    if (value >= 100000) {
+      final compact = value / 100000;
+      final text = compact % 1 == 0
+          ? compact.toStringAsFixed(0)
+          : compact.toStringAsFixed(1);
+      return 'Rs. ${text}L';
+    }
+    if (value >= 1000) {
+      final compact = value / 1000;
+      final text = compact % 1 == 0
+          ? compact.toStringAsFixed(0)
+          : compact.toStringAsFixed(1);
+      return 'Rs. ${text}k';
+    }
+    return 'Rs. ${value.toStringAsFixed(0)}';
   }
 
   double _safeProgress(int numerator, int denominator) {
@@ -4274,6 +4697,7 @@ class _HomeViewState extends State<HomeView> {
     IconData? titleIcon,
     String? label,
     Color? labelColor,
+    Color? backgroundColor,
     VoidCallback? onTap,
   }) {
     final metricColor = const Color(0xFFD76322);
@@ -4283,15 +4707,8 @@ class _HomeViewState extends State<HomeView> {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: backgroundColor ?? Colors.white,
         borderRadius: cardBorderRadius,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.18),
-            blurRadius: 1.5.r,
-            offset: Offset(0, 1.h),
-          ),
-        ],
       ),
       child: Material(
         color: Colors.transparent,
@@ -4302,113 +4719,118 @@ class _HomeViewState extends State<HomeView> {
           splashColor: _primaryColor.withValues(alpha: 0.05),
           child: SizedBox(
             width: double.infinity,
-            height: 80.h,
+            height: 92.h,
             child: Padding(
-              padding: EdgeInsets.fromLTRB(15.w, 13.h, 10.w, 10.h),
-              child: Stack(
+              padding: EdgeInsets.fromLTRB(13.w, 12.h, 11.w, 11.h),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Column(
+                  Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Padding(
-                        padding: EdgeInsets.only(right: 8.w),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: FittedBox(
-                                fit: BoxFit.scaleDown,
-                                alignment: Alignment.centerLeft,
-                                child: Text(
-                                  title,
-                                  maxLines: 1,
-                                  style: GoogleFonts.inter(
-                                    color: const Color(0xFF302D31),
-                                    fontSize: 10.8.sp,
-                                    fontWeight: FontWeight.w700,
-                                    height: 1.08,
-                                    letterSpacing: 0,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            if (titleIcon != null) ...[
-                              SizedBox(width: 3.w),
-                              Icon(titleIcon, size: 14.sp, color: metricColor),
-                            ],
-                          ],
+                      Expanded(
+                        child: Text(
+                          title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFF302D31),
+                            fontSize: 12.5.sp,
+                            fontWeight: FontWeight.w800,
+                            height: 1.18,
+                            letterSpacing: 0,
+                          ),
                         ),
                       ),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Expanded(
-                            flex: 5,
+                      if (titleIcon != null || trendIcon != null) ...[
+                        SizedBox(width: 6.w),
+                        Container(
+                          width: 29.r,
+                          height: 29.r,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.72),
+                            borderRadius: BorderRadius.circular(8.r),
+                          ),
+                          child: Icon(
+                            titleIcon ?? trendIcon,
+                            size: 17.sp,
+                            color: metricColor,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Expanded(
+                        flex: 5,
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            value,
+                            maxLines: 1,
+                            style: GoogleFonts.inter(
+                              color: metricColor,
+                              fontSize: 25.sp,
+                              fontWeight: FontWeight.w800,
+                              height: 0.95,
+                            ),
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: 6.w),
+                      Flexible(
+                        flex: 4,
+                        child: Align(
+                          alignment: Alignment.bottomRight,
+                          child: Padding(
+                            padding: EdgeInsets.only(bottom: 3.h),
                             child: FittedBox(
                               fit: BoxFit.scaleDown,
-                              alignment: Alignment.centerLeft,
-                              child: Text(
-                                value,
-                                maxLines: 1,
-                                style: GoogleFonts.inter(
-                                  color: metricColor,
-                                  fontSize: 23.sp,
-                                  fontWeight: FontWeight.w900,
-                                  height: 0.95,
-                                ),
+                              alignment: Alignment.centerRight,
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (trend != null)
+                                    Text(
+                                      trend,
+                                      maxLines: 1,
+                                      style: GoogleFonts.inter(
+                                        color: resolvedTrendColor,
+                                        fontSize: 10.5.sp,
+                                        fontWeight: FontWeight.w900,
+                                        height: 1,
+                                      ),
+                                    ),
+                                  if (label != null)
+                                    Text(
+                                      label,
+                                      maxLines: 1,
+                                      style: GoogleFonts.inter(
+                                        color: statusColor,
+                                        fontSize: 10.sp,
+                                        fontWeight: FontWeight.w900,
+                                        height: 1,
+                                      ),
+                                    ),
+                                  if ((trend != null || label != null) &&
+                                      trendIcon != null) ...[
+                                    SizedBox(width: 2.w),
+                                    Icon(
+                                      trendIcon,
+                                      size: 12.sp,
+                                      color: statusColor,
+                                    ),
+                                  ],
+                                ],
                               ),
                             ),
                           ),
-                          SizedBox(width: 4.w),
-                          Flexible(
-                            flex: 4,
-                            child: Align(
-                              alignment: Alignment.bottomRight,
-                              child: Padding(
-                                padding: EdgeInsets.only(bottom: 3.h),
-                                child: FittedBox(
-                                  fit: BoxFit.scaleDown,
-                                  alignment: Alignment.centerRight,
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      if (trend != null)
-                                        Text(
-                                          trend,
-                                          maxLines: 1,
-                                          style: GoogleFonts.inter(
-                                            color: resolvedTrendColor,
-                                            fontSize: 10.5.sp,
-                                            fontWeight: FontWeight.w900,
-                                            height: 1,
-                                          ),
-                                        ),
-                                      if (label != null)
-                                        Text(
-                                          label,
-                                          maxLines: 1,
-                                          style: GoogleFonts.inter(
-                                            color: statusColor,
-                                            fontSize: 10.sp,
-                                            fontWeight: FontWeight.w900,
-                                            height: 1,
-                                          ),
-                                        ),
-                                      if (trendIcon != null) ...[
-                                        SizedBox(width: 2.w),
-                                        Icon(
-                                          trendIcon,
-                                          size: 12.sp,
-                                          color: statusColor,
-                                        ),
-                                      ],
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
                     ],
                   ),

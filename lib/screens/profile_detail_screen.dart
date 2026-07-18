@@ -5,19 +5,59 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:koniwalamatrimonial/constants/app_colors.dart';
 import 'package:koniwalamatrimonial/owner/models/registry_profile_item.dart';
+import 'package:koniwalamatrimonial/providers/auth_provider.dart';
+import 'package:koniwalamatrimonial/providers/match_history_provider.dart';
 import 'package:koniwalamatrimonial/routes/app_routes.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+import 'package:provider/provider.dart';
 
-class ProfileDetailScreen extends StatelessWidget {
+class ProfileDetailScreen extends StatefulWidget {
   const ProfileDetailScreen({super.key, this.profile});
 
   final RegistryProfileItem? profile;
 
   @override
+  State<ProfileDetailScreen> createState() => _ProfileDetailScreenState();
+}
+
+class _ProfileDetailScreenState extends State<ProfileDetailScreen> {
+  String? _requestedHistoryProfileId;
+  String? _requestedHistoryToken;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    final profileId = widget.profile?.originalId.trim() ?? '';
+    final accessToken = context.watch<AuthProvider>().userModel?.accessToken;
+    if (profileId.isEmpty ||
+        (_requestedHistoryProfileId == profileId &&
+            _requestedHistoryToken == accessToken)) {
+      return;
+    }
+
+    _requestedHistoryProfileId = profileId;
+    _requestedHistoryToken = accessToken;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+
+      context.read<MatchHistoryProvider>().fetchMatchHistory(
+        profileId: profileId,
+        accessToken: accessToken,
+        page: 1,
+        limit: 20,
+      );
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final displayProfile = _ProfileDetailViewData.fromProfile(profile);
+    final displayProfile = _ProfileDetailViewData.fromProfile(widget.profile);
     final bottomInset = MediaQuery.paddingOf(context).bottom;
 
     return MediaQuery(
@@ -42,7 +82,7 @@ class ProfileDetailScreen extends StatelessWidget {
                 SizedBox(height: 14.h),
                 _ProfileActionsSection(
                   profile: displayProfile,
-                  sourceProfile: profile,
+                  sourceProfile: widget.profile,
                 ),
                 SizedBox(height: 22.h),
                 _PersonalNarrativeSection(profile: displayProfile),
@@ -50,6 +90,8 @@ class ProfileDetailScreen extends StatelessWidget {
                 _EducationProfessionSection(profile: displayProfile),
                 SizedBox(height: 20.h),
                 _KeyDetailsSection(profile: displayProfile),
+                SizedBox(height: 20.h),
+                _ShortlistHistorySection(sourceProfile: widget.profile),
                 SizedBox(height: 22.h),
                 _FamilyBackgroundSection(profile: displayProfile),
                 SizedBox(height: 22.h),
@@ -80,6 +122,22 @@ class _ProfileHeaderSection extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          SizedBox(
+            width: 32.w,
+            height: 32.w,
+            child: IconButton(
+              tooltip: 'Back',
+              padding: EdgeInsets.zero,
+              splashRadius: 18.r,
+              onPressed: () => Navigator.maybePop(context),
+              icon: Icon(
+                Icons.arrow_back_rounded,
+                color: AppColors.maroonPrimary,
+                size: 20.sp,
+              ),
+            ),
+          ),
+          SizedBox(width: 10.w),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -152,39 +210,110 @@ class _ProfileHeroImage extends StatelessWidget {
             ),
           ),
           Positioned(
-            bottom: 10.h,
-            child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 7.h),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF5C94B),
-                borderRadius: BorderRadius.circular(18.r),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Color(0x1A000000),
-                    blurRadius: 10,
-                    offset: Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'ACTIVE MEMBER',
-                    style: GoogleFonts.inter(
-                      color: const Color(0xFF4F4312),
-                      fontSize: 10.sp,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0,
-                    ),
-                  ),
-                  SizedBox(width: 5.w),
-                  Icon(
-                    Icons.check_circle_rounded,
-                    color: const Color(0xFF7B6618),
-                    size: 13.sp,
-                  ),
-                ],
+            top: 10.h,
+            right: 10.w,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                const _ActiveMemberBadge(),
+                SizedBox(height: 8.h),
+                _PhotoManagerBadge(
+                  managerName: profile.assignedRmName == '-'
+                      ? 'Not assigned'
+                      : profile.assignedRmName,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ActiveMemberBadge extends StatelessWidget {
+  const _ActiveMemberBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 7.h),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF5C94B),
+        borderRadius: BorderRadius.circular(18.r),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x1A000000),
+            blurRadius: 10,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'ACTIVE MEMBER',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF4F4312),
+              fontSize: 10.sp,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0,
+            ),
+          ),
+          SizedBox(width: 5.w),
+          Icon(
+            Icons.check_circle_rounded,
+            color: const Color(0xFF7B6618),
+            size: 13.sp,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PhotoManagerBadge extends StatelessWidget {
+  const _PhotoManagerBadge({required this.managerName});
+
+  final String managerName;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: BoxConstraints(maxWidth: 260.w),
+      padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 7.h),
+      decoration: BoxDecoration(
+        color: const Color(0xF7FFFFFF),
+        borderRadius: BorderRadius.circular(18.r),
+        border: Border.all(color: const Color(0xFFE9D5DA)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x22000000),
+            blurRadius: 10,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.support_agent_rounded,
+            color: AppColors.maroonPrimary,
+            size: 14.sp,
+          ),
+          SizedBox(width: 6.w),
+          Flexible(
+            child: Text(
+              'RM: $managerName',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.inter(
+                color: AppColors.maroonPrimary,
+                fontSize: 11.sp,
+                fontWeight: FontWeight.w800,
+                height: 1,
               ),
             ),
           ),
@@ -602,6 +731,18 @@ class _KeyDetailsSection extends StatelessWidget {
             _KeyDetailRow(label: 'GOTRA', value: profile.gotra),
             _KeyDetailRow(label: 'DIET', value: profile.diet),
             _KeyDetailRow(label: 'HOROSCOPE', value: profile.horoscope),
+            if (profile.assignedRmName != '-')
+              _KeyDetailRow(
+                label: 'RELATIONSHIP MANAGER',
+                value: profile.assignedRmName,
+              ),
+            if (profile.clientStatus != '-')
+              _KeyDetailRow(
+                label: 'CLIENT STATUS',
+                value: profile.clientStatus,
+              ),
+            if (profile.shortlistLabel.isNotEmpty)
+              _KeyDetailRow(label: 'SHORTLIST', value: profile.shortlistLabel),
             _KeyDetailRow(
               label: 'COUNTRY',
               value: profile.country,
@@ -668,6 +809,466 @@ class _KeyDetailRow extends StatelessWidget {
       ],
     );
   }
+}
+
+class _ShortlistHistorySection extends StatelessWidget {
+  const _ShortlistHistorySection({required this.sourceProfile});
+
+  final RegistryProfileItem? sourceProfile;
+
+  @override
+  Widget build(BuildContext context) {
+    final profileId = sourceProfile?.originalId.trim() ?? '';
+    if (profileId.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 12.w),
+      child: Container(
+        width: double.infinity,
+        padding: EdgeInsets.fromLTRB(14.w, 16.h, 14.w, 16.h),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFFBFC),
+          borderRadius: BorderRadius.circular(8.r),
+          border: Border.all(color: AppColors.rmPaleRoseBorder),
+        ),
+        child: Consumer<MatchHistoryProvider>(
+          builder: (context, history, _) {
+            final belongsToProfile = history.profileId == profileId;
+            final isLoading = history.isLoading || !belongsToProfile;
+            final summary = belongsToProfile
+                ? history.summary
+                : const <String, dynamic>{};
+            final rows = belongsToProfile ? history.timeline : const [];
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.history_rounded,
+                      color: AppColors.maroonPrimary,
+                      size: 18.sp,
+                    ),
+                    SizedBox(width: 8.w),
+                    Expanded(
+                      child: Text(
+                        'Shortlist History',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.inter(
+                          color: AppColors.maroonPrimary,
+                          fontSize: 18.sp,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Refresh history',
+                      visualDensity: VisualDensity.compact,
+                      onPressed: history.isLoading
+                          ? null
+                          : () {
+                              final token = context
+                                  .read<AuthProvider>()
+                                  .userModel
+                                  ?.accessToken;
+                              context
+                                  .read<MatchHistoryProvider>()
+                                  .fetchMatchHistory(
+                                    profileId: profileId,
+                                    accessToken: token,
+                                    page: 1,
+                                    limit: 20,
+                                  );
+                            },
+                      icon: Icon(Icons.refresh_rounded, size: 18.sp),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 12.h),
+                _ShortlistHistorySummary(summary: summary),
+                if (isLoading) ...[
+                  SizedBox(height: 14.h),
+                  const LinearProgressIndicator(minHeight: 2),
+                ] else if (history.error != null) ...[
+                  SizedBox(height: 14.h),
+                  _ShortlistHistoryMessage(message: history.error!),
+                ] else if (rows.isEmpty) ...[
+                  SizedBox(height: 14.h),
+                  const _ShortlistHistoryMessage(
+                    message: 'No shortlist history has been sent yet.',
+                  ),
+                ] else ...[
+                  SizedBox(height: 14.h),
+                  for (var index = 0; index < rows.length; index++) ...[
+                    _ShortlistHistoryTimelineItem(row: rows[index]),
+                    if (index != rows.length - 1)
+                      Divider(height: 16.h, color: AppColors.rmPaleRoseBorder),
+                  ],
+                ],
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _ShortlistHistorySummary extends StatelessWidget {
+  const _ShortlistHistorySummary({required this.summary});
+
+  final Map<String, dynamic> summary;
+
+  @override
+  Widget build(BuildContext context) {
+    final metrics = [
+      _HistoryMetric('Sent', _asInt(summary['totalSent'])),
+      _HistoryMetric('Manual', _asInt(summary['manualShortlisted'])),
+      _HistoryMetric('AI', _asInt(summary['aiShortlisted'])),
+      _HistoryMetric('Approved', _asInt(summary['totalApproved'])),
+      _HistoryMetric('Accepted', _asInt(summary['totalAccepted'])),
+      _HistoryMetric('Rejected', _asInt(summary['totalRejected'])),
+    ];
+    final lastSentDate = _formatHistoryDate(summary['lastSentDate']);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final itemWidth = (constraints.maxWidth - 16.w) / 3;
+
+            return Wrap(
+              spacing: 8.w,
+              runSpacing: 8.h,
+              children: metrics
+                  .map((metric) => _HistoryMetricChip(metric: metric))
+                  .map((child) => SizedBox(width: itemWidth, child: child))
+                  .toList(),
+            );
+          },
+        ),
+        if (lastSentDate != '-') ...[
+          SizedBox(height: 10.h),
+          Text(
+            'Last sent on $lastSentDate',
+            style: GoogleFonts.inter(
+              color: AppColors.rmMutedText,
+              fontSize: 11.5.sp,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _HistoryMetricChip extends StatelessWidget {
+  const _HistoryMetricChip({required this.metric});
+
+  final _HistoryMetric metric;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 54.h,
+      padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 7.h),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(8.r),
+        border: Border.all(color: const Color(0xFFF0DDE4)),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            '${metric.value}',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.inter(
+              color: AppColors.maroonPrimary,
+              fontSize: 16.sp,
+              fontWeight: FontWeight.w900,
+              height: 1,
+            ),
+          ),
+          SizedBox(height: 5.h),
+          Text(
+            metric.label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.inter(
+              color: AppColors.rmBodyText,
+              fontSize: 10.5.sp,
+              fontWeight: FontWeight.w700,
+              height: 1,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ShortlistHistoryMessage extends StatelessWidget {
+  const _ShortlistHistoryMessage({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 13.h),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(8.r),
+        border: Border.all(color: const Color(0xFFF0DDE4)),
+      ),
+      child: Text(
+        message,
+        textAlign: TextAlign.center,
+        style: GoogleFonts.inter(
+          color: AppColors.rmMutedText,
+          fontSize: 12.sp,
+          fontWeight: FontWeight.w700,
+          height: 1.25,
+        ),
+      ),
+    );
+  }
+}
+
+class _ShortlistHistoryTimelineItem extends StatelessWidget {
+  const _ShortlistHistoryTimelineItem({required this.row});
+
+  final dynamic row;
+
+  @override
+  Widget build(BuildContext context) {
+    final item = _asMap(row);
+    final candidate = _firstMap([
+      item['candidateProfile'],
+      item['candidate'],
+      item['matchedProfile'],
+      item['shortlistedProfile'],
+      item['profile'],
+      item['toProfile'],
+      item['receiverProfile'],
+    ]);
+    final name = _firstText([
+      item['candidateName'],
+      item['profileName'],
+      item['matchedProfileName'],
+      candidate['name'],
+      item['name'],
+    ], fallback: 'Shortlisted profile');
+    final status = _formatHistoryLabel(
+      _firstText([
+        item['status'],
+        item['decision'],
+        item['outcome'],
+        item['action'],
+      ], fallback: 'Sent'),
+    );
+    final source = _formatHistoryLabel(
+      _firstText([
+        item['source'],
+        item['type'],
+        item['shortlistType'],
+        item['createdByType'],
+      ], fallback: 'Shortlist'),
+    );
+    final date = _formatHistoryDate(
+      _firstText([
+        item['sentAt'],
+        item['createdAt'],
+        item['updatedAt'],
+        item['date'],
+      ], fallback: ''),
+    );
+    final note = _firstText([
+      item['note'],
+      item['notes'],
+      item['reason'],
+      item['message'],
+      item['comment'],
+    ], fallback: '');
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 30.r,
+          height: 30.r,
+          decoration: BoxDecoration(
+            color: const Color(0xFFF6EEF2),
+            borderRadius: BorderRadius.circular(15.r),
+            border: Border.all(color: AppColors.rmPaleRoseBorder),
+          ),
+          child: Icon(
+            Icons.bookmark_added_outlined,
+            color: AppColors.maroonPrimary,
+            size: 15.sp,
+          ),
+        ),
+        SizedBox(width: 10.w),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.inter(
+                  color: AppColors.black,
+                  fontSize: 13.sp,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              SizedBox(height: 4.h),
+              Text(
+                [source, status, date]
+                    .where((value) => value.trim().isNotEmpty && value != '-')
+                    .join(' • '),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.inter(
+                  color: AppColors.rmBodyText,
+                  fontSize: 11.5.sp,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              if (note.isNotEmpty) ...[
+                SizedBox(height: 5.h),
+                Text(
+                  note,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.inter(
+                    color: AppColors.rmMutedText,
+                    fontSize: 11.sp,
+                    fontWeight: FontWeight.w500,
+                    height: 1.25,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _HistoryMetric {
+  const _HistoryMetric(this.label, this.value);
+
+  final String label;
+  final int value;
+}
+
+Map<String, dynamic> _asMap(dynamic value) {
+  if (value is Map<String, dynamic>) {
+    return value;
+  }
+
+  if (value is Map) {
+    return Map<String, dynamic>.from(value);
+  }
+
+  return const {};
+}
+
+Map<String, dynamic> _firstMap(List<dynamic> values) {
+  for (final value in values) {
+    final map = _asMap(value);
+    if (map.isNotEmpty) {
+      return map;
+    }
+  }
+
+  return const {};
+}
+
+String _firstText(List<dynamic> values, {String fallback = '-'}) {
+  for (final value in values) {
+    if (value == null) {
+      continue;
+    }
+
+    final text = value.toString().trim();
+    if (text.isNotEmpty && text != 'null') {
+      return text;
+    }
+  }
+
+  return fallback;
+}
+
+int _asInt(dynamic value) {
+  if (value is int) {
+    return value;
+  }
+
+  if (value is num) {
+    return value.toInt();
+  }
+
+  return int.tryParse(value?.toString() ?? '') ?? 0;
+}
+
+String _formatHistoryLabel(String value) {
+  final text = value.trim();
+  if (text.isEmpty || text == '-') {
+    return '-';
+  }
+
+  return text
+      .replaceAll('_', ' ')
+      .replaceAll('-', ' ')
+      .split(RegExp(r'\s+'))
+      .where((part) => part.isNotEmpty)
+      .map((part) {
+        final lower = part.toLowerCase();
+        return '${lower[0].toUpperCase()}${lower.substring(1)}';
+      })
+      .join(' ');
+}
+
+String _formatHistoryDate(dynamic value) {
+  final text = value?.toString().trim() ?? '';
+  if (text.isEmpty || text == 'null') {
+    return '-';
+  }
+
+  final parsed = DateTime.tryParse(text);
+  if (parsed == null) {
+    return text;
+  }
+
+  const months = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
+  final local = parsed.toLocal();
+  return '${local.day} ${months[local.month - 1]} ${local.year}';
 }
 
 class _FamilyBackgroundSection extends StatelessWidget {
@@ -1339,6 +1940,9 @@ class _ProfileDetailViewData {
     required this.maternalGrandmother,
     required this.uncle,
     required this.galleryImages,
+    this.assignedRmName = '-',
+    this.clientStatus = '-',
+    this.shortlistLabel = '',
   });
 
   final String reference;
@@ -1369,6 +1973,9 @@ class _ProfileDetailViewData {
   final String maternalGrandmother;
   final String uncle;
   final List<String> galleryImages;
+  final String assignedRmName;
+  final String clientStatus;
+  final String shortlistLabel;
 
   factory _ProfileDetailViewData.fromProfile(RegistryProfileItem? profile) {
     if (profile == null) {
@@ -1408,6 +2015,9 @@ class _ProfileDetailViewData {
           'assets/wedding_hero 1.png',
           'assets/wedding_hero 1.png',
         ],
+        assignedRmName: '-',
+        clientStatus: '-',
+        shortlistLabel: '',
       );
     }
 
@@ -1454,6 +2064,9 @@ class _ProfileDetailViewData {
       ]),
       uncle: _detailValue(profile.maternalDetails, const ['Uncle', 'Mama']),
       galleryImages: profile.photoUrls,
+      assignedRmName: _fallback(profile.assignedRmName, '-'),
+      clientStatus: _fallback(profile.clientStatus, '-'),
+      shortlistLabel: profile.shortlistLabel,
     );
   }
 

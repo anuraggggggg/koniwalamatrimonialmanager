@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -52,18 +50,15 @@ class _LeadsRegistryBodyState extends State<_LeadsRegistryBody> {
   static const int _registryPreviewCount = 3;
   static const int _registryPageSize = 15;
   int _selectedStage = 0;
-  _LeadsView _selectedView = _LeadsView.registry;
   String? _selectedSource;
   String? _selectedCity;
-  String? _selectedAssignee;
+  final Set<String> _selectedAssignees = <String>{};
+  bool _showExecutiveDropdown = false;
   _LeadDateRange _selectedDateRange = _LeadDateRange.any;
   DateTime? _customDateFrom;
   DateTime? _customDateTo;
   bool _hasRequestedLeads = false;
   String? _requestedAccessToken;
-  final TextEditingController _searchController = TextEditingController();
-  String _searchQuery = '';
-  Timer? _searchDebounce;
   int _registryLeadLimit = _registryPreviewCount;
 
   @override
@@ -86,7 +81,7 @@ class _LeadsRegistryBodyState extends State<_LeadsRegistryBody> {
   List<_StageFilter> _stageFilters(List<LeadRegistryItem> leads) {
     final counts = _stageCounts(leads);
     return [
-      _StageFilter(label: 'All Registry', count: leads.length),
+      _StageFilter(label: 'All', count: leads.length),
       _StageFilter(
         label: 'New',
         count: counts['NEW'] ?? 0,
@@ -150,21 +145,12 @@ class _LeadsRegistryBodyState extends State<_LeadsRegistryBody> {
         return false;
       }
 
-      if (!_matchesOptionalFilter(lead.assignedTo, _selectedAssignee)) {
+      if (!_matchesAssigneeFilters(lead.assignedTo)) {
         return false;
       }
 
       return _matchesDateRange(lead.createdOn);
     }).toList();
-  }
-
-  bool _matchesSearch(LeadRegistryItem lead, String query) {
-    if (query.trim().isEmpty) {
-      return true;
-    }
-
-    final normalized = query.trim().toLowerCase();
-    return lead.searchIndex.contains(normalized);
   }
 
   String _stageKey(String stage) {
@@ -173,6 +159,11 @@ class _LeadsRegistryBodyState extends State<_LeadsRegistryBody> {
 
   bool _matchesOptionalFilter(String value, String? selectedValue) {
     return selectedValue == null || value.trim() == selectedValue.trim();
+  }
+
+  bool _matchesAssigneeFilters(String value) {
+    return _selectedAssignees.isEmpty ||
+        _selectedAssignees.contains(value.trim());
   }
 
   bool _matchesDateRange(String createdOn) {
@@ -291,64 +282,10 @@ class _LeadsRegistryBodyState extends State<_LeadsRegistryBody> {
 
   int get _activeFilterCount {
     var count = 0;
-    if (_selectedStage != 0) count++;
     if (_selectedSource != null) count++;
     if (_selectedCity != null) count++;
-    if (_selectedAssignee != null) count++;
     if (_selectedDateRange != _LeadDateRange.any) count++;
     return count;
-  }
-
-  String _leadFilterSummary(List<_StageFilter> stageFilters) {
-    if (_activeFilterCount == 0) {
-      return 'All stages, sources, cities, executives, and dates';
-    }
-
-    final filters = <String>[];
-    if (_selectedStage != 0 && _selectedStage < stageFilters.length) {
-      filters.add(stageFilters[_selectedStage].label);
-    }
-    if (_selectedSource != null) {
-      filters.add('Source: $_selectedSource');
-    }
-    if (_selectedCity != null) {
-      filters.add('City: $_selectedCity');
-    }
-    if (_selectedAssignee != null) {
-      filters.add('Assigned: $_selectedAssignee');
-    }
-    if (_selectedDateRange != _LeadDateRange.any) {
-      filters.add(_selectedDateRangeLabel());
-    }
-
-    return filters.join(' | ');
-  }
-
-  String _selectedDateRangeLabel() {
-    switch (_selectedDateRange) {
-      case _LeadDateRange.any:
-        return 'Any date';
-      case _LeadDateRange.today:
-        return 'Today';
-      case _LeadDateRange.last7Days:
-        return 'Last 7 days';
-      case _LeadDateRange.last30Days:
-        return 'Last 30 days';
-      case _LeadDateRange.custom:
-        final from = _formatLeadFilterDate(_customDateFrom) ?? 'Any';
-        final to = _formatLeadFilterDate(_customDateTo) ?? 'Any';
-        return 'Custom: $from - $to';
-    }
-  }
-
-  String? _formatLeadFilterDate(DateTime? date) {
-    if (date == null) {
-      return null;
-    }
-
-    final day = date.day.toString().padLeft(2, '0');
-    final month = date.month.toString().padLeft(2, '0');
-    return '$day/$month/${date.year}';
   }
 
   int _visibleLeadLimitFor(int totalLeadCount) {
@@ -373,25 +310,19 @@ class _LeadsRegistryBodyState extends State<_LeadsRegistryBody> {
     return requestedLimit;
   }
 
-  Future<void> _showLeadFiltersSheet(
-    List<LeadRegistryItem> leads,
-    List<_StageFilter> stageFilters,
-  ) async {
+  Future<void> _showLeadFiltersSheet(List<LeadRegistryItem> leads) async {
     final result = await showModalBottomSheet<_LeadFilterSelection>(
       context: context,
       isScrollControlled: true,
       backgroundColor: AppColors.transparent,
       builder: (sheetContext) {
         return _LeadFiltersBottomSheet(
-          stageFilters: stageFilters,
           sourceOptions: _filterOptions(leads, (lead) => lead.source),
           cityOptions: _filterOptions(leads, (lead) => lead.city),
-          assigneeOptions: _filterOptions(leads, (lead) => lead.assignedTo),
           initialSelection: _LeadFilterSelection(
             selectedStage: _selectedStage,
             source: _selectedSource,
             city: _selectedCity,
-            assignee: _selectedAssignee,
             dateRange: _selectedDateRange,
             customDateFrom: _customDateFrom,
             customDateTo: _customDateTo,
@@ -405,10 +336,8 @@ class _LeadsRegistryBodyState extends State<_LeadsRegistryBody> {
     }
 
     setState(() {
-      _selectedStage = result.selectedStage;
       _selectedSource = result.source;
       _selectedCity = result.city;
-      _selectedAssignee = result.assignee;
       _selectedDateRange = result.dateRange;
       _customDateFrom = result.customDateFrom;
       _customDateTo = result.customDateTo;
@@ -447,8 +376,6 @@ class _LeadsRegistryBodyState extends State<_LeadsRegistryBody> {
 
   @override
   void dispose() {
-    _searchDebounce?.cancel();
-    _searchController.dispose();
     super.dispose();
   }
 
@@ -458,10 +385,8 @@ class _LeadsRegistryBodyState extends State<_LeadsRegistryBody> {
     final authProvider = context.watch<AuthProvider>();
     final leads = leadsProvider.leads;
     final stageFilters = _stageFilters(leads);
-    final stageScopedLeads = _visibleLeads(leads, stageFilters);
-    final visibleLeads = stageScopedLeads
-        .where((lead) => _matchesSearch(lead, _searchQuery))
-        .toList();
+    final assigneeOptions = _filterOptions(leads, (lead) => lead.assignedTo);
+    final visibleLeads = _visibleLeads(leads, stageFilters);
     final canEditLeads = _canEditLeads(authProvider.userModel?.user?.role);
     final convertedCount =
         stageFilters
@@ -495,106 +420,89 @@ class _LeadsRegistryBodyState extends State<_LeadsRegistryBody> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _LeadsSearchField(
-                      controller: _searchController,
-                      onChanged: (value) {
-                        _searchDebounce?.cancel();
-                        _searchDebounce = Timer(
-                          const Duration(milliseconds: 220),
-                          () {
-                            if (!mounted) {
-                              return;
-                            }
-
-                            setState(() {
-                              _searchQuery = value;
-                              _registryLeadLimit = _registryPreviewCount;
-                            });
-                          },
-                        );
+                    _StageFilterChips(
+                      filters: stageFilters,
+                      selectedIndex: _selectedStage,
+                      onSelected: (index) {
+                        setState(() {
+                          _selectedStage = index;
+                          _registryLeadLimit = _registryPreviewCount;
+                        });
                       },
                     ),
                     SizedBox(height: 12.h),
-                    _FilterHeader(
-                      activeFilterCount: _activeFilterCount,
-                      summaryText: _leadFilterSummary(stageFilters),
-                      onFilterPressed: () =>
-                          _showLeadFiltersSheet(leads, stageFilters),
-                    ),
-                    SizedBox(height: 16.h),
-                    _LeadsViewTabs(
-                      selectedView: _selectedView,
-                      onSelected: (view) =>
-                          setState(() => _selectedView = view),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: _ExecutiveMultiSelectDropdown(
+                            options: assigneeOptions,
+                            selectedValues: _selectedAssignees,
+                            isExpanded: _showExecutiveDropdown,
+                            onHeaderTap: () => setState(() {
+                              _showExecutiveDropdown = !_showExecutiveDropdown;
+                            }),
+                            onSelectionChanged: (name, selected) =>
+                                setState(() {
+                                  if (selected) {
+                                    _selectedAssignees.add(name);
+                                  } else {
+                                    _selectedAssignees.remove(name);
+                                  }
+                                  _registryLeadLimit = _registryPreviewCount;
+                                }),
+                            onClear: _selectedAssignees.isEmpty
+                                ? null
+                                : () => setState(() {
+                                    _selectedAssignees.clear();
+                                    _registryLeadLimit = _registryPreviewCount;
+                                  }),
+                          ),
+                        ),
+                        SizedBox(width: 8.w),
+                        _CompactFilterButton(
+                          activeFilterCount: _activeFilterCount,
+                          onPressed: () => _showLeadFiltersSheet(leads),
+                        ),
+                      ],
                     ),
                     SizedBox(height: 22.h),
-                    if (_selectedView == _LeadsView.registry) ...[
-                      _LeadsContent(
-                        isLoading: leadsProvider.isLoading,
-                        error: leadsProvider.error,
-                        leads: registryPreviewLeads,
-                        totalLeadCount: visibleLeads.length,
-                        isExpanded: registryVisibleLimit >= visibleLeads.length,
-                        onToggleExpanded:
-                            visibleLeads.length > _registryPreviewCount
-                            ? () => setState(() {
-                                if (registryVisibleLimit >=
-                                    visibleLeads.length) {
-                                  _registryLeadLimit = _registryPreviewCount;
-                                  return;
-                                }
+                    _LeadsContent(
+                      isLoading: leadsProvider.isLoading,
+                      error: leadsProvider.error,
+                      leads: registryPreviewLeads,
+                      totalLeadCount: visibleLeads.length,
+                      isExpanded: registryVisibleLimit >= visibleLeads.length,
+                      onToggleExpanded:
+                          visibleLeads.length > _registryPreviewCount
+                          ? () => setState(() {
+                              if (registryVisibleLimit >= visibleLeads.length) {
+                                _registryLeadLimit = _registryPreviewCount;
+                                return;
+                              }
 
-                                _registryLeadLimit = _boundedRegistryLeadLimit(
-                                  _registryLeadLimit + _registryPageSize,
-                                  visibleLeads.length,
-                                );
-                              })
-                            : null,
-                        onRetry: () => context.read<LeadsProvider>().retry(),
-                        isRemovingLead: leadsProvider.isRemovingLead,
-                        canEditLead: canEditLeads,
-                        onEditLead: (lead) =>
-                            _showEditLeadDialog(context, lead),
-                        onDeleteLead: (lead) => _handleDeleteLead(
-                          context,
-                          lead,
-                          authProvider.userModel?.accessToken,
-                        ),
-                      ),
-                      SizedBox(height: 18.h),
-                      _ArchiveInsightCard(
-                        totalLeads: leads.length,
-                        filteredLeads: visibleLeads.length,
-                      ),
-                      SizedBox(height: 16.h),
-                      _CuratorMilestoneCard(
-                        totalLeads: leads.length,
-                        convertedCount: convertedCount,
-                      ),
-                    ] else if (_selectedView == _LeadsView.pipeline)
-                      _LeadsPipelineContent(
-                        isLoading: leadsProvider.isLoading,
-                        error: leadsProvider.error,
-                        leads: visibleLeads,
-                        onFiltersPressed: () =>
-                            _showLeadFiltersSheet(leads, stageFilters),
-                        onViewAllPressed: () {
-                          setState(() => _selectedView = _LeadsView.registry);
-                        },
-                        onRetry: () => context.read<LeadsProvider>().retry(),
-                      )
-                    else
-                      _LeadsHubContent(
-                        isLoading: leadsProvider.isLoading,
-                        error: leadsProvider.error,
-                        leads: visibleLeads,
-                        onFiltersPressed: () =>
-                            _showLeadFiltersSheet(leads, stageFilters),
-                        onViewAllPressed: () {
-                          setState(() => _selectedView = _LeadsView.registry);
-                        },
-                        onRetry: () => context.read<LeadsProvider>().retry(),
-                      ),
+                              _registryLeadLimit = _boundedRegistryLeadLimit(
+                                _registryLeadLimit + _registryPageSize,
+                                visibleLeads.length,
+                              );
+                            })
+                          : null,
+                      onRetry: () => context.read<LeadsProvider>().retry(),
+                      canEditLead: canEditLeads,
+                      onEditLead: (lead) => _showEditLeadDialog(context, lead),
+                      onUpdateStageLead: (lead) =>
+                          _showUpdateStageDialog(context, lead),
+                    ),
+                    SizedBox(height: 18.h),
+                    _ArchiveInsightCard(
+                      totalLeads: leads.length,
+                      filteredLeads: visibleLeads.length,
+                    ),
+                    SizedBox(height: 16.h),
+                    _CuratorMilestoneCard(
+                      totalLeads: leads.length,
+                      convertedCount: convertedCount,
+                    ),
                     SizedBox(height: 20.h),
                   ],
                 ),
@@ -606,20 +514,23 @@ class _LeadsRegistryBodyState extends State<_LeadsRegistryBody> {
     );
   }
 
-  Future<void> _handleDeleteLead(
+  Future<void> _showUpdateStageDialog(
     BuildContext context,
     LeadRegistryItem lead,
-    String? accessToken,
   ) async {
-    final confirmed = await _confirmDelete(context, lead);
-    if (confirmed != true || !context.mounted) {
+    final nextStage = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => _UpdateLeadStageDialog(lead: lead),
+    );
+
+    if (nextStage == null || !context.mounted) {
       return;
     }
 
-    debugPrint('Delete confirmed for lead id=${lead.id}');
-    final message = await context.read<LeadsProvider>().deleteLead(
-      lead,
-      accessToken,
+    final message = await context.read<LeadsProvider>().updateLeadStage(
+      lead: lead,
+      accessToken: context.read<AuthProvider>().userModel?.accessToken,
+      stage: nextStage,
     );
 
     if (!context.mounted) {
@@ -628,7 +539,7 @@ class _LeadsRegistryBodyState extends State<_LeadsRegistryBody> {
 
     _showSnackBar(
       context,
-      message ?? 'Lead deleted successfully.',
+      message ?? 'Lead status updated successfully.',
       isError: message != null,
     );
   }
@@ -919,52 +830,6 @@ class _LeadsRegistryBodyState extends State<_LeadsRegistryBody> {
     }
   }
 
-  Future<bool?> _confirmDelete(BuildContext context, LeadRegistryItem lead) {
-    return showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: Text(
-            'Delete Lead',
-            style: GoogleFonts.inter(fontWeight: FontWeight.w800),
-          ),
-          content: Text(
-            lead.id.isNotEmpty
-                ? 'Are you sure you want to delete ${lead.name}? This action cannot be undone.'
-                : 'This lead does not include a lead id yet, so the delete API cannot be called.',
-            style: GoogleFonts.inter(height: 1.45),
-          ),
-          actions: [
-            OutlinedButton(
-              onPressed: () => Navigator.of(dialogContext).pop(false),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFF6F5F64),
-                side: const BorderSide(color: Color(0xFFEECAD4)),
-              ),
-              child: Text(
-                'No, Cancel',
-                style: GoogleFonts.inter(fontWeight: FontWeight.w700),
-              ),
-            ),
-            ElevatedButton(
-              onPressed: () =>
-                  Navigator.of(dialogContext).pop(lead.id.isNotEmpty),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFD1213E),
-                foregroundColor: Colors.white,
-              ),
-              child: Text(
-                lead.id.isNotEmpty ? 'Yes, Delete' : 'Close',
-                style: GoogleFonts.inter(fontWeight: FontWeight.w800),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   void _showSnackBar(
     BuildContext context,
     String message, {
@@ -992,10 +857,9 @@ class _LeadsContent extends StatelessWidget {
     required this.isExpanded,
     required this.onToggleExpanded,
     required this.onRetry,
-    required this.isRemovingLead,
     required this.canEditLead,
     required this.onEditLead,
-    required this.onDeleteLead,
+    required this.onUpdateStageLead,
   });
 
   final bool isLoading;
@@ -1005,10 +869,9 @@ class _LeadsContent extends StatelessWidget {
   final bool isExpanded;
   final VoidCallback? onToggleExpanded;
   final VoidCallback onRetry;
-  final bool Function(LeadRegistryItem lead) isRemovingLead;
   final bool canEditLead;
   final ValueChanged<LeadRegistryItem> onEditLead;
-  final ValueChanged<LeadRegistryItem> onDeleteLead;
+  final ValueChanged<LeadRegistryItem> onUpdateStageLead;
 
   @override
   Widget build(BuildContext context) {
@@ -1100,10 +963,9 @@ class _LeadsContent extends StatelessWidget {
             separatorBuilder: (context, index) => SizedBox(height: 12.h),
             itemBuilder: (context, index) => _LeadCard(
               lead: leads[index],
-              isDeleting: isRemovingLead(leads[index]),
               canEdit: canEditLead,
+              onUpdateStage: () => onUpdateStageLead(leads[index]),
               onEdit: () => onEditLead(leads[index]),
-              onDelete: () => onDeleteLead(leads[index]),
             ),
           ),
           if (onToggleExpanded != null) ...[
@@ -1154,6 +1016,217 @@ class _LeadsContent extends StatelessWidget {
             ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+class _UpdateLeadStageDialog extends StatelessWidget {
+  const _UpdateLeadStageDialog({required this.lead});
+
+  static const List<String> _stages = [
+    'New',
+    'Contacted',
+    'Interested',
+    'Converted',
+    'Closed',
+  ];
+
+  final LeadRegistryItem lead;
+
+  String _stageKey(String stage) {
+    return stage.toUpperCase().replaceAll(' ', '_');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final currentStageKey = _stageKey(lead.stage);
+
+    return Dialog(
+      insetPadding: EdgeInsets.symmetric(horizontal: 16.w),
+      backgroundColor: AppColors.transparent,
+      child: Container(
+        padding: EdgeInsets.fromLTRB(22.w, 18.h, 22.w, 22.h),
+        decoration: BoxDecoration(
+          color: AppColors.white,
+          borderRadius: BorderRadius.circular(24.r),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 44.w,
+                  height: 44.w,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF4F4F4),
+                    borderRadius: BorderRadius.circular(15.r),
+                  ),
+                  child: Icon(
+                    Icons.fact_check_outlined,
+                    color: AppColors.black,
+                    size: 22.sp,
+                  ),
+                ),
+                const Spacer(),
+                IconButton(
+                  tooltip: 'Close',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: () => Navigator.of(context).pop(),
+                  icon: Icon(
+                    Icons.close_rounded,
+                    color: const Color(0xFF6F6A66),
+                    size: 22.sp,
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 14.h),
+            Text(
+              'Update Status',
+              style: GoogleFonts.inter(
+                color: AppColors.black,
+                fontSize: 26.sp,
+                fontWeight: FontWeight.w900,
+                height: 1.05,
+              ),
+            ),
+            SizedBox(height: 10.h),
+            Text(
+              'Select the new stage for ${lead.name}.',
+              style: GoogleFonts.inter(
+                color: const Color(0xFF6D6764),
+                fontSize: 14.sp,
+                fontWeight: FontWeight.w500,
+                height: 1.35,
+              ),
+            ),
+            SizedBox(height: 26.h),
+            ..._stages.map((stage) {
+              final isCurrent = _stageKey(stage) == currentStageKey;
+              return Padding(
+                padding: EdgeInsets.only(bottom: 10.h),
+                child: _UpdateLeadStageOption(
+                  stage: stage,
+                  isCurrent: isCurrent,
+                  onTap: isCurrent
+                      ? null
+                      : () => Navigator.of(context).pop(stage),
+                ),
+              );
+            }),
+            SizedBox(height: 8.h),
+            SizedBox(
+              width: double.infinity,
+              height: 44.h,
+              child: OutlinedButton(
+                onPressed: () => Navigator.of(context).pop(),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.black,
+                  side: const BorderSide(color: Color(0xFFE2E2E2)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12.r),
+                  ),
+                ),
+                child: Text(
+                  'Cancel',
+                  style: GoogleFonts.inter(
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _UpdateLeadStageOption extends StatelessWidget {
+  const _UpdateLeadStageOption({
+    required this.stage,
+    required this.isCurrent,
+    required this.onTap,
+  });
+
+  final String stage;
+  final bool isCurrent;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = _LeadStageStyle.fromStage(stage);
+    final colors = stage == 'Closed'
+        ? const _StageColors(
+            background: Color(0xFFF3F5F7),
+            border: Color(0xFFD8DEE6),
+            dot: Color(0xFF6E7F94),
+            text: Color(0xFF26384F),
+          )
+        : style.colors;
+
+    return Material(
+      color: AppColors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(22.r),
+        child: Container(
+          constraints: BoxConstraints(minHeight: 62.h),
+          padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
+          decoration: BoxDecoration(
+            color: isCurrent ? const Color(0xFFF7F7F7) : AppColors.white,
+            borderRadius: BorderRadius.circular(22.r),
+            border: Border.all(color: const Color(0xFFE0E0E0)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 11.w, vertical: 7.h),
+                decoration: BoxDecoration(
+                  color: colors.background,
+                  borderRadius: BorderRadius.circular(14.r),
+                  border: Border.all(color: colors.border),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 8.r,
+                      height: 8.r,
+                      decoration: BoxDecoration(
+                        color: colors.dot,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    SizedBox(width: 6.w),
+                    Text(
+                      stage,
+                      style: GoogleFonts.inter(
+                        color: colors.text,
+                        fontSize: 12.sp,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Spacer(),
+              if (isCurrent)
+                Text(
+                  'Current',
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF9B9895),
+                    fontSize: 12.sp,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -1452,6 +1525,23 @@ class _LeadsHeader extends StatelessWidget {
           ),
           child: Row(
             children: [
+              SizedBox(
+                width: 40.w,
+                height: 40.w,
+                child: IconButton(
+                  tooltip: onMenuPressed == null ? 'Back' : 'Menu',
+                  padding: EdgeInsets.zero,
+                  onPressed:
+                      onMenuPressed ?? () => Navigator.of(context).maybePop(),
+                  icon: Icon(
+                    onMenuPressed == null
+                        ? Icons.arrow_back_rounded
+                        : Icons.menu_rounded,
+                    color: const Color(0xFF1F1A17),
+                    size: 23.sp,
+                  ),
+                ),
+              ),
               Expanded(
                 child: Text(
                   'Leads Registration',
@@ -1463,6 +1553,7 @@ class _LeadsHeader extends StatelessWidget {
                   ),
                 ),
               ),
+              SizedBox(width: 40.w),
             ],
           ),
         ),
@@ -1549,7 +1640,7 @@ class _NewInquiryButton extends StatelessWidget {
           ),
         ),
         child: Text(
-          '+ New Inquiry',
+          '+ New Lead',
           style: GoogleFonts.inter(
             fontSize: 14.sp,
             fontWeight: FontWeight.w800,
@@ -1560,54 +1651,16 @@ class _NewInquiryButton extends StatelessWidget {
   }
 }
 
-class _LeadsSearchField extends StatelessWidget {
-  const _LeadsSearchField({required this.controller, required this.onChanged});
+class _StageFilterChips extends StatelessWidget {
+  const _StageFilterChips({
+    required this.filters,
+    required this.selectedIndex,
+    required this.onSelected,
+  });
 
-  final TextEditingController controller;
-  final ValueChanged<String> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 50.h,
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(12.r),
-        border: Border.all(color: const Color(0xFFEEDFD5)),
-      ),
-      child: TextField(
-        controller: controller,
-        onChanged: onChanged,
-        style: GoogleFonts.inter(
-          color: const Color(0xFF1B1B1B),
-          fontSize: 14.sp,
-          fontWeight: FontWeight.w600,
-        ),
-        decoration: InputDecoration(
-          border: InputBorder.none,
-          prefixIcon: Icon(
-            Icons.search_rounded,
-            color: const Color(0xFF7A7370),
-            size: 23.sp,
-          ),
-          hintText: 'Search by name, phone, email, city, note, or executive',
-          hintStyle: GoogleFonts.inter(
-            color: const Color(0xFF8B8684),
-            fontSize: 14.sp,
-            fontWeight: FontWeight.w500,
-          ),
-          contentPadding: EdgeInsets.symmetric(vertical: 14.h),
-        ),
-      ),
-    );
-  }
-}
-
-class _LeadsViewTabs extends StatelessWidget {
-  const _LeadsViewTabs({required this.selectedView, required this.onSelected});
-
-  final _LeadsView selectedView;
-  final ValueChanged<_LeadsView> onSelected;
+  final List<_StageFilter> filters;
+  final int selectedIndex;
+  final ValueChanged<int> onSelected;
 
   @override
   Widget build(BuildContext context) {
@@ -1615,39 +1668,30 @@ class _LeadsViewTabs extends StatelessWidget {
       scrollDirection: Axis.horizontal,
       child: Row(
         children: [
-          _LeadsTab(
-            label: 'Registry View',
-            selected: selectedView == _LeadsView.registry,
-            onTap: () => onSelected(_LeadsView.registry),
-          ),
-          SizedBox(width: 10.w),
-          _LeadsTab(
-            label: 'Pipeline Board',
-            selected: selectedView == _LeadsView.pipeline,
-            onTap: () => onSelected(_LeadsView.pipeline),
-          ),
-          SizedBox(width: 10.w),
-          _LeadsTab(
-            label: 'Communication Hub',
-            selected: selectedView == _LeadsView.hub,
-            onTap: () => onSelected(_LeadsView.hub),
-          ),
+          for (var index = 0; index < filters.length; index++) ...[
+            _StageFilterChip(
+              filter: filters[index],
+              selected: selectedIndex == index,
+              onTap: () => onSelected(index),
+            ),
+            if (index != filters.length - 1) SizedBox(width: 8.w),
+          ],
         ],
       ),
     );
   }
 }
 
-class _LeadsTab extends StatelessWidget {
-  const _LeadsTab({
-    required this.label,
+class _StageFilterChip extends StatelessWidget {
+  const _StageFilterChip({
+    required this.filter,
+    required this.selected,
     required this.onTap,
-    this.selected = false,
   });
 
-  final String label;
-  final VoidCallback onTap;
+  final _StageFilter filter;
   final bool selected;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -1655,413 +1699,230 @@ class _LeadsTab extends StatelessWidget {
       color: AppColors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(18.r),
+        borderRadius: BorderRadius.circular(20.r),
         child: Container(
-          height: 34.h,
-          padding: EdgeInsets.symmetric(horizontal: 16.w),
+          height: 36.h,
+          padding: EdgeInsets.symmetric(horizontal: 11.w),
           decoration: BoxDecoration(
-            color: selected ? AppColors.white : AppColors.transparent,
-            borderRadius: BorderRadius.circular(18.r),
-            border: selected
-                ? Border.all(color: AppColors.primary, width: 1)
-                : null,
+            color: selected ? AppColors.primary : AppColors.white,
+            borderRadius: BorderRadius.circular(20.r),
+            border: Border.all(
+              color: selected ? AppColors.primary : const Color(0xFFEEDFD5),
+            ),
           ),
           alignment: Alignment.center,
-          child: Text(
-            label,
-            style: GoogleFonts.inter(
-              color: const Color(0xFF282623),
-              fontSize: 13.sp,
-              fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-enum _LeadsView { registry, pipeline, hub }
-
-class _LeadsPipelineContent extends StatelessWidget {
-  const _LeadsPipelineContent({
-    required this.isLoading,
-    required this.error,
-    required this.leads,
-    required this.onFiltersPressed,
-    required this.onViewAllPressed,
-    required this.onRetry,
-  });
-
-  final bool isLoading;
-  final String? error;
-  final List<LeadRegistryItem> leads;
-  final VoidCallback onFiltersPressed;
-  final VoidCallback onViewAllPressed;
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    return _LeadQueuePreviewSection(
-      isLoading: isLoading,
-      error: error,
-      emptyMessage: 'No pipeline leads found.',
-      leads: leads,
-      onFiltersPressed: onFiltersPressed,
-      onViewAllPressed: onViewAllPressed,
-      onRetry: onRetry,
-    );
-  }
-}
-
-class _LeadsHubContent extends StatelessWidget {
-  const _LeadsHubContent({
-    required this.isLoading,
-    required this.error,
-    required this.leads,
-    required this.onFiltersPressed,
-    required this.onViewAllPressed,
-    required this.onRetry,
-  });
-
-  final bool isLoading;
-  final String? error;
-  final List<LeadRegistryItem> leads;
-  final VoidCallback onFiltersPressed;
-  final VoidCallback onViewAllPressed;
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    return _LeadQueuePreviewSection(
-      isLoading: isLoading,
-      error: error,
-      emptyMessage: 'No communication leads found.',
-      leads: leads,
-      onFiltersPressed: onFiltersPressed,
-      onViewAllPressed: onViewAllPressed,
-      onRetry: onRetry,
-    );
-  }
-}
-
-class _LeadQueuePreviewSection extends StatelessWidget {
-  const _LeadQueuePreviewSection({
-    required this.isLoading,
-    required this.error,
-    required this.emptyMessage,
-    required this.leads,
-    required this.onFiltersPressed,
-    required this.onViewAllPressed,
-    required this.onRetry,
-  });
-
-  final bool isLoading;
-  final String? error;
-  final String emptyMessage;
-  final List<LeadRegistryItem> leads;
-  final VoidCallback onFiltersPressed;
-  final VoidCallback onViewAllPressed;
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    if (isLoading) {
-      return Padding(
-        padding: EdgeInsets.symmetric(vertical: 28.h),
-        child: const Center(child: CircularProgressIndicator()),
-      );
-    }
-
-    if (error != null) {
-      return _LeadsMessage(
-        message: error!,
-        actionLabel: 'Retry',
-        onActionPressed: onRetry,
-      );
-    }
-
-    if (leads.isEmpty) {
-      return _LeadsMessage(message: emptyMessage);
-    }
-
-    final previewLeads = leads.take(2).toList(growable: false);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                'FILTER BY STAGE',
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (filter.icon != null) ...[
+                Icon(
+                  filter.icon,
+                  size: 13.sp,
+                  color: selected ? AppColors.white : filter.dotColor,
+                ),
+                SizedBox(width: 5.w),
+              ] else if (filter.dotColor != null) ...[
+                Container(
+                  width: 6.r,
+                  height: 6.r,
+                  decoration: BoxDecoration(
+                    color: selected ? AppColors.white : filter.dotColor,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                SizedBox(width: 6.w),
+              ],
+              Text(
+                '${filter.label} ${filter.count ?? 0}',
                 style: GoogleFonts.inter(
-                  color: AppColors.titleColor,
-                  fontSize: 13.sp,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 0.7,
-                ),
-              ),
-            ),
-            SizedBox(
-              height: 34.h,
-              child: OutlinedButton.icon(
-                onPressed: onFiltersPressed,
-                icon: Icon(
-                  Icons.tune_rounded,
-                  size: 17.sp,
-                  color: AppColors.titleColor,
-                ),
-                label: Text(
-                  'Filters',
-                  style: GoogleFonts.inter(
-                    color: AppColors.titleColor,
-                    fontSize: 12.sp,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                style: OutlinedButton.styleFrom(
-                  padding: EdgeInsets.symmetric(horizontal: 12.w),
-                  side: const BorderSide(color: AppColors.primary),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8.r),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-        SizedBox(height: 12.h),
-        for (var index = 0; index < previewLeads.length; index++) ...[
-          _LeadQueuePreviewCard(lead: previewLeads[index]),
-          if (index != previewLeads.length - 1) SizedBox(height: 14.h),
-        ],
-        if (leads.length > previewLeads.length) ...[
-          SizedBox(height: 14.h),
-          SizedBox(
-            width: double.infinity,
-            height: 46.h,
-            child: OutlinedButton(
-              onPressed: onViewAllPressed,
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.primary,
-                side: const BorderSide(color: AppColors.primary),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10.r),
-                ),
-              ),
-              child: Text(
-                'View All Leads ->',
-                style: GoogleFonts.inter(
-                  fontSize: 14.sp,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.2,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-}
-
-class _LeadQueuePreviewCard extends StatelessWidget {
-  const _LeadQueuePreviewCard({required this.lead});
-
-  final LeadRegistryItem lead;
-
-  @override
-  Widget build(BuildContext context) {
-    final initial = lead.initials.isEmpty ? 'M' : lead.initials[0];
-    final reason = lead.reason.trim();
-
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.fromLTRB(10.w, 10.h, 10.w, 10.h),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(12.r),
-        border: Border.all(color: const Color(0xFFE5DAD3)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x10000000),
-            blurRadius: 10,
-            offset: Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 40.r,
-                height: 40.r,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF7EFE8),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: const Color(0xFFE8DDD4)),
-                ),
-                child: Text(
-                  initial,
-                  style: GoogleFonts.inter(
-                    color: const Color(0xFF8A4A1C),
-                    fontSize: 15.sp,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-              SizedBox(width: 10.w),
-              Expanded(
-                child: Text(
-                  lead.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.inter(
-                    color: const Color(0xFF1F1E1D),
-                    fontSize: 19.sp,
-                    fontWeight: FontWeight.w900,
-                    height: 1.1,
-                  ),
-                ),
-              ),
-              SizedBox(width: 8.w),
-              _StatusPill(
-                style: _LeadStageStyle.fromStage(lead.stage),
-                label: lead.stage.toUpperCase(),
-              ),
-            ],
-          ),
-          SizedBox(height: 13.h),
-          Row(
-            children: [
-              Icon(
-                Icons.phone_outlined,
-                color: const Color(0xFF1F1E1D),
-                size: 13.sp,
-              ),
-              SizedBox(width: 4.w),
-              Expanded(
-                child: Text(
-                  lead.phone,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.inter(
-                    color: const Color(0xFF1F1E1D),
-                    fontSize: 13.sp,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: 12.h),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: _LeadQueueInfo(label: 'Source', value: lead.source),
-              ),
-              SizedBox(width: 16.w),
-              Expanded(
-                child: _LeadQueueInfo(label: 'City', value: lead.city),
-              ),
-            ],
-          ),
-          SizedBox(height: 10.h),
-          _LeadQueueInfo(label: 'Email', value: lead.email),
-          SizedBox(height: 10.h),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: _LeadQueueInfo(
-                  label: 'Assigned To',
-                  value: lead.assignedTo,
-                ),
-              ),
-              SizedBox(width: 16.w),
-              Expanded(
-                child: _LeadQueueInfo(label: 'Created', value: lead.createdOn),
-              ),
-            ],
-          ),
-          if (reason.isNotEmpty && reason != '-') ...[
-            SizedBox(height: 13.h),
-            Container(
-              width: double.infinity,
-              padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 11.h),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFF2ED),
-                borderRadius: BorderRadius.circular(8.r),
-              ),
-              child: Text(
-                'Reason: $reason',
-                style: GoogleFonts.inter(
-                  color: const Color(0xFF3A3330),
-                  fontSize: 13.sp,
+                  color: selected ? AppColors.white : const Color(0xFF282623),
+                  fontSize: 11.sp,
                   fontWeight: FontWeight.w500,
                 ),
               ),
-            ),
-          ],
-        ],
+            ],
+          ),
+        ),
       ),
     );
   }
 }
 
-class _LeadQueueInfo extends StatelessWidget {
-  const _LeadQueueInfo({required this.label, required this.value});
+class _ExecutiveMultiSelectDropdown extends StatelessWidget {
+  const _ExecutiveMultiSelectDropdown({
+    required this.options,
+    required this.selectedValues,
+    required this.isExpanded,
+    required this.onHeaderTap,
+    required this.onSelectionChanged,
+    required this.onClear,
+  });
 
-  final String label;
-  final String value;
+  final List<String> options;
+  final Set<String> selectedValues;
+  final bool isExpanded;
+  final VoidCallback onHeaderTap;
+  final ValueChangedSelection onSelectionChanged;
+  final VoidCallback? onClear;
+
+  String get _summaryText {
+    if (selectedValues.isEmpty) {
+      return 'All RM';
+    }
+    if (selectedValues.length == 1) {
+      return selectedValues.first;
+    }
+    return '${selectedValues.length} RM selected';
+  }
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: GoogleFonts.inter(
-            color: const Color(0xFF6C6460),
-            fontSize: 12.sp,
-            fontWeight: FontWeight.w500,
-            height: 1.1,
+        Material(
+          color: AppColors.transparent,
+          child: InkWell(
+            onTap: options.isEmpty ? null : onHeaderTap,
+            borderRadius: BorderRadius.circular(14.r),
+            child: Container(
+              width: double.infinity,
+              padding: EdgeInsets.fromLTRB(12.w, 11.h, 12.w, 11.h),
+              decoration: BoxDecoration(
+                color: AppColors.white,
+                borderRadius: BorderRadius.circular(14.r),
+                border: Border.all(color: const Color(0xFFE2E2E2)),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 38.w,
+                    height: 38.w,
+                    decoration: BoxDecoration(
+                      color: AppColors.white,
+                      borderRadius: BorderRadius.circular(11.r),
+                      border: Border.all(color: const Color(0xFFE2E2E2)),
+                    ),
+                    child: Icon(
+                      Icons.manage_accounts_outlined,
+                      color: AppColors.black,
+                      size: 20.sp,
+                    ),
+                  ),
+                  SizedBox(width: 11.w),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Executive / RM',
+                          style: GoogleFonts.inter(
+                            color: AppColors.black,
+                            fontSize: 14.sp,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        SizedBox(height: 3.h),
+                        Text(
+                          options.isEmpty ? 'No RM available' : _summaryText,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.inter(
+                            color: AppColors.black,
+                            fontSize: 11.5.sp,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (onClear != null) ...[
+                    SizedBox(width: 6.w),
+                    InkWell(
+                      borderRadius: BorderRadius.circular(16.r),
+                      onTap: onClear,
+                      child: Padding(
+                        padding: EdgeInsets.all(4.r),
+                        child: Icon(
+                          Icons.close_rounded,
+                          color: AppColors.black,
+                          size: 18.sp,
+                        ),
+                      ),
+                    ),
+                  ],
+                  SizedBox(width: 6.w),
+                  Icon(
+                    isExpanded
+                        ? Icons.keyboard_arrow_up_rounded
+                        : Icons.keyboard_arrow_down_rounded,
+                    color: AppColors.black,
+                    size: 24.sp,
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
-        SizedBox(height: 3.h),
-        Text(
-          value,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: GoogleFonts.inter(
-            color: const Color(0xFF1F1E1D),
-            fontSize: 13.sp,
-            fontWeight: FontWeight.w900,
-            height: 1.15,
+        if (isExpanded && options.isNotEmpty) ...[
+          SizedBox(height: 8.h),
+          Container(
+            width: double.infinity,
+            constraints: BoxConstraints(maxHeight: 230.h),
+            decoration: BoxDecoration(
+              color: AppColors.white,
+              borderRadius: BorderRadius.circular(14.r),
+              border: Border.all(color: const Color(0xFFE2E2E2)),
+            ),
+            child: ListView.separated(
+              shrinkWrap: true,
+              padding: EdgeInsets.symmetric(vertical: 6.h),
+              itemCount: options.length,
+              separatorBuilder: (context, index) =>
+                  Divider(height: 1, color: const Color(0xFFE2E2E2)),
+              itemBuilder: (context, index) {
+                final option = options[index];
+                final selected = selectedValues.contains(option);
+                return CheckboxListTile(
+                  dense: true,
+                  value: selected,
+                  onChanged: (value) =>
+                      onSelectionChanged(option, value ?? false),
+                  activeColor: AppColors.black,
+                  checkColor: AppColors.white,
+                  side: const BorderSide(color: AppColors.black),
+                  controlAffinity: ListTileControlAffinity.leading,
+                  contentPadding: EdgeInsets.symmetric(horizontal: 8.w),
+                  title: Text(
+                    option,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(
+                      color: AppColors.black,
+                      fontSize: 13.sp,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                );
+              },
+            ),
           ),
-        ),
+        ],
       ],
     );
   }
 }
 
-class _FilterHeader extends StatelessWidget {
-  const _FilterHeader({
+typedef ValueChangedSelection = void Function(String value, bool selected);
+
+class _CompactFilterButton extends StatelessWidget {
+  const _CompactFilterButton({
     required this.activeFilterCount,
-    required this.summaryText,
-    required this.onFilterPressed,
+    required this.onPressed,
   });
 
   final int activeFilterCount;
-  final String summaryText;
-  final VoidCallback onFilterPressed;
+  final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -2069,95 +1930,49 @@ class _FilterHeader extends StatelessWidget {
       color: AppColors.transparent,
       child: InkWell(
         borderRadius: BorderRadius.circular(14.r),
-        onTap: onFilterPressed,
+        onTap: onPressed,
         child: Container(
-          width: double.infinity,
-          padding: EdgeInsets.fromLTRB(12.w, 11.h, 12.w, 11.h),
+          width: 58.w,
+          height: 62.h,
+          alignment: Alignment.center,
           decoration: BoxDecoration(
             color: AppColors.white,
             borderRadius: BorderRadius.circular(14.r),
             border: Border.all(color: const Color(0xFFEEDFD5)),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x0FB25C18),
-                blurRadius: 12,
-                offset: Offset(0, 5),
-              ),
-            ],
           ),
-          child: Row(
+          child: Stack(
+            clipBehavior: Clip.none,
             children: [
-              Container(
-                width: 38.w,
-                height: 38.w,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFF1E8),
-                  borderRadius: BorderRadius.circular(11.r),
-                ),
+              Center(
                 child: Icon(
                   Icons.tune_rounded,
                   color: AppColors.primary,
-                  size: 20.sp,
+                  size: 24.sp,
                 ),
               ),
-              SizedBox(width: 11.w),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Text(
-                          'Filters',
-                          style: GoogleFonts.inter(
-                            color: const Color(0xFF1F1C19),
-                            fontSize: 14.sp,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                        if (activeFilterCount > 0) ...[
-                          SizedBox(width: 8.w),
-                          Container(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: 7.w,
-                              vertical: 2.h,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppColors.primary,
-                              borderRadius: BorderRadius.circular(20.r),
-                            ),
-                            child: Text(
-                              '$activeFilterCount',
-                              style: GoogleFonts.inter(
-                                color: AppColors.white,
-                                fontSize: 10.sp,
-                                fontWeight: FontWeight.w900,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
+              if (activeFilterCount > 0)
+                Positioned(
+                  right: -5.w,
+                  top: -5.h,
+                  child: Container(
+                    height: 20.r,
+                    constraints: BoxConstraints(minWidth: 20.r),
+                    alignment: Alignment.center,
+                    padding: EdgeInsets.symmetric(horizontal: 5.w),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary,
+                      borderRadius: BorderRadius.circular(20.r),
                     ),
-                    SizedBox(height: 3.h),
-                    Text(
-                      summaryText,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    child: Text(
+                      '$activeFilterCount',
                       style: GoogleFonts.inter(
-                        color: const Color(0xFF6B6662),
-                        fontSize: 11.5.sp,
-                        fontWeight: FontWeight.w600,
+                        color: AppColors.white,
+                        fontSize: 10.sp,
+                        fontWeight: FontWeight.w900,
                       ),
                     ),
-                  ],
+                  ),
                 ),
-              ),
-              SizedBox(width: 8.w),
-              Icon(
-                Icons.keyboard_arrow_down_rounded,
-                color: const Color(0xFF7D706A),
-                size: 24.sp,
-              ),
             ],
           ),
         ),
@@ -2173,7 +1988,6 @@ class _LeadFilterSelection {
     required this.selectedStage,
     required this.source,
     required this.city,
-    required this.assignee,
     required this.dateRange,
     required this.customDateFrom,
     required this.customDateTo,
@@ -2182,7 +1996,6 @@ class _LeadFilterSelection {
   final int selectedStage;
   final String? source;
   final String? city;
-  final String? assignee;
   final _LeadDateRange dateRange;
   final DateTime? customDateFrom;
   final DateTime? customDateTo;
@@ -2190,17 +2003,20 @@ class _LeadFilterSelection {
 
 class _LeadFiltersBottomSheet extends StatefulWidget {
   const _LeadFiltersBottomSheet({
-    required this.stageFilters,
-    required this.sourceOptions,
-    required this.cityOptions,
-    required this.assigneeOptions,
-    required this.initialSelection,
+    this.sourceOptions = const [],
+    this.cityOptions = const [],
+    this.initialSelection = const _LeadFilterSelection(
+      selectedStage: 0,
+      source: null,
+      city: null,
+      dateRange: _LeadDateRange.any,
+      customDateFrom: null,
+      customDateTo: null,
+    ),
   });
 
-  final List<_StageFilter> stageFilters;
   final List<String> sourceOptions;
   final List<String> cityOptions;
-  final List<String> assigneeOptions;
   final _LeadFilterSelection initialSelection;
 
   @override
@@ -2209,10 +2025,9 @@ class _LeadFiltersBottomSheet extends StatefulWidget {
 }
 
 class _LeadFiltersBottomSheetState extends State<_LeadFiltersBottomSheet> {
-  late int _selectedStage;
+  late int _currentStage;
   String? _selectedSource;
   String? _selectedCity;
-  String? _selectedAssignee;
   late _LeadDateRange _selectedDateRange;
   DateTime? _customDateFrom;
   DateTime? _customDateTo;
@@ -2221,10 +2036,9 @@ class _LeadFiltersBottomSheetState extends State<_LeadFiltersBottomSheet> {
   void initState() {
     super.initState();
     final selection = widget.initialSelection;
-    _selectedStage = selection.selectedStage;
+    _currentStage = selection.selectedStage;
     _selectedSource = selection.source;
     _selectedCity = selection.city;
-    _selectedAssignee = selection.assignee;
     _selectedDateRange = selection.dateRange;
     _customDateFrom = selection.customDateFrom;
     _customDateTo = selection.customDateTo;
@@ -2286,31 +2100,6 @@ class _LeadFiltersBottomSheetState extends State<_LeadFiltersBottomSheet> {
                         ),
                         SizedBox(height: 26.h),
                         _FilterSectionTitle(
-                          icon: Icons.flag_outlined,
-                          label: 'Stage',
-                        ),
-                        SizedBox(height: 14.h),
-                        Wrap(
-                          spacing: 8.w,
-                          runSpacing: 10.h,
-                          children: [
-                            for (
-                              int index = 0;
-                              index < widget.stageFilters.length;
-                              index++
-                            )
-                              _FilterChoiceChip(
-                                label: index == 0
-                                    ? 'All'
-                                    : widget.stageFilters[index].label,
-                                selected: _selectedStage == index,
-                                onTap: () =>
-                                    setState(() => _selectedStage = index),
-                              ),
-                          ],
-                        ),
-                        SizedBox(height: 30.h),
-                        _FilterSectionTitle(
                           icon: Icons.source_outlined,
                           label: 'Source',
                         ),
@@ -2334,19 +2123,6 @@ class _LeadFiltersBottomSheetState extends State<_LeadFiltersBottomSheet> {
                           options: widget.cityOptions,
                           onChanged: (value) =>
                               setState(() => _selectedCity = value),
-                        ),
-                        SizedBox(height: 28.h),
-                        _FilterSectionTitle(
-                          icon: Icons.manage_accounts_outlined,
-                          label: 'Assigned To',
-                        ),
-                        SizedBox(height: 12.h),
-                        _FilterDropdown(
-                          value: _selectedAssignee,
-                          hintText: 'All Executives',
-                          options: widget.assigneeOptions,
-                          onChanged: (value) =>
-                              setState(() => _selectedAssignee = value),
                         ),
                         SizedBox(height: 30.h),
                         _FilterSectionTitle(
@@ -2517,11 +2293,10 @@ class _LeadFiltersBottomSheetState extends State<_LeadFiltersBottomSheet> {
 
   void _clearFilters() {
     Navigator.of(context).pop(
-      const _LeadFilterSelection(
-        selectedStage: 0,
+      _LeadFilterSelection(
+        selectedStage: _currentStage,
         source: null,
         city: null,
-        assignee: null,
         dateRange: _LeadDateRange.any,
         customDateFrom: null,
         customDateTo: null,
@@ -2532,10 +2307,9 @@ class _LeadFiltersBottomSheetState extends State<_LeadFiltersBottomSheet> {
   void _applyFilters() {
     Navigator.of(context).pop(
       _LeadFilterSelection(
-        selectedStage: _selectedStage,
+        selectedStage: _currentStage,
         source: _selectedSource,
         city: _selectedCity,
-        assignee: _selectedAssignee,
         dateRange: _selectedDateRange,
         customDateFrom: _customDateFrom,
         customDateTo: _customDateTo,
@@ -2761,22 +2535,24 @@ class _FilterDropdown extends StatelessWidget {
 class _LeadCard extends StatelessWidget {
   const _LeadCard({
     required this.lead,
-    required this.isDeleting,
     required this.canEdit,
+    required this.onUpdateStage,
     required this.onEdit,
-    required this.onDelete,
   });
 
   final LeadRegistryItem lead;
-  final bool isDeleting;
   final bool canEdit;
+  final VoidCallback onUpdateStage;
   final VoidCallback onEdit;
-  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
+    final assignedTo = lead.assignedTo.trim();
+    final hasAssignedName = assignedTo.isNotEmpty && assignedTo != '-';
+    final isAssigned = hasAssignedName || lead.assignedToId.trim().isNotEmpty;
+
     return Container(
-      padding: EdgeInsets.fromLTRB(16.w, 14.h, 16.w, 12.h),
+      padding: EdgeInsets.fromLTRB(14.w, 14.h, 14.w, 12.h),
       decoration: BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.circular(16.r),
@@ -2802,63 +2578,92 @@ class _LeadCard extends StatelessWidget {
                 ),
               ),
               SizedBox(width: 12.w),
-              _StatusPill(
-                style: _LeadStageStyle.fromStage(lead.stage),
-                label: lead.stage,
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  _StatusPill(
+                    style: _LeadStageStyle.fromStage(lead.stage),
+                    label: lead.stage,
+                  ),
+                  SizedBox(height: 8.h),
+                  _AssignmentPill(
+                    isAssigned: isAssigned,
+                    label: isAssigned ? 'Assigned' : 'Unassigned',
+                  ),
+                ],
               ),
             ],
           ),
-          SizedBox(height: 14.h),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: _LeadDetailBlock(label: 'Phone', value: lead.phone),
+          SizedBox(height: 13.h),
+          _LeadDetailsGrid(
+            items: [
+              _LeadDetailItem(
+                icon: Icons.call_outlined,
+                label: 'Phone',
+                value: lead.phone,
               ),
-              SizedBox(width: 16.w),
-              Expanded(
-                child: _LeadDetailBlock(label: 'City', value: lead.city),
+              _LeadDetailItem(
+                icon: Icons.location_on_outlined,
+                label: 'City',
+                value: lead.city,
+              ),
+              _LeadDetailItem(
+                icon: Icons.mail_outline_rounded,
+                label: 'Email',
+                value: lead.email,
+              ),
+              _LeadDetailItem(
+                icon: Icons.source_outlined,
+                label: 'Source',
+                value: lead.source,
+              ),
+              _LeadDetailItem(
+                icon: Icons.support_agent_rounded,
+                label: 'RM',
+                value: hasAssignedName ? assignedTo : 'Not assigned',
+              ),
+              _LeadDetailItem(
+                icon: Icons.favorite_border_rounded,
+                label: 'Lead For',
+                value: lead.leadFor,
               ),
             ],
           ),
-          SizedBox(height: 10.h),
-          _LeadDetailBlock(label: 'Email', value: lead.email),
-          SizedBox(height: 10.h),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: _LeadDetailBlock(
-                  label: 'Assigned To',
-                  value: lead.assignedTo,
-                ),
-              ),
-              SizedBox(width: 16.w),
-              Expanded(
-                child: _LeadDetailBlock(label: 'Source', value: lead.source),
-              ),
-            ],
-          ),
-          SizedBox(height: 14.h),
-          Divider(color: const Color(0xFFF0E3DB), height: 1.h),
           SizedBox(height: 12.h),
+          Divider(color: const Color(0xFFF0E3DB), height: 1.h),
+          SizedBox(height: 10.h),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
+              Icon(
+                Icons.calendar_today_outlined,
+                size: 14.sp,
+                color: const Color(0xFF7B736D),
+              ),
+              SizedBox(width: 6.w),
               Expanded(
                 child: Text(
-                  'Created: ${lead.createdOn}',
+                  lead.createdOn == '-'
+                      ? 'Created date unavailable'
+                      : lead.createdOn,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF2A2825),
-                    fontSize: 14.sp,
+                    color: const Color(0xFF5E5752),
+                    fontSize: 12.5.sp,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
+              SizedBox(width: 8.w),
+              if (!isAssigned && canEdit) ...[
+                _AssignLeadButton(onTap: onEdit),
+                SizedBox(width: 8.w),
+              ],
               _LeadActions(
-                isDeleting: isDeleting,
                 canEdit: canEdit,
+                onUpdateStage: onUpdateStage,
                 onEdit: onEdit,
-                onDelete: onDelete,
               ),
             ],
           ),
@@ -2870,51 +2675,142 @@ class _LeadCard extends StatelessWidget {
 
 class _LeadActions extends StatelessWidget {
   const _LeadActions({
-    required this.isDeleting,
     required this.canEdit,
+    required this.onUpdateStage,
     required this.onEdit,
-    required this.onDelete,
   });
 
-  final bool isDeleting;
   final bool canEdit;
+  final VoidCallback onUpdateStage;
   final VoidCallback onEdit;
-  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        _ActionIcon(icon: Icons.swap_horiz_rounded, color: AppColors.black),
-        SizedBox(width: 12.w),
-        if (canEdit) ...[
-          _ActionIcon(icon: Icons.edit, color: AppColors.black, onTap: onEdit),
-          SizedBox(width: 12.w),
-        ],
         _ActionIcon(
-          icon: Icons.delete_outline,
-          color: const Color(0xFFD1213E),
-          onTap: isDeleting ? null : onDelete,
-          isLoading: isDeleting,
+          icon: Icons.fact_check_outlined,
+          color: AppColors.black,
+          onTap: onUpdateStage,
         ),
+        if (canEdit) ...[
+          SizedBox(width: 10.w),
+          _ActionIcon(
+            icon: Icons.edit_outlined,
+            color: AppColors.black,
+            onTap: onEdit,
+          ),
+        ],
       ],
     );
   }
 }
 
+class _AssignmentPill extends StatelessWidget {
+  const _AssignmentPill({required this.isAssigned, required this.label});
+
+  final bool isAssigned;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final background = isAssigned
+        ? const Color(0xFFEFFAF5)
+        : const Color(0xFFFFF5F0);
+    final border = isAssigned
+        ? const Color(0xFFBEEAD5)
+        : const Color(0xFFFFD8C8);
+    final foreground = isAssigned
+        ? const Color(0xFF157A4B)
+        : const Color(0xFFB24D23);
+
+    return Container(
+      height: 28.h,
+      padding: EdgeInsets.symmetric(horizontal: 9.w),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(9.r),
+        border: Border.all(color: border),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            isAssigned ? Icons.check_circle_outline : Icons.person_off_outlined,
+            size: 13.sp,
+            color: foreground,
+          ),
+          SizedBox(width: 5.w),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.inter(
+              color: foreground,
+              fontSize: 11.sp,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AssignLeadButton extends StatelessWidget {
+  const _AssignLeadButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(9.r),
+        child: Container(
+          height: 28.h,
+          padding: EdgeInsets.symmetric(horizontal: 10.w),
+          decoration: BoxDecoration(
+            color: AppColors.primary,
+            borderRadius: BorderRadius.circular(9.r),
+            border: Border.all(color: AppColors.primary),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.person_add_alt_1_outlined,
+                size: 13.sp,
+                color: AppColors.white,
+              ),
+              SizedBox(width: 5.w),
+              Text(
+                'Assign',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.inter(
+                  color: AppColors.white,
+                  fontSize: 11.sp,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _ActionIcon extends StatelessWidget {
-  const _ActionIcon({
-    required this.icon,
-    required this.color,
-    this.onTap,
-    this.isLoading = false,
-  });
+  const _ActionIcon({required this.icon, required this.color, this.onTap});
 
   final IconData icon;
   final Color color;
   final VoidCallback? onTap;
-  final bool isLoading;
 
   @override
   Widget build(BuildContext context) {
@@ -2924,49 +2820,111 @@ class _ActionIcon extends StatelessWidget {
       child: SizedBox(
         width: 24.w,
         height: 24.h,
-        child: isLoading
-            ? Padding(
-                padding: EdgeInsets.all(2.r),
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(color),
-                ),
-              )
-            : Icon(icon, size: 22.sp, color: color),
+        child: Icon(icon, size: 22.sp, color: color),
       ),
     );
   }
 }
 
-class _LeadDetailBlock extends StatelessWidget {
-  const _LeadDetailBlock({required this.label, required this.value});
+class _LeadDetailsGrid extends StatelessWidget {
+  const _LeadDetailsGrid({required this.items});
 
-  final String label;
-  final String value;
+  final List<_LeadDetailItem> items;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.fromLTRB(10.w, 10.h, 10.w, 10.h),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFFAF8),
+        borderRadius: BorderRadius.circular(12.r),
+        border: Border.all(color: const Color(0xFFF0E3DB)),
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final columnWidth = (constraints.maxWidth - 10.w) / 2;
+
+          return Wrap(
+            spacing: 10.w,
+            runSpacing: 10.h,
+            children: items
+                .map(
+                  (item) => SizedBox(
+                    width: columnWidth,
+                    child: _LeadDetailBlock(item: item),
+                  ),
+                )
+                .toList(),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _LeadDetailItem {
+  const _LeadDetailItem({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+}
+
+class _LeadDetailBlock extends StatelessWidget {
+  const _LeadDetailBlock({required this.item});
+
+  final _LeadDetailItem item;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: GoogleFonts.inter(
-            color: const Color(0xFF66615D),
-            fontSize: 13.sp,
-            fontWeight: FontWeight.w500,
+        Container(
+          width: 24.r,
+          height: 24.r,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: AppColors.white,
+            borderRadius: BorderRadius.circular(8.r),
+            border: Border.all(color: const Color(0xFFE8DCD5)),
           ),
+          child: Icon(item.icon, size: 13.sp, color: AppColors.primary),
         ),
-        SizedBox(height: 2.h),
-        Text(
-          value,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: GoogleFonts.inter(
-            color: const Color(0xFF1D1B18),
-            fontSize: 15.sp,
-            fontWeight: FontWeight.w800,
-            height: 1.25,
+        SizedBox(width: 8.w),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                item.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF736A64),
+                  fontSize: 10.8.sp,
+                  fontWeight: FontWeight.w700,
+                  height: 1.05,
+                ),
+              ),
+              SizedBox(height: 3.h),
+              Text(
+                item.value,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF1F1C19),
+                  fontSize: 13.sp,
+                  fontWeight: FontWeight.w800,
+                  height: 1.18,
+                ),
+              ),
+            ],
           ),
         ),
       ],

@@ -22,26 +22,45 @@ class CustomerRegistryItem {
   final List<CustomerProfileSummary> profiles;
 
   factory CustomerRegistryItem.fromJson(Map<String, dynamic> json) {
-    final assignedExecutives = json['assignedExecutives'];
+    final customer = _readMap(json['customer']);
+    final lead = _readMap(json['lead']) ?? _readMap(customer?['lead']);
     final profiles = json['profiles'];
-    final createdAtText = _readText(json['createdAt']);
+    final createdAtText = _firstText([
+      customer?['createdAt'],
+      json['createdAt'],
+    ], fallback: '');
     final createdDate = DateTime.tryParse(createdAtText)?.toLocal();
+    final profileSummaries = profiles is List
+        ? profiles
+              .whereType<Map<String, dynamic>>()
+              .map(CustomerProfileSummary.fromJson)
+              .toList()
+        : customer == null
+        ? const <CustomerProfileSummary>[]
+        : [CustomerProfileSummary.fromJson(json)];
 
     return CustomerRegistryItem(
-      id: _readText(json['id']),
-      name: _readText(json['name'], fallback: 'Unnamed Client'),
-      phone: _readText(json['phone'], fallback: '-'),
-      email: _readText(json['email'], fallback: '-'),
-      packageType: _readText(json['packageType'], fallback: 'STANDARD'),
+      id: _firstText([customer?['id'], json['customerId'], json['id']]),
+      name: _firstText([
+        customer?['name'],
+        json['customerName'],
+        json['name'],
+      ], fallback: 'Unnamed Client'),
+      phone: _firstText([
+        customer?['phone'],
+        json['phone'],
+        json['mobile'],
+        json['contactNumber'],
+      ], fallback: '-'),
+      email: _firstText([customer?['email'], json['email']], fallback: '-'),
+      packageType: _firstText([
+        customer?['packageType'],
+        json['packageType'],
+      ], fallback: 'STANDARD'),
       createdOn: _formatCreatedOn(createdDate),
       createdAt: createdDate,
-      assignedRmName: _readAssignedRmName(assignedExecutives),
-      profiles: profiles is List
-          ? profiles
-                .whereType<Map<String, dynamic>>()
-                .map(CustomerProfileSummary.fromJson)
-                .toList()
-          : const [],
+      assignedRmName: _readAssignedRmName(json, customer: customer, lead: lead),
+      profiles: profileSummaries,
     );
   }
 
@@ -72,22 +91,101 @@ class CustomerRegistryItem {
     return profiles.length;
   }
 
-  static String _readAssignedRmName(dynamic assignedExecutives) {
+  static String _readAssignedRmName(
+    Map<String, dynamic> json, {
+    Map<String, dynamic>? customer,
+    Map<String, dynamic>? lead,
+  }) {
+    final assignedTo = _firstMap([
+      json['assignedRm'],
+      json['assignedRM'],
+      json['relationshipManager'],
+      json['assignedTo'],
+      customer?['assignedRm'],
+      customer?['assignedRM'],
+      customer?['relationshipManager'],
+      customer?['assignedTo'],
+      lead?['assignedTo'],
+      _firstAssignedExecutiveUser(json['assignedExecutives']),
+      _firstAssignedExecutiveUser(json['assigned_executives']),
+      customer == null
+          ? null
+          : _firstAssignedExecutiveUser(customer['assignedExecutives']),
+      customer == null
+          ? null
+          : _firstAssignedExecutiveUser(customer['assigned_executives']),
+    ]);
+
+    return _firstText([
+      json['assignedRmName'],
+      json['assignedRMName'],
+      json['relationshipManagerName'],
+      json['rmName'],
+      customer?['assignedRmName'],
+      customer?['assignedRMName'],
+      customer?['relationshipManagerName'],
+      customer?['rmName'],
+      customer?['assignedToName'],
+      lead?['assignedToName'],
+      assignedTo?['name'],
+      assignedTo?['fullName'],
+      assignedTo?['email'],
+    ], fallback: '-');
+  }
+
+  static Map<String, dynamic>? _firstMap(List<dynamic> values) {
+    for (final value in values) {
+      final map = _readMap(value);
+      if (map != null) {
+        return map;
+      }
+    }
+
+    return null;
+  }
+
+  static Map<String, dynamic>? _readMap(dynamic value) {
+    if (value is Map<String, dynamic>) {
+      return value;
+    }
+
+    if (value is Map) {
+      return Map<String, dynamic>.from(value);
+    }
+
+    return null;
+  }
+
+  static Map<String, dynamic>? _firstAssignedExecutiveUser(
+    dynamic assignedExecutives,
+  ) {
     if (assignedExecutives is! List || assignedExecutives.isEmpty) {
-      return '-';
+      return null;
     }
 
     final firstAssignment = assignedExecutives.first;
-    if (firstAssignment is! Map<String, dynamic>) {
-      return '-';
+    if (firstAssignment is! Map) {
+      return null;
     }
 
+    final assignment = Map<String, dynamic>.from(firstAssignment);
     final user = firstAssignment['user'];
-    if (user is Map<String, dynamic>) {
-      return _readText(user['name'], fallback: '-');
+    if (user is Map) {
+      return Map<String, dynamic>.from(user);
     }
 
-    return '-';
+    return assignment;
+  }
+
+  static String _firstText(List<dynamic> values, {String fallback = '-'}) {
+    for (final value in values) {
+      final text = _readText(value);
+      if (text.isNotEmpty) {
+        return text;
+      }
+    }
+
+    return fallback;
   }
 
   static String _readText(dynamic value, {String fallback = ''}) {

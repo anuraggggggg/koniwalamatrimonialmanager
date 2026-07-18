@@ -10,6 +10,7 @@ class RegistryProfileItem {
     required this.profession,
     required this.community,
     required this.type,
+    required this.packageType,
     required this.isPremium,
     required this.image,
     required this.photoUrls,
@@ -27,6 +28,10 @@ class RegistryProfileItem {
     required this.motherName,
     required this.paternalDetails,
     required this.maternalDetails,
+    this.assignedRmName = '-',
+    this.clientStatus = '-',
+    this.shortlistLabel = '',
+    this.phone = '-',
   });
 
   final String id;
@@ -39,6 +44,7 @@ class RegistryProfileItem {
   final String profession;
   final String community;
   final String type;
+  final String packageType;
   final bool isPremium;
   final String image;
   final List<String> photoUrls;
@@ -56,14 +62,37 @@ class RegistryProfileItem {
   final String motherName;
   final String paternalDetails;
   final String maternalDetails;
+  final String assignedRmName;
+  final String clientStatus;
+  final String shortlistLabel;
+  final String? phone;
 
   factory RegistryProfileItem.fromJson(Map<String, dynamic> json) {
-    final customer = json['customer'];
+    final customer = _firstMap([json['customer']]);
+    final lead = _firstMap([json['lead'], customer['lead']]);
     final photoUrls = json['photoUrls'];
     final dateOfBirth = DateTime.tryParse(_readText(json['dateOfBirth']));
     final heightCm = json['height'];
     final allPhotoUrls = _readPhotoUrls(json['image'], photoUrls);
     final rawId = _readText(json['id']);
+    final packageType = _readText(customer['packageType']);
+    final assignedRm = _firstMap([
+      json['assignedRm'],
+      json['assignedRM'],
+      json['relationshipManager'],
+      json['relationship_manager'],
+      json['assignedTo'],
+      json['assigned_to'],
+      _firstAssignedExecutiveUser(json['assignedExecutives']),
+      _firstAssignedExecutiveUser(json['assigned_executives']),
+      customer['assignedRm'],
+      customer['assignedRM'],
+      customer['relationshipManager'],
+      customer['assignedTo'],
+      lead['assignedTo'],
+      _firstAssignedExecutiveUser(customer['assignedExecutives']),
+      _firstAssignedExecutiveUser(customer['assigned_executives']),
+    ]);
 
     return RegistryProfileItem(
       id: _shortId(rawId),
@@ -81,9 +110,8 @@ class RegistryProfileItem {
       profession: _readText(json['education'], fallback: '-'),
       community: _readText(json['community'], fallback: '-'),
       type: _typeFromGender(json['gender']),
-      isPremium:
-          customer is Map<String, dynamic> &&
-          _readText(customer['packageType']).toUpperCase() == 'PREMIUM',
+      packageType: packageType,
+      isPremium: packageType.toUpperCase() == 'PREMIUM',
       image: allPhotoUrls.first,
       photoUrls: allPhotoUrls,
       dateOfBirth: _formatDate(dateOfBirth),
@@ -107,6 +135,47 @@ class RegistryProfileItem {
       motherName: _readText(json['motherName'], fallback: '-'),
       paternalDetails: _readText(json['paternalDetails'], fallback: '-'),
       maternalDetails: _readText(json['maternalDetails'], fallback: '-'),
+      assignedRmName: _firstText([
+        json['assignedRmName'],
+        json['assignedRMName'],
+        json['relationshipManagerName'],
+        json['rmName'],
+        assignedRm['name'],
+        assignedRm['fullName'],
+        assignedRm['email'],
+        customer['assignedRmName'],
+        customer['assignedRMName'],
+        customer['relationshipManagerName'],
+        customer['rmName'],
+        customer['assignedToName'],
+        lead['assignedToName'],
+        lead['relationshipManagerName'],
+        _firstMap([lead['assignedTo']])['name'],
+      ]),
+      clientStatus: _formatLabel(
+        _firstText([
+          customer['clientStatus'],
+          customer['leadStatus'],
+          customer['stage'],
+          customer['status'],
+          json['clientStatus'],
+          json['leadStatus'],
+          json['discussionStatus'],
+          json['stage'],
+          json['status'],
+        ]),
+      ),
+      shortlistLabel: _shortlistLabel(json, customer),
+      phone: _firstText([
+        json['phone'],
+        json['mobile'],
+        json['mobileNumber'],
+        json['contactNumber'],
+        customer['phone'],
+        customer['mobile'],
+        customer['mobileNumber'],
+        customer['contactNumber'],
+      ]),
     );
   }
 
@@ -128,6 +197,145 @@ class RegistryProfileItem {
     }
 
     return '-';
+  }
+
+  static Map<String, dynamic> _firstMap(List<dynamic> values) {
+    for (final value in values) {
+      if (value is Map<String, dynamic>) {
+        return value;
+      }
+
+      if (value is Map) {
+        return Map<String, dynamic>.from(value);
+      }
+    }
+
+    return const {};
+  }
+
+  static Map<String, dynamic> _firstAssignedExecutiveUser(
+    dynamic assignedExecutives,
+  ) {
+    if (assignedExecutives is! List || assignedExecutives.isEmpty) {
+      return const {};
+    }
+
+    final firstAssignment = assignedExecutives.first;
+    if (firstAssignment is! Map) {
+      return const {};
+    }
+
+    final assignment = Map<String, dynamic>.from(firstAssignment);
+    final user = assignment['user'];
+    if (user is Map) {
+      return Map<String, dynamic>.from(user);
+    }
+
+    return assignment;
+  }
+
+  static List<dynamic> _readList(dynamic value) {
+    return value is List ? value : const [];
+  }
+
+  static int _readInt(dynamic value) {
+    if (value is int) {
+      return value;
+    }
+
+    if (value is num) {
+      return value.toInt();
+    }
+
+    return int.tryParse(_readText(value)) ?? 0;
+  }
+
+  static bool _readBool(dynamic value) {
+    if (value is bool) {
+      return value;
+    }
+
+    final text = _readText(value).toLowerCase();
+    return text == 'true' || text == '1' || text == 'yes';
+  }
+
+  static String _formatLabel(String value) {
+    if (value == '-' || value.trim().isEmpty) {
+      return '-';
+    }
+
+    return value
+        .replaceAll('_', ' ')
+        .replaceAll('-', ' ')
+        .split(RegExp(r'\s+'))
+        .where((part) => part.isNotEmpty)
+        .map((part) {
+          final lower = part.toLowerCase();
+          return '${lower[0].toUpperCase()}${lower.substring(1)}';
+        })
+        .join(' ');
+  }
+
+  static String _shortlistLabel(Map<String, dynamic> json, dynamic customer) {
+    final customerMap = customer is Map<String, dynamic> ? customer : null;
+    final shortlists = _readList(
+      json['shortlists'] ??
+          json['shortlistedFor'] ??
+          json['shortlistedProfiles'] ??
+          customerMap?['shortlists'] ??
+          customerMap?['shortlistedFor'],
+    );
+
+    if (shortlists.isNotEmpty) {
+      final first = shortlists.first;
+      final firstMap = first is Map
+          ? Map<String, dynamic>.from(first)
+          : const <String, dynamic>{};
+      final shortlistedFor = _firstText([
+        firstMap['name'],
+        firstMap['profileName'],
+        firstMap['customerName'],
+        firstMap['leadName'],
+        firstMap['matchedProfileName'],
+        _firstMap([
+          firstMap['profile'],
+          firstMap['customer'],
+          firstMap['lead'],
+          firstMap['matchedProfile'],
+        ])['name'],
+      ]);
+
+      if (shortlistedFor != '-') {
+        return 'Shortlisted for $shortlistedFor';
+      }
+
+      return shortlists.length == 1
+          ? '1 shortlist'
+          : '${shortlists.length} shortlists';
+    }
+
+    final countMap = _firstMap([
+      json['_count'],
+      json['count'],
+      customerMap?['_count'],
+      customerMap?['count'],
+    ]);
+    final shortlistCount = _readInt(
+      json['shortlistCount'] ??
+          json['shortlistedCount'] ??
+          countMap['shortlists'] ??
+          countMap['shortlistedProfiles'],
+    );
+
+    if (shortlistCount > 0) {
+      return shortlistCount == 1 ? '1 shortlist' : '$shortlistCount shortlists';
+    }
+
+    if (_readBool(json['isShortlisted'] ?? customerMap?['isShortlisted'])) {
+      return 'Shortlisted';
+    }
+
+    return '';
   }
 
   static List<String> _readPhotoUrls(dynamic image, dynamic photoUrls) {

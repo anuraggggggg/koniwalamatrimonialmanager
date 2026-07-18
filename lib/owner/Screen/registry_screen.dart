@@ -14,12 +14,12 @@ import 'package:provider/provider.dart';
 class RegistryScreen extends StatelessWidget {
   const RegistryScreen({
     super.key,
-    required this.onMenuPressed,
+    this.onMenuPressed,
     this.showScaffold = true,
     this.showEmbeddedAppBar = true,
   });
 
-  final VoidCallback onMenuPressed;
+  final VoidCallback? onMenuPressed;
   final bool showScaffold;
   final bool showEmbeddedAppBar;
 
@@ -27,9 +27,9 @@ class RegistryScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final widgetBody = const RegistryBody();
-    final fab = FloatingActionButton(
+    final filterButton = FloatingActionButton(
       onPressed: () {
-        showModalBottomSheet(
+        showModalBottomSheet<void>(
           context: context,
           isScrollControlled: true,
           backgroundColor: AppColors.transparent,
@@ -37,8 +37,8 @@ class RegistryScreen extends StatelessWidget {
         );
       },
       backgroundColor: AppColors.primary,
-      shape: const CircleBorder(),
-      child: const Icon(Icons.filter_list, color: AppColors.white),
+      foregroundColor: AppColors.white,
+      child: const Icon(Icons.tune_rounded),
     );
 
     return Theme(
@@ -63,14 +63,14 @@ class RegistryScreen extends StatelessWidget {
                       Expanded(child: widgetBody),
                     ],
                   ),
-                  Positioned(right: 16.w, bottom: 16.h, child: fab),
+                  Positioned(right: 16.w, bottom: 16.h, child: filterButton),
                 ],
               )
             : Scaffold(
                 backgroundColor: AppColors.white,
                 appBar: RegistryAppBar(onMenuPressed: onMenuPressed),
                 body: widgetBody,
-                floatingActionButton: fab,
+                floatingActionButton: filterButton,
               ),
       ),
     );
@@ -369,9 +369,21 @@ class _FallbackProfileImage extends StatelessWidget {
 }
 
 class RegistryAppBar extends StatelessWidget implements PreferredSizeWidget {
-  const RegistryAppBar({super.key, required this.onMenuPressed});
+  const RegistryAppBar({super.key, this.onMenuPressed});
 
-  final VoidCallback onMenuPressed;
+  final VoidCallback? onMenuPressed;
+
+  void _handleLeadingPressed(BuildContext context) {
+    final menuCallback = onMenuPressed;
+    if (menuCallback != null) {
+      menuCallback();
+      return;
+    }
+
+    Navigator.of(
+      context,
+    ).pushNamedAndRemoveUntil(AppRoutes.ownerDashboard, (route) => false);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -379,8 +391,12 @@ class RegistryAppBar extends StatelessWidget implements PreferredSizeWidget {
       backgroundColor: AppColors.white,
       elevation: 0,
       leading: IconButton(
-        icon: Icon(Icons.menu, color: AppColors.primary),
-        onPressed: onMenuPressed,
+        tooltip: onMenuPressed == null ? 'Back' : 'Menu',
+        icon: Icon(
+          onMenuPressed == null ? Icons.arrow_back_rounded : Icons.menu,
+          color: AppColors.primary,
+        ),
+        onPressed: () => _handleLeadingPressed(context),
       ),
       title: Text(
         'Profile',
@@ -489,7 +505,10 @@ class _RegistryBodyState extends State<RegistryBody> {
         return;
       }
 
-      context.read<RegistryProfilesProvider>().fetchProfiles(accessToken);
+      context.read<RegistryProfilesProvider>().fetchProfiles(
+        accessToken,
+        forceRefresh: true,
+      );
     });
   }
 
@@ -522,6 +541,19 @@ class _RegistryBodyState extends State<RegistryBody> {
       setState(() {
         _searchQuery = value;
       });
+    });
+  }
+
+  void _clearSearch() {
+    _searchDebounce?.cancel();
+    if (_searchController.text.isNotEmpty) {
+      _searchController.clear();
+    }
+    if (_searchQuery.isEmpty) {
+      return;
+    }
+    setState(() {
+      _searchQuery = '';
     });
   }
 
@@ -591,7 +623,14 @@ class _RegistryBodyState extends State<RegistryBody> {
         }
 
         if (filtered.isEmpty) {
-          return const _RegistryProfilesMessage(message: 'No profiles found.');
+          final hasSearch = _searchQuery.trim().isNotEmpty;
+          return _RegistryProfilesMessage(
+            message: hasSearch
+                ? 'No profiles match your search.'
+                : 'No profiles found.',
+            actionLabel: hasSearch ? 'Clear search' : null,
+            onActionPressed: hasSearch ? _clearSearch : null,
+          );
         }
 
         return Padding(
@@ -733,26 +772,6 @@ class _RegistryListHeader extends StatelessWidget {
                       ),
                     ),
                   ),
-                  SizedBox(width: 8.w),
-                  Container(
-                    padding: EdgeInsets.all(6.r),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFFF2EB),
-                      borderRadius: BorderRadius.circular(4.r),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.grid_view,
-                          size: 16.sp,
-                          color: AppColors.primary,
-                        ),
-                        SizedBox(width: 4.w),
-                        Icon(Icons.list, size: 16.sp, color: AppColors.black),
-                      ],
-                    ),
-                  ),
                 ],
               ),
             ),
@@ -771,6 +790,32 @@ class _RegistryProfileCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hasAssignedRm =
+        profile.assignedRmName.trim().isNotEmpty &&
+        profile.assignedRmName != '-';
+    final hasClientStatus =
+        profile.clientStatus.trim().isNotEmpty && profile.clientStatus != '-';
+    final rmChip = hasAssignedRm
+        ? _ProfileMetaChip(
+            icon: Icons.support_agent_rounded,
+            label: 'RM: ${profile.assignedRmName}',
+          )
+        : null;
+    final activeChip = hasClientStatus
+        ? _ProfileMetaChip(
+            icon: Icons.verified_user_outlined,
+            label: profile.clientStatus.toUpperCase() == 'ACTIVE'
+                ? 'Active Member'
+                : profile.clientStatus,
+          )
+        : null;
+    final shortlistChip = profile.shortlistLabel.trim().isNotEmpty
+        ? _ProfileMetaChip(
+            icon: Icons.bookmark_added_outlined,
+            label: profile.shortlistLabel,
+          )
+        : null;
+
     return Container(
       decoration: BoxDecoration(
         color: const Color(0xFFFFF6F7),
@@ -900,6 +945,36 @@ class _RegistryProfileCard extends StatelessWidget {
                     fontWeight: FontWeight.w700,
                   ),
                 ),
+                if (rmChip != null ||
+                    activeChip != null ||
+                    shortlistChip != null) ...[
+                  SizedBox(height: 10.h),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: rmChip ?? const SizedBox.shrink(),
+                        ),
+                      ),
+                      SizedBox(width: 8.w),
+                      Flexible(
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: activeChip ?? const SizedBox.shrink(),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (shortlistChip != null) ...[
+                    SizedBox(height: 8.h),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: shortlistChip,
+                    ),
+                  ],
+                ],
                 SizedBox(height: 16.h),
                 Row(
                   children: [
@@ -982,6 +1057,45 @@ class _RegistryProfileCard extends StatelessWidget {
                   ],
                 ),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProfileMetaChip extends StatelessWidget {
+  const _ProfileMetaChip({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: BoxConstraints(maxWidth: 0.8.sw),
+      padding: EdgeInsets.symmetric(horizontal: 9.w, vertical: 6.h),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(10.r),
+        border: Border.all(color: AppColors.rmPaleRoseBorder),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13.sp, color: AppColors.primary),
+          SizedBox(width: 5.w),
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.inter(
+                color: AppColors.black,
+                fontSize: 11.sp,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],
