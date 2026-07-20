@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
@@ -10,7 +11,9 @@ import 'package:koniwalamatrimonial/owner/Screen/admin_drawer_screen.dart';
 import 'package:koniwalamatrimonial/owner/Screen/admin_settings_screen.dart';
 import 'package:koniwalamatrimonial/owner/Screen/leads_registry_screen.dart';
 import 'package:koniwalamatrimonial/owner/Screen/registry_screen.dart';
+import 'package:koniwalamatrimonial/owner/providers/dashboard_provider.dart';
 import 'package:koniwalamatrimonial/providers/auth_provider.dart';
+import 'package:koniwalamatrimonial/providers/navigation_provider.dart';
 import 'package:koniwalamatrimonial/rm/models/rm_lead_item.dart';
 import 'package:koniwalamatrimonial/rm/models/whatsapp_models.dart';
 import 'package:koniwalamatrimonial/rm/providers/whatsapp_provider.dart';
@@ -79,6 +82,57 @@ class _WhatsappInboxScreenState extends State<WhatsappInboxScreen> {
     _scaffoldKey.currentState?.openDrawer();
   }
 
+  bool _isRelationshipManagerRole(String? role) {
+    final normalizedRole = role?.trim().toUpperCase() ?? '';
+    return normalizedRole == 'RELATIONSHIP_MANAGER' || normalizedRole == 'RM';
+  }
+
+  void _openDashboardTab(int dashboardTabIndex) {
+    final role = context.read<AuthProvider>().userModel?.user?.role;
+    final navigator = Navigator.of(context);
+
+    if (_isRelationshipManagerRole(role)) {
+      switch (dashboardTabIndex) {
+        case 0:
+        case 1:
+        case 5:
+          context.read<NavigationProvider>().setIndex(
+            dashboardTabIndex == 5 ? 2 : dashboardTabIndex,
+          );
+          navigator.pushReplacementNamed(
+            AppRoutes.relationshipManagerDashboard,
+          );
+          return;
+        case 2:
+          navigator.pushReplacementNamed(AppRoutes.relationshipManagerLeads);
+          return;
+        case 3:
+          navigator.pushReplacementNamed(AppRoutes.clientRegistry);
+          return;
+        default:
+          context.read<NavigationProvider>().setIndex(0);
+          navigator.pushReplacementNamed(
+            AppRoutes.relationshipManagerDashboard,
+          );
+          return;
+      }
+    }
+
+    context.read<DashboardProvider>().selectTab(dashboardTabIndex);
+    navigator.pushReplacementNamed(AppRoutes.ownerDashboard);
+  }
+
+  void _openDashboardFromDrawer(int dashboardTabIndex) {
+    Navigator.of(context).maybePop();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+
+      _openDashboardTab(dashboardTabIndex);
+    });
+  }
+
   void _startPolling() {
     _pollTimer?.cancel();
     _pollTimer = Timer.periodic(const Duration(seconds: 8), (_) {
@@ -104,6 +158,21 @@ class _WhatsappInboxScreenState extends State<WhatsappInboxScreen> {
     _searchDebounce = Timer(const Duration(milliseconds: 280), () {
       _fetch(forceRefresh: true);
     });
+  }
+
+  Future<void> _showStartChatDialog() async {
+    final conversation = await showDialog<WhatsappConversation>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const _StartWhatsappChatDialog(),
+    );
+    if (!mounted || conversation == null) {
+      return;
+    }
+    Navigator.of(context).pushNamed(
+      AppRoutes.whatsappConversation,
+      arguments: WhatsappConversationLaunch(conversation: conversation),
+    );
   }
 
   Future<void> _fetch({bool forceRefresh = false}) {
@@ -160,6 +229,9 @@ class _WhatsappInboxScreenState extends State<WhatsappInboxScreen> {
       conversations: provider.conversations,
       userId: auth.userModel?.user?.id,
     );
+    final isRelationshipManager = _isRelationshipManagerRole(
+      auth.userModel?.user?.role,
+    );
 
     return Scaffold(
       key: _scaffoldKey,
@@ -170,17 +242,24 @@ class _WhatsappInboxScreenState extends State<WhatsappInboxScreen> {
         child: AdminDrawerContent(
           activeRoute: AppRoutes.whatsappInbox,
           onClose: () => Navigator.of(context).maybePop(),
+          onSelectDashboardTab: _openDashboardFromDrawer,
         ),
       ),
-      bottomNavigationBar: _WhatsappBottomNav(
-        selected: _selectedBottomIndex,
-        onInbox: () => _selectBottomTab(0),
-        onLeads: () => _selectBottomTab(1),
-        onMatches: () => _selectBottomTab(2),
-        onSettings: () => _selectBottomTab(3),
-      ),
+      bottomNavigationBar: isRelationshipManager
+          ? _RmWhatsappBottomNav(
+              onDashboard: () => _openDashboardTab(0),
+              onMatches: () => _openDashboardTab(1),
+              onAccount: () => _openDashboardTab(5),
+            )
+          : _WhatsappBottomNav(
+              selected: _selectedBottomIndex,
+              onInbox: () => _selectBottomTab(0),
+              onLeads: () => _selectBottomTab(1),
+              onMatches: () => _selectBottomTab(2),
+              onSettings: () => _selectBottomTab(3),
+            ),
       body: SafeArea(
-        child: _selectedBottomIndex == 0
+        child: isRelationshipManager || _selectedBottomIndex == 0
             ? _buildInboxBody(auth, provider, status, conversations)
             : _WhatsappEmbeddedTab(
                 selectedIndex: _selectedBottomIndex,
@@ -214,9 +293,17 @@ class _WhatsappInboxScreenState extends State<WhatsappInboxScreen> {
                 ),
                 Padding(
                   padding: EdgeInsets.fromLTRB(20.w, 24.h, 20.w, 0),
-                  child: _ConversationSearchField(
-                    controller: _searchController,
-                    onChanged: _onSearchChanged,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _ConversationSearchField(
+                          controller: _searchController,
+                          onChanged: _onSearchChanged,
+                        ),
+                      ),
+                      SizedBox(width: 10.w),
+                      _StartChatButton(onTap: _showStartChatDialog),
+                    ],
                   ),
                 ),
                 SizedBox(height: 16.h),
@@ -812,6 +899,397 @@ class _ConversationSearchField extends StatelessWidget {
   }
 }
 
+class _StartChatButton extends StatelessWidget {
+  const _StartChatButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: 'Start WhatsApp chat',
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14.r),
+        child: Container(
+          width: 50.r,
+          height: 50.r,
+          decoration: BoxDecoration(
+            color: AppColors.rmPrimary,
+            borderRadius: BorderRadius.circular(14.r),
+          ),
+          child: Icon(
+            Icons.add_comment_outlined,
+            color: Colors.white,
+            size: 22.sp,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _StartWhatsappChatDialog extends StatefulWidget {
+  const _StartWhatsappChatDialog();
+
+  @override
+  State<_StartWhatsappChatDialog> createState() =>
+      _StartWhatsappChatDialogState();
+}
+
+class _StartWhatsappChatDialogState extends State<_StartWhatsappChatDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _countryController = TextEditingController(text: '+91');
+  final _phoneController = TextEditingController();
+  final _nameController = TextEditingController();
+  bool _isSubmitting = false;
+
+  @override
+  void dispose() {
+    _countryController.dispose();
+    _phoneController.dispose();
+    _nameController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (_isSubmitting || !_formKey.currentState!.validate()) {
+      return;
+    }
+
+    setState(() => _isSubmitting = true);
+    try {
+      final accessToken = context.read<AuthProvider>().userModel?.accessToken;
+      final conversation = await context.read<WhatsappProvider>().startChat(
+        accessToken: accessToken,
+        countryCode: _countryController.text,
+        phone: _phoneController.text,
+        name: _nameController.text,
+      );
+      if (!mounted) {
+        return;
+      }
+      if (conversation == null) {
+        _showMessage('Unable to start WhatsApp chat.');
+        return;
+      }
+      Navigator.of(context).pop(conversation);
+    } catch (error) {
+      if (mounted) {
+        _showMessage(error.toString().replaceFirst('Exception: ', ''));
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
+    }
+  }
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(content: Text(message), backgroundColor: AppColors.error),
+      );
+  }
+
+  String? _countryValidator(String? value) {
+    final digits = (value ?? '').replaceAll(RegExp(r'\D'), '');
+    if (digits.isEmpty) {
+      return 'Required';
+    }
+    if (digits.length > 4) {
+      return 'Invalid';
+    }
+    return null;
+  }
+
+  String? _phoneValidator(String? value) {
+    final digits = (value ?? '').replaceAll(RegExp(r'\D'), '');
+    if (digits.length < 10) {
+      return 'Enter valid number';
+    }
+    return null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      insetPadding: EdgeInsets.symmetric(horizontal: 18.w, vertical: 24.h),
+      backgroundColor: Colors.transparent,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: 440.w),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(22.r),
+          ),
+          child: Form(
+            key: _formKey,
+            child: SingleChildScrollView(
+              padding: EdgeInsets.fromLTRB(20.w, 18.h, 20.w, 18.h),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Start WhatsApp chat',
+                          style: GoogleFonts.playfairDisplay(
+                            color: AppColors.rmHeading,
+                            fontSize: 24.sp,
+                            fontWeight: FontWeight.w800,
+                            height: 1.1,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: 'Close',
+                        onPressed: _isSubmitting
+                            ? null
+                            : () => Navigator.of(context).maybePop(),
+                        icon: Icon(
+                          Icons.close_rounded,
+                          color: AppColors.rmBodyText,
+                          size: 22.sp,
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 8.h),
+                  Text(
+                    'Enter a mobile number to open an existing lead conversation or create a new WhatsApp lead.',
+                    style: GoogleFonts.inter(
+                      color: AppColors.rmBodyText,
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w500,
+                      height: 1.45,
+                    ),
+                  ),
+                  SizedBox(height: 22.h),
+                  Text(
+                    'WhatsApp number',
+                    style: GoogleFonts.inter(
+                      color: AppColors.rmHeading,
+                      fontSize: 13.sp,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  SizedBox(height: 8.h),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SizedBox(
+                        width: 92.w,
+                        child: _StartChatTextField(
+                          controller: _countryController,
+                          hintText: '+91',
+                          keyboardType: TextInputType.phone,
+                          validator: _countryValidator,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.allow(
+                              RegExp(r'[0-9+]'),
+                            ),
+                          ],
+                        ),
+                      ),
+                      SizedBox(width: 8.w),
+                      Expanded(
+                        child: _StartChatTextField(
+                          controller: _phoneController,
+                          hintText: '98765 43210',
+                          keyboardType: TextInputType.phone,
+                          validator: _phoneValidator,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.allow(
+                              RegExp(r'[0-9 ]'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 6.h),
+                  Text(
+                    'Country code is required and will be used when sending through WhatsApp.',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFF64748B),
+                      fontSize: 11.sp,
+                      fontWeight: FontWeight.w600,
+                      height: 1.3,
+                    ),
+                  ),
+                  SizedBox(height: 20.h),
+                  Text(
+                    'Name',
+                    style: GoogleFonts.inter(
+                      color: AppColors.rmHeading,
+                      fontSize: 13.sp,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  SizedBox(height: 8.h),
+                  _StartChatTextField(
+                    controller: _nameController,
+                    hintText: 'Optional',
+                    textInputAction: TextInputAction.done,
+                    onSubmitted: (_) => _submit(),
+                  ),
+                  SizedBox(height: 16.h),
+                  Container(
+                    width: double.infinity,
+                    padding: EdgeInsets.all(12.w),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF7ED),
+                      borderRadius: BorderRadius.circular(10.r),
+                      border: Border.all(color: const Color(0xFFFAD7B7)),
+                    ),
+                    child: Text(
+                      'First contact must use an approved WhatsApp template. Free-form typing unlocks for 24 hours after the customer replies.',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFFE14B17),
+                        fontSize: 12.sp,
+                        fontWeight: FontWeight.w800,
+                        height: 1.35,
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: 26.h),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: _isSubmitting
+                              ? null
+                              : () => Navigator.of(context).maybePop(),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.rmPrimary,
+                            side: const BorderSide(color: Color(0xFFF2D7CA)),
+                            minimumSize: Size(0, 44.h),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10.r),
+                            ),
+                          ),
+                          child: Text(
+                            'Cancel',
+                            style: GoogleFonts.inter(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 13.sp,
+                            ),
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: 12.w),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: _isSubmitting ? null : _submit,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.rmPrimary,
+                            foregroundColor: Colors.white,
+                            disabledBackgroundColor: const Color(0xFFE8B6A2),
+                            elevation: 0,
+                            minimumSize: Size(0, 44.h),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10.r),
+                            ),
+                          ),
+                          child: _isSubmitting
+                              ? SizedBox(
+                                  width: 18.r,
+                                  height: 18.r,
+                                  child: const CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : Text(
+                                  'Open chat',
+                                  style: GoogleFonts.inter(
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 13.sp,
+                                  ),
+                                ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _StartChatTextField extends StatelessWidget {
+  const _StartChatTextField({
+    required this.controller,
+    required this.hintText,
+    this.keyboardType,
+    this.validator,
+    this.inputFormatters,
+    this.textInputAction,
+    this.onSubmitted,
+  });
+
+  final TextEditingController controller;
+  final String hintText;
+  final TextInputType? keyboardType;
+  final String? Function(String?)? validator;
+  final List<TextInputFormatter>? inputFormatters;
+  final TextInputAction? textInputAction;
+  final ValueChanged<String>? onSubmitted;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextFormField(
+      controller: controller,
+      keyboardType: keyboardType,
+      validator: validator,
+      inputFormatters: inputFormatters,
+      textInputAction: textInputAction,
+      onFieldSubmitted: onSubmitted,
+      style: GoogleFonts.inter(
+        color: AppColors.rmHeading,
+        fontSize: 14.sp,
+        fontWeight: FontWeight.w700,
+      ),
+      decoration: InputDecoration(
+        hintText: hintText,
+        hintStyle: GoogleFonts.inter(
+          color: const Color(0xFF94A3B8),
+          fontSize: 14.sp,
+          fontWeight: FontWeight.w600,
+        ),
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 14.h),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(9.r),
+          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(9.r),
+          borderSide: const BorderSide(color: AppColors.rmPrimary, width: 1.2),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(9.r),
+          borderSide: const BorderSide(color: AppColors.error),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(9.r),
+          borderSide: const BorderSide(color: AppColors.error),
+        ),
+      ),
+    );
+  }
+}
+
 class _FilterChip extends StatelessWidget {
   const _FilterChip({
     required this.label,
@@ -1051,6 +1529,52 @@ class _InboxStateMessage extends StatelessWidget {
                 child: Text(actionLabel!),
               ),
             ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RmWhatsappBottomNav extends StatelessWidget {
+  const _RmWhatsappBottomNav({
+    required this.onDashboard,
+    required this.onMatches,
+    required this.onAccount,
+  });
+
+  final VoidCallback onDashboard;
+  final VoidCallback onMatches;
+  final VoidCallback onAccount;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      top: false,
+      child: Container(
+        padding: EdgeInsets.fromLTRB(12.w, 12.h, 12.w, 16.h),
+        color: AppColors.white,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            _BottomNavItem(
+              icon: Icons.space_dashboard_outlined,
+              label: 'Dashboard',
+              selected: false,
+              onTap: onDashboard,
+            ),
+            _BottomNavItem(
+              icon: Icons.filter_alt_outlined,
+              label: 'Matches',
+              selected: false,
+              onTap: onMatches,
+            ),
+            _BottomNavItem(
+              icon: Icons.person_outline,
+              label: 'Account',
+              selected: false,
+              onTap: onAccount,
+            ),
           ],
         ),
       ),

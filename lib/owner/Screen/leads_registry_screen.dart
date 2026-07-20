@@ -388,6 +388,19 @@ class _LeadsRegistryBodyState extends State<_LeadsRegistryBody> {
     final assigneeOptions = _filterOptions(leads, (lead) => lead.assignedTo);
     final visibleLeads = _visibleLeads(leads, stageFilters);
     final canEditLeads = _canEditLeads(authProvider.userModel?.user?.role);
+    if (!canEditLeads && _selectedAssignees.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || _selectedAssignees.isEmpty) {
+          return;
+        }
+
+        setState(() {
+          _selectedAssignees.clear();
+          _showExecutiveDropdown = false;
+          _registryLeadLimit = _registryPreviewCount;
+        });
+      });
+    }
     final convertedCount =
         stageFilters
             .firstWhere((filter) => filter.label == 'Converted')
@@ -434,46 +447,49 @@ class _LeadsRegistryBodyState extends State<_LeadsRegistryBody> {
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: TapRegion(
-                            enabled: _showExecutiveDropdown,
-                            onTapOutside: (_) {
-                              if (!_showExecutiveDropdown) {
-                                return;
-                              }
+                        if (canEditLeads) ...[
+                          Expanded(
+                            child: TapRegion(
+                              enabled: _showExecutiveDropdown,
+                              onTapOutside: (_) {
+                                if (!_showExecutiveDropdown) {
+                                  return;
+                                }
 
-                              setState(() {
-                                _showExecutiveDropdown = false;
-                              });
-                            },
-                            child: _ExecutiveMultiSelectDropdown(
-                              options: assigneeOptions,
-                              selectedValues: _selectedAssignees,
-                              isExpanded: _showExecutiveDropdown,
-                              onHeaderTap: () => setState(() {
-                                _showExecutiveDropdown =
-                                    !_showExecutiveDropdown;
-                              }),
-                              onSelectionChanged: (name, selected) =>
-                                  setState(() {
-                                    if (selected) {
-                                      _selectedAssignees.add(name);
-                                    } else {
-                                      _selectedAssignees.remove(name);
-                                    }
-                                    _registryLeadLimit = _registryPreviewCount;
-                                  }),
-                              onClear: _selectedAssignees.isEmpty
-                                  ? null
-                                  : () => setState(() {
-                                      _selectedAssignees.clear();
+                                setState(() {
+                                  _showExecutiveDropdown = false;
+                                });
+                              },
+                              child: _ExecutiveMultiSelectDropdown(
+                                options: assigneeOptions,
+                                selectedValues: _selectedAssignees,
+                                isExpanded: _showExecutiveDropdown,
+                                onHeaderTap: () => setState(() {
+                                  _showExecutiveDropdown =
+                                      !_showExecutiveDropdown;
+                                }),
+                                onSelectionChanged: (name, selected) =>
+                                    setState(() {
+                                      if (selected) {
+                                        _selectedAssignees.add(name);
+                                      } else {
+                                        _selectedAssignees.remove(name);
+                                      }
                                       _registryLeadLimit =
                                           _registryPreviewCount;
                                     }),
+                                onClear: _selectedAssignees.isEmpty
+                                    ? null
+                                    : () => setState(() {
+                                        _selectedAssignees.clear();
+                                        _registryLeadLimit =
+                                            _registryPreviewCount;
+                                      }),
+                              ),
                             ),
                           ),
-                        ),
-                        SizedBox(width: 8.w),
+                          SizedBox(width: 8.w),
+                        ],
                         _CompactFilterButton(
                           activeFilterCount: _activeFilterCount,
                           onPressed: () => _showLeadFiltersSheet(leads),

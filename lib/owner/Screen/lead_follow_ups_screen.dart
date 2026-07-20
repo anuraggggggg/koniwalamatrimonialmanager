@@ -1,12 +1,9 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:koniwalamatrimonial/constants/app_colors.dart';
 import 'package:koniwalamatrimonial/owner/models/lead_follow_up_item.dart';
 import 'package:koniwalamatrimonial/owner/providers/lead_follow_ups_provider.dart';
-import 'package:koniwalamatrimonial/owner/providers/tasks_provider.dart';
 import 'package:koniwalamatrimonial/providers/auth_provider.dart';
 import 'package:koniwalamatrimonial/routes/app_routes.dart';
 import 'package:provider/provider.dart';
@@ -24,9 +21,8 @@ class _LeadFollowUpsScreenState extends State<LeadFollowUpsScreen> {
   static const int _leadPageSize = 8;
   bool _hasRequestedFollowUps = false;
   String? _requestedAccessToken;
-  String _query = '';
+  final Set<String> _selectedRmNames = <String>{};
   String _selectedFilter = 'All follow-ups';
-  Timer? _searchDebounce;
   int _visibleLeadLimit = _initialLeadLimit;
 
   final List<String> _filters = const [
@@ -38,7 +34,13 @@ class _LeadFollowUpsScreenState extends State<LeadFollowUpsScreen> {
   ];
 
   List<LeadFollowUpItem> _visibleLeads(List<LeadFollowUpItem> leads) {
-    var filtered = leads.where((lead) => lead.matches(_query)).toList();
+    var filtered = leads;
+
+    if (_selectedRmNames.isNotEmpty) {
+      filtered = filtered
+          .where((lead) => _selectedRmNames.contains(lead.assignedToName))
+          .toList();
+    }
 
     if (_selectedFilter == 'Due today') {
       filtered = filtered.where(_hasTaskDueToday).toList();
@@ -63,6 +65,44 @@ class _LeadFollowUpsScreenState extends State<LeadFollowUpsScreen> {
         return first.hasOverdueFollowUp ? -1 : 1;
       }
       return first.name.compareTo(second.name);
+    });
+  }
+
+  List<String> _rmOptions(List<LeadFollowUpItem> leads) {
+    final options = leads
+        .map((lead) => lead.assignedToName.trim())
+        .where((name) => name.isNotEmpty && name != '-')
+        .toSet()
+        .toList();
+    options.sort(
+      (left, right) => left.toLowerCase().compareTo(right.toLowerCase()),
+    );
+    return options;
+  }
+
+  bool _canSeeAllRmFilter(String? role) {
+    final normalizedRole = role?.trim().toUpperCase();
+    return normalizedRole == 'ADMIN' || normalizedRole == 'OWNER';
+  }
+
+  void _toggleRmFilter(String rmName) {
+    setState(() {
+      if (_selectedRmNames.contains(rmName)) {
+        _selectedRmNames.remove(rmName);
+      } else {
+        _selectedRmNames.add(rmName);
+      }
+      _resetPagination();
+    });
+  }
+
+  void _clearRmFilter() {
+    if (_selectedRmNames.isEmpty) {
+      return;
+    }
+    setState(() {
+      _selectedRmNames.clear();
+      _resetPagination();
     });
   }
 
@@ -101,12 +141,6 @@ class _LeadFollowUpsScreenState extends State<LeadFollowUpsScreen> {
   }
 
   @override
-  void dispose() {
-    _searchDebounce?.cancel();
-    super.dispose();
-  }
-
-  @override
   void didChangeDependencies() {
     super.didChangeDependencies();
 
@@ -130,7 +164,25 @@ class _LeadFollowUpsScreenState extends State<LeadFollowUpsScreen> {
   @override
   Widget build(BuildContext context) {
     final followUpsProvider = context.watch<LeadFollowUpsProvider>();
+    final authProvider = context.watch<AuthProvider>();
     final leads = followUpsProvider.leads;
+    final rmOptions = _rmOptions(leads);
+    final canSeeAllRmFilter = _canSeeAllRmFilter(
+      authProvider.userModel?.user?.role,
+    );
+    if (!canSeeAllRmFilter && _selectedRmNames.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || _selectedRmNames.isEmpty) {
+          return;
+        }
+
+        setState(() {
+          _selectedRmNames.clear();
+          _resetPagination();
+        });
+      });
+    }
+
     final visibleLeads = _visibleLeads(leads);
     final displayLimit = _boundedLeadLimit(
       _visibleLeadLimit,
@@ -204,47 +256,23 @@ class _LeadFollowUpsScreenState extends State<LeadFollowUpsScreen> {
               physics: const AlwaysScrollableScrollPhysics(),
               padding: EdgeInsets.zero,
               children: [
-                Padding(
-                  padding: EdgeInsets.fromLTRB(14.w, 20.h, 14.w, 14.h),
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      'One clean queue per lead. The first row\nshows who the lead is, the task explains\nwhat is pending.',
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFF34302F),
-                        fontSize: 12.sp,
-                        fontWeight: FontWeight.w500,
-                        height: 1.45,
-                      ),
-                    ),
-                  ),
-                ),
+                SizedBox(height: 16.h),
                 _LeadFollowUpSummary(leads: leads),
                 Padding(
                   padding: EdgeInsets.fromLTRB(14.w, 16.h, 14.w, 10.h),
                   child: Row(
                     children: [
-                      Expanded(
-                        child: _SearchBar(
-                          onChanged: (value) {
-                            _searchDebounce?.cancel();
-                            _searchDebounce = Timer(
-                              const Duration(milliseconds: 220),
-                              () {
-                                if (!mounted) {
-                                  return;
-                                }
-
-                                setState(() {
-                                  _query = value;
-                                  _resetPagination();
-                                });
-                              },
-                            );
-                          },
+                      if (canSeeAllRmFilter) ...[
+                        Expanded(
+                          child: _FollowUpRmDropdown(
+                            rmOptions: rmOptions,
+                            selectedRmNames: _selectedRmNames,
+                            onRmSelected: _toggleRmFilter,
+                            onClear: _clearRmFilter,
+                          ),
                         ),
-                      ),
-                      SizedBox(width: 8.w),
+                        SizedBox(width: 8.w),
+                      ],
                       _FollowUpFilterDropdown(
                         filters: _filters,
                         selectedFilter: _selectedFilter,
@@ -280,49 +308,6 @@ class _LeadFollowUpsScreenState extends State<LeadFollowUpsScreen> {
               ],
             ),
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _SearchBar extends StatelessWidget {
-  const _SearchBar({required this.onChanged});
-
-  final ValueChanged<String> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 37.h,
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(10.r),
-        border: Border.all(color: const Color(0xFFD8D8D8)),
-      ),
-      child: TextField(
-        onChanged: onChanged,
-        style: GoogleFonts.inter(
-          color: AppColors.rmHeading,
-          fontSize: 13.sp,
-          fontWeight: FontWeight.w600,
-        ),
-        textAlignVertical: TextAlignVertical.center,
-        decoration: InputDecoration(
-          hintText: 'Search registry...',
-          hintStyle: GoogleFonts.inter(
-            color: const Color(0xFF6E7683),
-            fontSize: 12.sp,
-            fontWeight: FontWeight.w500,
-          ),
-          prefixIcon: Icon(
-            Icons.search_rounded,
-            color: const Color(0xFF6E7683),
-            size: 18.sp,
-          ),
-          isDense: true,
-          border: InputBorder.none,
-          contentPadding: EdgeInsets.symmetric(vertical: 7.h),
         ),
       ),
     );
@@ -480,6 +465,158 @@ class _LeadMetricCard extends StatelessWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _FollowUpRmDropdown extends StatelessWidget {
+  const _FollowUpRmDropdown({
+    required this.rmOptions,
+    required this.selectedRmNames,
+    required this.onRmSelected,
+    required this.onClear,
+  });
+
+  final List<String> rmOptions;
+  final Set<String> selectedRmNames;
+  final ValueChanged<String> onRmSelected;
+  final VoidCallback onClear;
+
+  String get _buttonLabel {
+    if (selectedRmNames.isEmpty) {
+      return 'All RM';
+    }
+    if (selectedRmNames.length == 1) {
+      return selectedRmNames.first;
+    }
+    return '${selectedRmNames.length} RM selected';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 37.h,
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(10.r),
+        border: Border.all(color: const Color(0xFFD8D8D8)),
+      ),
+      child: PopupMenuButton<String>(
+        enabled: rmOptions.isNotEmpty,
+        tooltip: 'Filter by RM',
+        position: PopupMenuPosition.under,
+        offset: Offset(0, 5.h),
+        elevation: 3,
+        color: AppColors.white,
+        surfaceTintColor: AppColors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(4.r),
+          side: const BorderSide(color: Color(0xFFE8E0DC)),
+        ),
+        onSelected: (value) {
+          if (value == '__clear__') {
+            onClear();
+            return;
+          }
+          onRmSelected(value);
+        },
+        itemBuilder: (context) {
+          return [
+            if (selectedRmNames.isNotEmpty)
+              PopupMenuItem<String>(
+                value: '__clear__',
+                height: 40.h,
+                child: Text(
+                  'Clear RM filter',
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF171412),
+                    fontSize: 13.sp,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ...rmOptions.map(
+              (rmName) => PopupMenuItem<String>(
+                value: rmName,
+                height: 42.h,
+                child: Row(
+                  children: [
+                    IgnorePointer(
+                      child: Checkbox(
+                        value: selectedRmNames.contains(rmName),
+                        onChanged: (_) {},
+                        activeColor: const Color(0xFF171412),
+                        checkColor: AppColors.white,
+                        side: const BorderSide(color: Color(0xFF171412)),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    ),
+                    SizedBox(width: 4.w),
+                    Expanded(
+                      child: Text(
+                        rmName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.inter(
+                          color: const Color(0xFF171412),
+                          fontSize: 13.sp,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ];
+        },
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: 12.w),
+          child: Row(
+            children: [
+              Icon(
+                Icons.badge_outlined,
+                color: const Color(0xFF171412),
+                size: 18.sp,
+              ),
+              SizedBox(width: 8.w),
+              Expanded(
+                child: Text(
+                  rmOptions.isEmpty ? 'No RM available' : _buttonLabel,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF171412),
+                    fontSize: 13.sp,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              if (selectedRmNames.isNotEmpty) ...[
+                SizedBox(width: 5.w),
+                InkWell(
+                  borderRadius: BorderRadius.circular(14.r),
+                  onTap: onClear,
+                  child: Padding(
+                    padding: EdgeInsets.all(2.r),
+                    child: Icon(
+                      Icons.close_rounded,
+                      color: const Color(0xFF171412),
+                      size: 16.sp,
+                    ),
+                  ),
+                ),
+              ],
+              SizedBox(width: 5.w),
+              Icon(
+                Icons.keyboard_arrow_down_rounded,
+                color: const Color(0xFF171412),
+                size: 19.sp,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -650,11 +787,11 @@ class _FollowUpList extends StatelessWidget {
     }
 
     return Padding(
-      padding: EdgeInsets.all(14.w),
+      padding: EdgeInsets.fromLTRB(14.w, 10.h, 14.w, 14.h),
       child: Column(
         children: [
           for (int index = 0; index < leads.length; index++) ...[
-            if (index > 0) SizedBox(height: 14.h),
+            if (index > 0) SizedBox(height: 10.h),
             _LeadFollowUpCard(lead: leads[index]),
           ],
           if (onLoadMore != null) ...[
@@ -871,8 +1008,6 @@ class _LeadFollowUpCard extends StatelessWidget {
     final task = lead.openFollowUps.isNotEmpty
         ? lead.openFollowUps.first
         : null;
-    final isCompleting =
-        task != null && context.watch<TasksProvider>().isCompleting(task.id);
     final progressCount = lead.followUpTasks.where((item) {
       final status = '${item.status} ${item.workflowStatus}'.toLowerCase();
       return item.isOpen && status.contains('progress');
@@ -880,18 +1015,22 @@ class _LeadFollowUpCard extends StatelessWidget {
     final notes = lead.notes.trim().isNotEmpty
         ? lead.notes.trim()
         : "Demo system task created from the 'Lead No Response Escalation' rule.";
+    final assignedTo =
+        task?.assignedToName == '-' || task?.assignedToName == null
+        ? lead.assignedToName
+        : task!.assignedToName;
 
     return Container(
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: AppColors.white,
-        borderRadius: BorderRadius.circular(10.r),
-        border: Border.all(color: const Color(0xFFF1B9A1)),
+        borderRadius: BorderRadius.circular(8.r),
+        border: Border.all(color: const Color(0xFFE9DDD8)),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x14000000),
-            blurRadius: 14,
-            offset: Offset(0, 6),
+            color: Color(0x0F323247),
+            blurRadius: 10,
+            offset: Offset(0, 3),
           ),
         ],
       ),
@@ -899,48 +1038,48 @@ class _LeadFollowUpCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: EdgeInsets.fromLTRB(12.w, 12.h, 12.w, 9.h),
+            padding: EdgeInsets.fromLTRB(12.w, 12.h, 12.w, 11.h),
             child: Column(
               children: [
                 Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Container(
-                      width: 40.r,
-                      height: 40.r,
+                      width: 38.r,
+                      height: 38.r,
                       decoration: BoxDecoration(
-                        color: AppColors.white,
+                        color: const Color(0xFFFFEFE9),
                         shape: BoxShape.circle,
-                        border: Border.all(color: const Color(0xFFE0E0E0)),
+                        border: Border.all(color: const Color(0xFFF2CDBA)),
                       ),
                       alignment: Alignment.center,
                       child: Text(
                         lead.initials.substring(0, 1),
                         style: GoogleFonts.inter(
-                          color: const Color(0xFF3A3532),
+                          color: const Color(0xFFD76322),
                           fontSize: 14.sp,
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w900,
                         ),
                       ),
                     ),
-                    SizedBox(width: 12.w),
+                    SizedBox(width: 10.w),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
-                            crossAxisAlignment: CrossAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Flexible(
+                              Expanded(
                                 child: Text(
                                   lead.name,
-                                  maxLines: 1,
+                                  maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
                                   style: GoogleFonts.inter(
                                     color: const Color(0xFF171412),
-                                    fontSize: 20.sp,
+                                    fontSize: 16.sp,
                                     fontWeight: FontWeight.w900,
-                                    height: 1.05,
+                                    height: 1.12,
                                   ),
                                 ),
                               ),
@@ -948,63 +1087,49 @@ class _LeadFollowUpCard extends StatelessWidget {
                               _StageBadge(stage: lead.stage),
                             ],
                           ),
-                          SizedBox(height: 5.h),
-                          Text(
-                            '${lead.phone} • RM',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.inter(
-                              color: const Color(0xFF2A2725),
-                              fontSize: 13.sp,
-                              fontWeight: FontWeight.w800,
-                              height: 1.15,
-                            ),
+                          SizedBox(height: 6.h),
+                          _LeadMetaLine(
+                            icon: Icons.phone_rounded,
+                            label: lead.phone,
                           ),
-                          Text(
-                            lead.assignedToName,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.inter(
-                              color: const Color(0xFF3C3835),
-                              fontSize: 13.sp,
-                              fontWeight: FontWeight.w600,
-                            ),
+                          SizedBox(height: 3.h),
+                          _LeadMetaLine(
+                            icon: Icons.badge_outlined,
+                            label: 'RM: ${lead.assignedToName}',
                           ),
                         ],
                       ),
                     ),
                   ],
                 ),
-                SizedBox(height: 17.h),
+                SizedBox(height: 12.h),
                 Row(
                   children: [
                     _AttentionBadge(
                       label: lead.hasOverdueFollowUp
-                          ? 'Needs attention'
+                          ? 'Attention'
                           : 'Follow-up',
                       filled: false,
                     ),
                     SizedBox(width: 6.w),
                     _AttentionBadge(
-                      label: '${lead.openFollowUps.length} open items',
+                      label: '${lead.openFollowUps.length} open',
                       filled: false,
                       neutral: true,
                     ),
-                    SizedBox(width: 6.w),
                     const Spacer(),
                     SizedBox(
-                      height: 34.h,
-                      child: ElevatedButton.icon(
+                      height: 32.h,
+                      child: OutlinedButton.icon(
                         onPressed: () => _openQuickTask(context),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFD76322),
-                          foregroundColor: AppColors.white,
-                          elevation: 0,
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFFD76322),
+                          side: const BorderSide(color: Color(0xFFEBA07A)),
                           padding: EdgeInsets.symmetric(horizontal: 9.w),
                           minimumSize: Size.zero,
                           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(5.r),
+                            borderRadius: BorderRadius.circular(8.r),
                           ),
                         ),
                         icon: Icon(Icons.add_rounded, size: 16.sp),
@@ -1022,44 +1147,54 @@ class _LeadFollowUpCard extends StatelessWidget {
               ],
             ),
           ),
-          Divider(height: 1, color: const Color(0xFFEFE6E1)),
+          Container(
+            width: double.infinity,
+            padding: EdgeInsets.fromLTRB(12.w, 11.h, 12.w, 12.h),
+            decoration: const BoxDecoration(
+              color: Color(0xFFFFFCFA),
+              border: Border(
+                top: BorderSide(color: Color(0xFFEFE6E1)),
+                bottom: BorderSide(color: Color(0xFFEFE6E1)),
+              ),
+            ),
+            child: Wrap(
+              spacing: 7.w,
+              runSpacing: 7.h,
+              children: [
+                _TaskStatusPill(
+                  label: 'To Do',
+                  count: lead.openFollowUps.length,
+                  selected: true,
+                ),
+                _TaskStatusPill(label: 'Progress', count: progressCount),
+                _TaskStatusPill(
+                  label: 'Done',
+                  count: lead.doneFollowUps.length,
+                ),
+              ],
+            ),
+          ),
           Padding(
-            padding: EdgeInsets.fromLTRB(12.w, 13.h, 12.w, 10.h),
+            padding: EdgeInsets.fromLTRB(12.w, 12.h, 12.w, 10.h),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    _TaskStatusPill(
-                      label: 'To Do',
-                      count: lead.openFollowUps.length,
-                      selected: true,
-                    ),
-                    _TaskStatusPill(label: 'Progress', count: progressCount),
-                    _TaskStatusPill(
-                      label: 'Done',
-                      count: lead.doneFollowUps.length,
-                    ),
-                  ],
-                ),
-                SizedBox(height: 17.h),
-                Wrap(
-                  spacing: 6.w,
-                  runSpacing: 6.h,
                   children: [
                     _SoftBadge(
                       label: _priorityLabel(task),
                       color: const Color(0xFFE83B45),
                       background: const Color(0xFFFFEEEE),
                     ),
-                    if (task?.isOverdue ?? false)
+                    if (task?.isOverdue ?? false) ...[
+                      SizedBox(width: 6.w),
                       _SoftBadge(
                         label: 'OVERDUE',
                         color: const Color(0xFFE67B22),
                         background: const Color(0xFFFFF3E6),
                         icon: Icons.warning_amber_rounded,
                       ),
+                    ],
                   ],
                 ),
                 SizedBox(height: 9.h),
@@ -1069,12 +1204,47 @@ class _LeadFollowUpCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.inter(
                     color: const Color(0xFF272321),
-                    fontSize: 17.sp,
+                    fontSize: 15.sp,
                     fontWeight: FontWeight.w900,
-                    height: 1.15,
+                    height: 1.2,
                   ),
                 ),
-                SizedBox(height: 4.h),
+                SizedBox(height: 11.h),
+                Container(
+                  width: double.infinity,
+                  padding: EdgeInsets.all(10.w),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFFAF8),
+                    borderRadius: BorderRadius.circular(8.r),
+                    border: Border.all(color: const Color(0xFFF2E4DD)),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: _TaskInfoBlock(
+                          label: 'Type',
+                          value: task?.type ?? 'Call',
+                        ),
+                      ),
+                      SizedBox(width: 10.w),
+                      Expanded(
+                        child: _TaskInfoBlock(
+                          label: 'Due',
+                          value: task?.dueDateLabel ?? '-',
+                        ),
+                      ),
+                      SizedBox(width: 10.w),
+                      Expanded(
+                        child: _TaskInfoBlock(
+                          label: 'Owner',
+                          value: assignedTo,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(height: 10.h),
                 Text(
                   lead.leadMeta,
                   maxLines: 1,
@@ -1085,183 +1255,35 @@ class _LeadFollowUpCard extends StatelessWidget {
                     fontWeight: FontWeight.w800,
                   ),
                 ),
+                SizedBox(height: 8.h),
+                Text(
+                  notes,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF4A4542),
+                    fontSize: 12.sp,
+                    fontWeight: FontWeight.w600,
+                    height: 1.35,
+                  ),
+                ),
                 SizedBox(height: 14.h),
-                Divider(height: 1, color: const Color(0xFFEFE6E1)),
-                SizedBox(height: 12.h),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: _TaskInfoBlock(
-                        label: 'Task Type',
-                        value: task?.type ?? 'Call',
-                      ),
-                    ),
-                    Expanded(
-                      child: _TaskInfoBlock(
-                        label: 'Due Date',
-                        value: task?.dueDateLabel ?? '-',
-                      ),
-                    ),
-                  ],
-                ),
-                SizedBox(height: 12.h),
-                _TaskInfoBlock(
-                  label: 'Assigned To',
-                  value: task?.assignedToName == '-'
-                      ? lead.assignedToName
-                      : task?.assignedToName ?? lead.assignedToName,
-                ),
-                SizedBox(height: 12.h),
-                Divider(height: 1, color: const Color(0xFFEFE6E1)),
-                SizedBox(height: 16.h),
-                Container(
-                  width: double.infinity,
-                  padding: EdgeInsets.fromLTRB(12.w, 12.h, 12.w, 12.h),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFFAF8),
-                    borderRadius: BorderRadius.circular(10.r),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'NOTES',
-                        style: GoogleFonts.inter(
-                          color: const Color(0xFF2F2B29),
-                          fontSize: 12.sp,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                      SizedBox(height: 9.h),
-                      Text(
-                        notes,
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.inter(
-                          color: const Color(0xFF4A4542),
-                          fontSize: 12.sp,
-                          fontWeight: FontWeight.w700,
-                          height: 1.35,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                SizedBox(height: 20.h),
-                InkWell(
-                  borderRadius: BorderRadius.circular(9.r),
-                  onTap: () => _openDialer(context, lead.phone),
-                  child: Container(
-                    padding: EdgeInsets.fromLTRB(10.w, 9.h, 12.w, 9.h),
-                    decoration: BoxDecoration(
-                      color: AppColors.white,
-                      borderRadius: BorderRadius.circular(9.r),
-                      border: Border.all(color: const Color(0xFFF1BEA6)),
-                    ),
-                    child: Row(
-                      children: [
-                        ClipOval(
-                          child: Image.asset(
-                            'assets/wedding_hero 1.png',
-                            width: 44.r,
-                            height: 44.r,
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                        SizedBox(width: 12.w),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'CLIENT PROFILE',
-                                style: GoogleFonts.inter(
-                                  color: const Color(0xFF4B4542),
-                                  fontSize: 10.sp,
-                                  fontWeight: FontWeight.w900,
-                                ),
-                              ),
-                              SizedBox(height: 3.h),
-                              Text(
-                                lead.name,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: GoogleFonts.inter(
-                                  color: const Color(0xFF171412),
-                                  fontSize: 14.sp,
-                                  fontWeight: FontWeight.w900,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Icon(
-                          Icons.phone_in_talk_outlined,
-                          color: const Color(0xFF171412),
-                          size: 20.sp,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                SizedBox(height: 34.h),
                 Row(
                   children: [
-                    InkWell(
-                      onTap: () => _openQuickTask(context),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.add_circle_outline_rounded,
-                            color: const Color(0xFF4A4542),
-                            size: 16.sp,
-                          ),
-                          SizedBox(width: 8.w),
-                          Text(
-                            'Quick Task',
-                            style: GoogleFonts.inter(
-                              color: const Color(0xFF4A4542),
-                              fontSize: 13.sp,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                        ],
+                    Expanded(
+                      child: _FollowUpActionButton(
+                        icon: Icons.phone_in_talk_outlined,
+                        label: 'Call',
+                        onTap: () => _openDialer(context, lead.phone),
                       ),
                     ),
-                    const Spacer(),
-                    SizedBox(
-                      height: 37.h,
-                      width: 126.w,
-                      child: ElevatedButton(
-                        onPressed: task == null || isCompleting
-                            ? null
-                            : () => _markDone(context, task),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFD76322),
-                          foregroundColor: AppColors.white,
-                          disabledBackgroundColor: const Color(0xFFE6C4B5),
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20.r),
-                          ),
-                        ),
-                        child: isCompleting
-                            ? SizedBox(
-                                width: 18.r,
-                                height: 18.r,
-                                child: const CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: AppColors.white,
-                                ),
-                              )
-                            : Text(
-                                'Mark Done',
-                                style: GoogleFonts.inter(
-                                  fontSize: 12.sp,
-                                  fontWeight: FontWeight.w900,
-                                ),
-                              ),
+                    SizedBox(width: 8.w),
+                    Expanded(
+                      child: _FollowUpActionButton(
+                        icon: Icons.add_task_rounded,
+                        label: 'Quick Task',
+                        highlighted: true,
+                        onTap: () => _openQuickTask(context),
                       ),
                     ),
                   ],
@@ -1269,33 +1291,37 @@ class _LeadFollowUpCard extends StatelessWidget {
               ],
             ),
           ),
-          Divider(height: 1, color: const Color(0xFFEFE6E1)),
           Padding(
-            padding: EdgeInsets.fromLTRB(14.w, 9.h, 12.w, 10.h),
+            padding: EdgeInsets.fromLTRB(12.w, 0, 12.w, 10.h),
             child: Row(
               children: [
+                Icon(
+                  Icons.access_time_rounded,
+                  color: const Color(0xFF6B625D),
+                  size: 14.sp,
+                ),
+                SizedBox(width: 5.w),
                 Expanded(
                   child: Text(
                     _formatTimestamp(task?.createdAt ?? lead.createdAt),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.inter(
-                      color: const Color(0xFF4A4542),
-                      fontSize: 10.sp,
-                      fontWeight: FontWeight.w900,
+                      color: const Color(0xFF6B625D),
+                      fontSize: 10.5.sp,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
                 ),
-                Icon(
-                  Icons.calendar_month_outlined,
-                  color: const Color(0xFF3E454E),
-                  size: 17.sp,
-                ),
-                SizedBox(width: 14.w),
-                Icon(
-                  Icons.delete_outline_rounded,
-                  color: const Color(0xFFE3262E),
-                  size: 18.sp,
+                Text(
+                  lead.source == '-' ? 'Lead follow-up' : lead.source,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF6B625D),
+                    fontSize: 10.5.sp,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
               ],
             ),
@@ -1315,7 +1341,7 @@ class _LeadFollowUpCard extends StatelessWidget {
 
   String _formatTimestamp(DateTime? date) {
     if (date == null) {
-      return '11 May, 03:13 pm';
+      return 'No activity time';
     }
 
     const months = [
@@ -1368,29 +1394,96 @@ class _LeadFollowUpCard extends StatelessWidget {
       );
     }
   }
+}
 
-  Future<void> _markDone(BuildContext context, LeadFollowUpTask task) async {
-    final messenger = ScaffoldMessenger.of(context);
-    final token = context.read<AuthProvider>().userModel?.accessToken;
-    final tasksProvider = context.read<TasksProvider>();
-    final success = await tasksProvider.markTaskDone(
-      accessToken: token,
-      taskId: task.id,
+class _LeadMetaLine extends StatelessWidget {
+  const _LeadMetaLine({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, color: const Color(0xFF6B625D), size: 12.sp),
+        SizedBox(width: 4.w),
+        Expanded(
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF4A4542),
+              fontSize: 11.5.sp,
+              fontWeight: FontWeight.w700,
+              height: 1.1,
+            ),
+          ),
+        ),
+      ],
     );
+  }
+}
 
-    if (!context.mounted) return;
+class _FollowUpActionButton extends StatelessWidget {
+  const _FollowUpActionButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.highlighted = false,
+  });
 
-    if (!success) {
-      messenger.showSnackBar(
-        SnackBar(content: Text(tasksProvider.error ?? 'Unable to update task')),
-      );
-      return;
-    }
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final bool highlighted;
 
-    messenger.showSnackBar(
-      const SnackBar(content: Text('Task marked as done')),
+  @override
+  Widget build(BuildContext context) {
+    final foreground = highlighted ? AppColors.white : const Color(0xFF171412);
+    return SizedBox(
+      height: 38.h,
+      child: Material(
+        color: highlighted ? const Color(0xFFD76322) : AppColors.white,
+        borderRadius: BorderRadius.circular(8.r),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(8.r),
+          child: Container(
+            alignment: Alignment.center,
+            padding: EdgeInsets.symmetric(horizontal: 10.w),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8.r),
+              border: Border.all(
+                color: highlighted
+                    ? const Color(0xFFD76322)
+                    : const Color(0xFFE4D6CF),
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, color: foreground, size: 16.sp),
+                SizedBox(width: 6.w),
+                Flexible(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(
+                      color: foreground,
+                      fontSize: 12.sp,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
-    await context.read<LeadFollowUpsProvider>().retry();
   }
 }
 
@@ -1409,8 +1502,8 @@ class _AttentionBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = neutral ? const Color(0xFF3B3735) : const Color(0xFFE33A3A);
     return Container(
-      height: 34.h,
-      padding: EdgeInsets.symmetric(horizontal: 11.w),
+      height: 28.h,
+      padding: EdgeInsets.symmetric(horizontal: 9.w),
       alignment: Alignment.center,
       decoration: BoxDecoration(
         color: filled ? color : AppColors.white,
@@ -1423,7 +1516,7 @@ class _AttentionBadge extends StatelessWidget {
         overflow: TextOverflow.ellipsis,
         style: GoogleFonts.inter(
           color: filled ? AppColors.white : color,
-          fontSize: 12.sp,
+          fontSize: 11.sp,
           fontWeight: FontWeight.w900,
         ),
       ),
@@ -1445,11 +1538,11 @@ class _TaskStatusPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 32.h,
-      padding: EdgeInsets.symmetric(horizontal: 12.w),
+      height: 29.h,
+      padding: EdgeInsets.symmetric(horizontal: 10.w),
       decoration: BoxDecoration(
         color: selected ? const Color(0xFFD76322) : AppColors.white,
-        borderRadius: BorderRadius.circular(18.r),
+        borderRadius: BorderRadius.circular(15.r),
         border: Border.all(color: const Color(0xFFEBA07A)),
       ),
       child: Row(
@@ -1459,14 +1552,14 @@ class _TaskStatusPill extends StatelessWidget {
             label,
             style: GoogleFonts.inter(
               color: selected ? AppColors.white : const Color(0xFF3A3532),
-              fontSize: 12.sp,
+              fontSize: 11.sp,
               fontWeight: selected ? FontWeight.w900 : FontWeight.w700,
             ),
           ),
-          SizedBox(width: 7.w),
+          SizedBox(width: 6.w),
           Container(
-            width: 18.r,
-            height: 18.r,
+            width: 17.r,
+            height: 17.r,
             alignment: Alignment.center,
             decoration: BoxDecoration(
               color: selected
@@ -1478,7 +1571,7 @@ class _TaskStatusPill extends StatelessWidget {
               '$count',
               style: GoogleFonts.inter(
                 color: selected ? AppColors.white : const Color(0xFFD76322),
-                fontSize: 10.sp,
+                fontSize: 9.5.sp,
                 fontWeight: FontWeight.w900,
               ),
             ),
@@ -1505,7 +1598,7 @@ class _SoftBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 7.w, vertical: 5.h),
+      padding: EdgeInsets.symmetric(horizontal: 7.w, vertical: 4.h),
       decoration: BoxDecoration(
         color: background,
         borderRadius: BorderRadius.circular(12.r),
@@ -1521,7 +1614,7 @@ class _SoftBadge extends StatelessWidget {
             label,
             style: GoogleFonts.inter(
               color: color,
-              fontSize: 8.sp,
+              fontSize: 9.sp,
               fontWeight: FontWeight.w900,
             ),
           ),
@@ -1546,7 +1639,7 @@ class _TaskInfoBlock extends StatelessWidget {
           label.toUpperCase(),
           style: GoogleFonts.inter(
             color: const Color(0xFF8A8582),
-            fontSize: 11.sp,
+            fontSize: 9.5.sp,
             fontWeight: FontWeight.w900,
           ),
         ),
@@ -1557,9 +1650,9 @@ class _TaskInfoBlock extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
           style: GoogleFonts.inter(
             color: const Color(0xFF3A3532),
-            fontSize: 15.sp,
+            fontSize: 12.sp,
             fontWeight: FontWeight.w900,
-            height: 1.1,
+            height: 1.15,
           ),
         ),
       ],

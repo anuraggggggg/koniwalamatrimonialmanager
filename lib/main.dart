@@ -33,6 +33,7 @@ import 'package:koniwalamatrimonial/routes/app_router.dart';
 import 'package:koniwalamatrimonial/routes/app_routes.dart';
 import 'package:koniwalamatrimonial/rm/chat_updates/chat_updates_source.dart';
 import 'package:koniwalamatrimonial/rm/providers/rm_dashboard_summary_provider.dart';
+import 'package:koniwalamatrimonial/rm/providers/rm_leads_provider.dart';
 import 'package:koniwalamatrimonial/rm/providers/whatsapp_provider.dart';
 import 'package:koniwalamatrimonial/services/whatsapp_service.dart';
 import 'package:koniwalamatrimonial/utils/app_responsive.dart';
@@ -144,6 +145,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => DataEntryDashboardProvider()),
         ChangeNotifierProvider(create: (_) => ManagerDashboardProvider()),
         ChangeNotifierProvider(create: (_) => RmDashboardSummaryProvider()),
+        ChangeNotifierProvider(create: (_) => RmLeadsProvider()),
         ChangeNotifierProvider(create: (_) => NotificationsProvider()),
         ChangeNotifierProvider(create: (_) => LeadFollowUpProvider()),
         ChangeNotifierProvider(

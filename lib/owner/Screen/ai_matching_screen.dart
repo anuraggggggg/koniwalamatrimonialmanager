@@ -9,8 +9,10 @@ import 'package:koniwalamatrimonial/constants/api_constants.dart';
 import 'package:koniwalamatrimonial/constants/app_colors.dart';
 import 'package:koniwalamatrimonial/owner/models/match_comparison_args.dart';
 import 'package:koniwalamatrimonial/owner/models/registry_profile_item.dart';
+import 'package:koniwalamatrimonial/owner/providers/dashboard_provider.dart';
 import 'package:koniwalamatrimonial/owner/providers/registry_profiles_provider.dart';
 import 'package:koniwalamatrimonial/providers/auth_provider.dart';
+import 'package:koniwalamatrimonial/providers/navigation_provider.dart';
 import 'package:koniwalamatrimonial/routes/app_routes.dart';
 import 'package:provider/provider.dart';
 
@@ -72,6 +74,8 @@ class AiMatchingScreen extends StatefulWidget {
 }
 
 class _AiMatchingScreenState extends State<AiMatchingScreen> {
+  static const List<int> _visibleBottomNavTabs = [0, 1, 2, 5];
+
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   bool _manualMatchSelected = false;
   final Set<String> _approvingSuggestionIds = {};
@@ -84,6 +88,69 @@ class _AiMatchingScreenState extends State<AiMatchingScreen> {
     }
 
     _scaffoldKey.currentState?.openDrawer();
+  }
+
+  int _tabIndexForBottomNav(int bottomNavIndex) {
+    return _visibleBottomNavTabs[bottomNavIndex];
+  }
+
+  bool _isRelationshipManagerRole(String? role) {
+    final normalizedRole = role?.trim().toUpperCase() ?? '';
+    return normalizedRole == 'RELATIONSHIP_MANAGER' || normalizedRole == 'RM';
+  }
+
+  void _openDashboardTab(int dashboardTabIndex) {
+    final role = context.read<AuthProvider>().userModel?.user?.role;
+    final navigator = Navigator.of(context);
+
+    if (_isRelationshipManagerRole(role)) {
+      switch (dashboardTabIndex) {
+        case 0:
+        case 1:
+        case 5:
+          context.read<NavigationProvider>().setIndex(
+            dashboardTabIndex == 5 ? 2 : dashboardTabIndex,
+          );
+          navigator.pushReplacementNamed(
+            AppRoutes.relationshipManagerDashboard,
+          );
+          return;
+        case 2:
+          navigator.pushReplacementNamed(AppRoutes.relationshipManagerLeads);
+          return;
+        case 3:
+          navigator.pushReplacementNamed(AppRoutes.clientRegistry);
+          return;
+        default:
+          context.read<NavigationProvider>().setIndex(0);
+          navigator.pushReplacementNamed(
+            AppRoutes.relationshipManagerDashboard,
+          );
+          return;
+      }
+    }
+
+    context.read<DashboardProvider>().selectTab(dashboardTabIndex);
+    navigator.pushReplacementNamed(AppRoutes.ownerDashboard);
+  }
+
+  void _openDashboardFromBottomNav(int bottomNavIndex) {
+    if (bottomNavIndex == 1) {
+      return;
+    }
+
+    _openDashboardTab(_tabIndexForBottomNav(bottomNavIndex));
+  }
+
+  void _openDashboardFromDrawer(int dashboardTabIndex) {
+    Navigator.of(context).maybePop();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+
+      _openDashboardTab(dashboardTabIndex);
+    });
   }
 
   @override
@@ -121,6 +188,7 @@ class _AiMatchingScreenState extends State<AiMatchingScreen> {
         child: AdminDrawerContent(
           activeRoute: AppRoutes.aiMatching,
           onClose: () => Navigator.of(context).maybePop(),
+          onSelectDashboardTab: _openDashboardFromDrawer,
         ),
       ),
       body: MediaQuery(
@@ -146,7 +214,7 @@ class _AiMatchingScreenState extends State<AiMatchingScreen> {
                             'Generate, review, and manage matches for your clients in one place.',
                             style: GoogleFonts.inter(
                               color: AppColors.rmComparisonStrong,
-                              fontSize: 14.sp,
+                              fontSize: 11.sp,
 
                               height: 1,
                             ),
@@ -168,7 +236,7 @@ class _AiMatchingScreenState extends State<AiMatchingScreen> {
                                 foregroundColor: AppColors.white,
                                 elevation: 0,
                                 textStyle: GoogleFonts.inter(
-                                  fontSize: 14.sp,
+                                  fontSize: 12.sp,
                                   fontWeight: FontWeight.w500,
 
                                   letterSpacing: 0.4,
@@ -258,6 +326,73 @@ class _AiMatchingScreenState extends State<AiMatchingScreen> {
           ),
         ),
       ),
+      bottomNavigationBar: _buildBottomNav(context),
+    );
+  }
+
+  Widget _buildBottomNav(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.01),
+            blurRadius: 4,
+            offset: const Offset(0, -4),
+          ),
+        ],
+      ),
+      child: BottomNavigationBar(
+        currentIndex: 1,
+        onTap: _openDashboardFromBottomNav,
+        type: BottomNavigationBarType.fixed,
+        backgroundColor: Colors.white,
+        selectedItemColor: AppColors.primary,
+        unselectedItemColor: Colors.black,
+        selectedFontSize: 12.sp,
+        unselectedFontSize: 11.sp,
+        selectedLabelStyle: GoogleFonts.inter(
+          fontSize: 12.sp,
+          fontWeight: FontWeight.w700,
+        ),
+        unselectedLabelStyle: GoogleFonts.inter(
+          fontSize: 11.sp,
+          fontWeight: FontWeight.w700,
+        ),
+        showSelectedLabels: true,
+        showUnselectedLabels: true,
+        items: [
+          BottomNavigationBarItem(
+            icon: _bottomNavImageIcon(Colors.black),
+            activeIcon: _bottomNavImageIcon(AppColors.primary),
+            label: 'Dashboard',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.groups_outlined, size: 24.sp),
+            activeIcon: Icon(Icons.groups_rounded, size: 24.sp),
+            label: 'Matches',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person_search_outlined, size: 24.sp),
+            activeIcon: Icon(Icons.person_search_rounded, size: 24.sp),
+            label: 'Leads',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person_outline_rounded, size: 24.sp),
+            activeIcon: Icon(Icons.person_rounded, size: 24.sp),
+            label: 'Profile',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _bottomNavImageIcon(Color color) {
+    return Image.asset(
+      'assets/icon/dashbaord_icon.png',
+      width: 24.sp,
+      height: 24.sp,
+      color: color,
     );
   }
 

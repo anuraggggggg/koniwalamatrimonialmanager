@@ -3,11 +3,19 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:koniwalamatrimonial/constants/app_colors.dart';
 import 'package:koniwalamatrimonial/owner/Screen/client_registry_screen.dart';
+import 'package:koniwalamatrimonial/owner/models/lead_follow_up_item.dart';
+import 'package:koniwalamatrimonial/owner/models/registry_profile_item.dart';
+import 'package:koniwalamatrimonial/owner/providers/lead_follow_ups_provider.dart';
+import 'package:koniwalamatrimonial/owner/providers/registry_profiles_provider.dart';
 import 'package:koniwalamatrimonial/providers/auth_provider.dart';
 import 'package:koniwalamatrimonial/providers/navigation_provider.dart';
 import 'package:koniwalamatrimonial/routes/app_routes.dart';
+import 'package:koniwalamatrimonial/rm/models/rm_lead_item.dart';
+import 'package:koniwalamatrimonial/rm/models/whatsapp_models.dart';
 import 'package:koniwalamatrimonial/rm/relationship_manager_account_screen.dart';
 import 'package:koniwalamatrimonial/rm/providers/rm_dashboard_summary_provider.dart';
+import 'package:koniwalamatrimonial/rm/providers/rm_leads_provider.dart';
+import 'package:koniwalamatrimonial/rm/providers/whatsapp_provider.dart';
 import 'package:koniwalamatrimonial/owner/Screen/registry_screen.dart';
 import 'package:koniwalamatrimonial/widgets/koniwala_primary_app_bar.dart';
 import 'package:provider/provider.dart';
@@ -24,7 +32,6 @@ class _RmMetrics {
   static const double actionButtonVerticalPadding = 7;
   static const double actionButtonHorizontalPadding = 6;
   static const double compactAvatarRadius = 22;
-  static const double controlHeight = 50;
   static const double taskSmallCardHeight = 92;
   static const double queueInfoBlockHeight = 82;
   static const double conversationPadding = 18;
@@ -50,7 +57,15 @@ class _RelationshipManagerDashboardScreenState
   final Color _maroon = AppColors.rmPrimary;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   String? _requestedSummaryAccessToken;
+  String? _requestedWhatsappAccessToken;
+  String? _requestedLeadsAccessToken;
+  String? _requestedFollowUpsAccessToken;
+  String? _requestedProfilesAccessToken;
   bool _hasRequestedSummary = false;
+  bool _hasRequestedWhatsapp = false;
+  bool _hasRequestedLeads = false;
+  bool _hasRequestedFollowUps = false;
+  bool _hasRequestedProfiles = false;
 
   @override
   void didChangeDependencies() {
@@ -61,19 +76,72 @@ class _RelationshipManagerDashboardScreenState
         .userModel
         ?.accessToken
         ?.trim();
-    if (_hasRequestedSummary && accessToken == _requestedSummaryAccessToken) {
-      return;
+
+    if (!_hasRequestedSummary || accessToken != _requestedSummaryAccessToken) {
+      _hasRequestedSummary = true;
+      _requestedSummaryAccessToken = accessToken;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) {
+          return;
+        }
+
+        context.read<RmDashboardSummaryProvider>().fetchSummary(accessToken);
+      });
     }
 
-    _hasRequestedSummary = true;
-    _requestedSummaryAccessToken = accessToken;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) {
-        return;
-      }
+    if (!_hasRequestedWhatsapp ||
+        accessToken != _requestedWhatsappAccessToken) {
+      _hasRequestedWhatsapp = true;
+      _requestedWhatsappAccessToken = accessToken;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) {
+          return;
+        }
 
-      context.read<RmDashboardSummaryProvider>().fetchSummary(accessToken);
-    });
+        context.read<WhatsappProvider>().fetchConversations(
+          accessToken: accessToken,
+          forceRefresh: true,
+        );
+      });
+    }
+
+    if (!_hasRequestedLeads || accessToken != _requestedLeadsAccessToken) {
+      _hasRequestedLeads = true;
+      _requestedLeadsAccessToken = accessToken;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) {
+          return;
+        }
+
+        context.read<RmLeadsProvider>().fetchLeads(accessToken);
+      });
+    }
+
+    if (!_hasRequestedFollowUps ||
+        accessToken != _requestedFollowUpsAccessToken) {
+      _hasRequestedFollowUps = true;
+      _requestedFollowUpsAccessToken = accessToken;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) {
+          return;
+        }
+
+        context.read<LeadFollowUpsProvider>().fetchFollowUps(accessToken);
+      });
+    }
+
+    if (!_hasRequestedProfiles ||
+        accessToken != _requestedProfilesAccessToken) {
+      _hasRequestedProfiles = true;
+      _requestedProfilesAccessToken = accessToken;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) {
+          return;
+        }
+
+        context.read<RegistryProfilesProvider>().fetchProfiles(accessToken);
+      });
+    }
   }
 
   @override
@@ -82,6 +150,30 @@ class _RelationshipManagerDashboardScreenState
     final selectedTab = rawSelectedTab > 2 ? 2 : rawSelectedTab;
     final user = context.watch<AuthProvider>().userModel?.user;
     final summary = context.watch<RmDashboardSummaryProvider>().summary;
+    final rmLeads = context.watch<RmLeadsProvider>().leads;
+    final followUpLeads = context.watch<LeadFollowUpsProvider>().leads;
+    final conversations = context.watch<WhatsappProvider>().conversations;
+    final assignedLeadCount = summary?.assignedLeads ?? rmLeads.length;
+    final openTaskCount =
+        summary?.openTasks ??
+        rmLeads.fold<int>(0, (total, lead) => total + lead.openTasksCount);
+    final needsReplyCount =
+        summary?.needsReply ??
+        _dashboardConversations(
+          conversations,
+          user?.id,
+        ).where((conversation) => conversation.unreadCount > 0).length;
+    final followUpTodayCount =
+        summary?.followUpToday ??
+        followUpLeads.where(_hasFollowUpDueToday).length;
+    final activeJourneysCount =
+        summary?.activeJourneys ??
+        rmLeads
+            .where((lead) => lead.stageLabel.toLowerCase() != 'closed')
+            .length;
+    final waitingCount =
+        summary?.waiting ??
+        followUpLeads.where((lead) => lead.isWaiting).length;
 
     if (rawSelectedTab != selectedTab) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -126,7 +218,7 @@ class _RelationshipManagerDashboardScreenState
                           ),
                           SizedBox(height: _RmMetrics.smallGap.h),
                           Text(
-                            'Follow up with your leads, reply faster, and clear your work for Saturday, 9 May.',
+                            'Follow up with your leads, reply faster, and clear today\'s work.',
                             style: GoogleFonts.inter(
                               fontSize: 14.sp,
                               color: AppColors.rmBodyText,
@@ -139,45 +231,63 @@ class _RelationshipManagerDashboardScreenState
                             cards: [
                               _StatCardData(
                                 title: 'Assigned Leads',
-                                value: '${summary?.assignedLeads ?? 9}',
+                                value: '$assignedLeadCount',
                                 subtitle: 'In your care',
                                 borderColor: AppColors.primary,
                                 icon: Icons.groups_2_outlined,
+                                onTap: () => Navigator.of(
+                                  context,
+                                ).pushNamed(AppRoutes.relationshipManagerLeads),
                               ),
                               _StatCardData(
                                 title: 'Open Tasks',
-                                value: '${summary?.openTasks ?? 2}',
+                                value: '$openTaskCount',
                                 subtitle: 'Still active',
                                 borderColor: AppColors.accent,
                                 icon: Icons.task_alt_outlined,
+                                onTap: () => Navigator.of(
+                                  context,
+                                ).pushNamed(AppRoutes.leadFollowUps),
                               ),
                               _StatCardData(
                                 title: 'Needs Reply',
-                                value: '${summary?.needsReply ?? 1}',
+                                value: '$needsReplyCount',
                                 subtitle: 'Waiting',
                                 borderColor: AppColors.rmTeal,
                                 icon: Icons.mark_chat_unread_outlined,
+                                onTap: () => Navigator.of(
+                                  context,
+                                ).pushNamed(AppRoutes.whatsappInbox),
                               ),
                               _StatCardData(
                                 title: 'Follow Up',
-                                value: '${summary?.followUpToday ?? 2}',
+                                value: '$followUpTodayCount',
                                 subtitle: 'Due today',
                                 borderColor: AppColors.rmIndigo,
                                 icon: Icons.event_available_outlined,
+                                onTap: () => Navigator.of(
+                                  context,
+                                ).pushNamed(AppRoutes.leadFollowUps),
                               ),
                               _StatCardData(
                                 title: 'Journeys',
-                                value: '${summary?.activeJourneys ?? 0}',
+                                value: '$activeJourneysCount',
                                 subtitle: 'Progressing',
                                 borderColor: AppColors.rmBrown,
                                 icon: Icons.route_outlined,
+                                onTap: () => Navigator.of(
+                                  context,
+                                ).pushNamed(AppRoutes.aiMatching),
                               ),
                               _StatCardData(
                                 title: 'Waiting',
-                                value: '${summary?.waiting ?? 1}',
+                                value: '$waitingCount',
                                 subtitle: 'On the lead',
                                 borderColor: AppColors.rmSky,
                                 icon: Icons.hourglass_top_outlined,
+                                onTap: () => Navigator.of(
+                                  context,
+                                ).pushNamed(AppRoutes.leadFollowUps),
                               ),
                             ],
                           ),
@@ -238,9 +348,9 @@ class _RelationshipManagerDashboardScreenState
       drawer: _RmDashboardDrawer(
         selectedIndex: selectedTab,
         userName: user?.name ?? 'Relationship Manager',
-        assignedLeads: '${summary?.assignedLeads ?? 9}',
-        openTasks: '${summary?.openTasks ?? 2}',
-        needsReply: '${summary?.needsReply ?? 1}',
+        assignedLeads: '$assignedLeadCount',
+        openTasks: '$openTaskCount',
+        needsReply: '$needsReplyCount',
         onChanged: (index) =>
             context.read<NavigationProvider>().setIndex(index),
       ),
@@ -428,6 +538,15 @@ class _RmDashboardDrawer extends StatelessWidget {
                     onTap: () {
                       Navigator.of(context).pop();
                       Navigator.of(context).pushNamed(AppRoutes.leadFollowUps);
+                    },
+                  ),
+                  _RmDrawerItem(
+                    label: 'WhatsApp',
+                    icon: Icons.chat_bubble_outline,
+                    selected: false,
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      Navigator.of(context).pushNamed(AppRoutes.whatsappInbox);
                     },
                   ),
                   _RmDrawerItem(
@@ -784,6 +903,7 @@ class _StatCardData {
   final String subtitle;
   final Color borderColor;
   final IconData icon;
+  final VoidCallback onTap;
 
   const _StatCardData({
     required this.title,
@@ -791,6 +911,7 @@ class _StatCardData {
     required this.subtitle,
     required this.borderColor,
     required this.icon,
+    required this.onTap,
   });
 }
 
@@ -803,8 +924,8 @@ class _StatCardGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        const columnCount = 3;
-        final spacing = 8.w;
+        const columnCount = 2;
+        final spacing = 4.w;
         final cardWidth =
             (constraints.maxWidth - (spacing * (columnCount - 1))) /
             columnCount;
@@ -815,13 +936,14 @@ class _StatCardGrid extends StatelessWidget {
           children: cards.map((card) {
             return SizedBox(
               width: cardWidth,
-              height: 135.h,
+              height: 120.h,
               child: _StatCard(
                 title: card.title,
                 value: card.value,
                 subtitle: card.subtitle,
                 borderColor: card.borderColor,
                 icon: card.icon,
+                onTap: card.onTap,
               ),
             );
           }).toList(),
@@ -837,6 +959,7 @@ class _StatCard extends StatelessWidget {
   final String subtitle;
   final Color borderColor;
   final IconData icon;
+  final VoidCallback onTap;
 
   const _StatCard({
     required this.title,
@@ -844,95 +967,103 @@ class _StatCard extends StatelessWidget {
     required this.subtitle,
     required this.borderColor,
     required this.icon,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      height: double.infinity,
-      padding: EdgeInsets.all(12.w),
-      decoration: BoxDecoration(
-        color: AppColors.white,
+    return Material(
+      color: AppColors.transparent,
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(12.r),
-        border: Border.all(color: AppColors.rmPaleRoseBorder),
-        boxShadow: const [
-          BoxShadow(
-            color: AppColors.rmCardShadow,
-            blurRadius: 14,
-            offset: Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 30.r,
-                height: 30.r,
-                decoration: BoxDecoration(
-                  color: borderColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(8.r),
-                ),
-                child: Icon(icon, color: borderColor, size: 18.sp),
-              ),
-              SizedBox(width: 7.w),
-              Expanded(
-                child: Text(
-                  title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.inter(
-                    color: AppColors.rmHeading,
-                    fontSize: 13.5.sp,
-                    fontWeight: FontWeight.w800,
-                    height: 1.15,
-                  ),
-                ),
+        child: Container(
+          width: double.infinity,
+          height: double.infinity,
+          padding: EdgeInsets.all(10.w),
+          decoration: BoxDecoration(
+            color: AppColors.white,
+            borderRadius: BorderRadius.circular(12.r),
+            border: Border.all(color: AppColors.rmPaleRoseBorder),
+            boxShadow: const [
+              BoxShadow(
+                color: AppColors.rmCardShadow,
+                blurRadius: 14,
+                offset: Offset(0, 6),
               ),
             ],
           ),
-          const Spacer(),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
+              Row(
+                children: [
+                  Container(
+                    width: 30.r,
+                    height: 30.r,
+                    decoration: BoxDecoration(
+                      color: borderColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(8.r),
+                    ),
+                    child: Icon(icon, color: borderColor, size: 18.sp),
+                  ),
+                  SizedBox(width: 7.w),
+                  Expanded(
+                    child: Text(
+                      title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.inter(
+                        color: AppColors.rmHeading,
+                        fontSize: 12.5.sp,
+                        fontWeight: FontWeight.w800,
+                        height: 1.15,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const Spacer(),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Expanded(
+                    child: Text(
+                      value,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.inter(
+                        color: borderColor,
+                        fontSize: 28.sp,
+                        fontWeight: FontWeight.w900,
+                        height: 1,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 8.h),
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
+                decoration: BoxDecoration(
+                  color: borderColor.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(999),
+                ),
                 child: Text(
-                  value,
+                  subtitle,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.inter(
-                    color: borderColor,
-                    fontSize: 31.sp,
-                    fontWeight: FontWeight.w900,
-                    height: 1,
+                    color: AppColors.rmStatCaption,
+                    fontSize: 10.sp,
+                    fontWeight: FontWeight.w800,
+                    height: 1.1,
                   ),
                 ),
               ),
             ],
           ),
-          SizedBox(height: 8.h),
-          Container(
-            padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
-            decoration: BoxDecoration(
-              color: borderColor.withValues(alpha: 0.10),
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: Text(
-              subtitle,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.inter(
-                color: AppColors.rmStatCaption,
-                fontSize: 11.sp,
-                fontWeight: FontWeight.w800,
-                height: 1.1,
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -941,14 +1072,48 @@ class _StatCard extends StatelessWidget {
 class _OverviewCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    const stats = [
-      _PipelineMatrixData('All Registry', '9', AppColors.rmPipelinePurple),
-      _PipelineMatrixData('Interested', '6', AppColors.rmPipelineGreen),
-      _PipelineMatrixData('New', '1', AppColors.rmPipelineBlue),
-      _PipelineMatrixData('Converted', '0', AppColors.rmPipelineLime),
-      _PipelineMatrixData('Contacted', '2', AppColors.rmPipelineCyan),
-      _PipelineMatrixData('Closed', '0', AppColors.rmPipelineYellow),
+    final leadsProvider = context.watch<RmLeadsProvider>();
+    final leads = leadsProvider.leads;
+    final stageCounts = _leadStageCounts(leads);
+    final stats = [
+      _PipelineMatrixData(
+        'All Registry',
+        '${leads.length}',
+        AppColors.rmPipelinePurple,
+      ),
+      _PipelineMatrixData(
+        'Interested',
+        '${stageCounts['interested'] ?? 0}',
+        AppColors.rmPipelineGreen,
+      ),
+      _PipelineMatrixData(
+        'New',
+        '${stageCounts['new'] ?? 0}',
+        AppColors.rmPipelineBlue,
+      ),
+      _PipelineMatrixData(
+        'Converted',
+        '${stageCounts['converted'] ?? 0}',
+        AppColors.rmPipelineLime,
+      ),
+      _PipelineMatrixData(
+        'Contacted',
+        '${stageCounts['contacted'] ?? 0}',
+        AppColors.rmPipelineCyan,
+      ),
+      _PipelineMatrixData(
+        'Closed',
+        '${stageCounts['closed'] ?? 0}',
+        AppColors.rmPipelineYellow,
+      ),
     ];
+    final stageStats = stats.skip(1).toList(growable: false);
+    final maxStageCount = stageStats.fold<int>(
+      0,
+      (max, stat) => _readDashboardInt(stat.value) > max
+          ? _readDashboardInt(stat.value)
+          : max,
+    );
 
     return Container(
       width: double.infinity,
@@ -1001,32 +1166,17 @@ class _OverviewCard extends StatelessWidget {
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: const [
-                      _PipelineBar(
-                        heightFactor: 0.92,
-                        color: AppColors.rmPipelinePurple,
-                      ),
-                      _PipelineBar(
-                        heightFactor: 0.68,
-                        color: AppColors.rmPipelineBlue,
-                      ),
-                      _PipelineBar(
-                        heightFactor: 0.46,
-                        color: AppColors.rmPipelineCyan,
-                      ),
-                      _PipelineBar(
-                        heightFactor: 0.38,
-                        color: AppColors.rmPipelineGreen,
-                      ),
-                      _PipelineBar(
-                        heightFactor: 0.34,
-                        color: AppColors.rmPipelineLime,
-                      ),
-                      _PipelineBar(
-                        heightFactor: 0.26,
-                        color: AppColors.rmPipelineYellow,
-                      ),
-                    ],
+                    children: stageStats
+                        .map(
+                          (stat) => _PipelineBar(
+                            heightFactor: _pipelineHeightFactor(
+                              _readDashboardInt(stat.value),
+                              maxStageCount,
+                            ),
+                            color: stat.color,
+                          ),
+                        )
+                        .toList(),
                   ),
                 ),
                 Divider(height: 1, color: AppColors.rmPaleRoseBorder),
@@ -1087,7 +1237,7 @@ class _OverviewCard extends StatelessWidget {
               ),
             ),
             child: Text(
-              '+18% higher conversion this month',
+              _pipelineSummaryText(leads.length, stageCounts),
               textAlign: TextAlign.center,
               style: GoogleFonts.inter(
                 color: AppColors.success,
@@ -1240,6 +1390,13 @@ class _PipelineMatrixCard extends StatelessWidget {
 class _WhatsAppConversations extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final whatsappProvider = context.watch<WhatsappProvider>();
+    final userId = context.watch<AuthProvider>().userModel?.user?.id;
+    final conversations = _dashboardConversations(
+      whatsappProvider.conversations,
+      userId,
+    ).take(4).toList(growable: false);
+
     return Material(
       color: AppColors.transparent,
       child: InkWell(
@@ -1354,48 +1511,38 @@ class _WhatsAppConversations extends StatelessWidget {
                 ),
               ),
               SizedBox(height: _RmMetrics.contentGap.h),
-              _ConversationItem(
-                name: 'Harpreet Kaur',
-                lastMessage: 'Interested In Biodata',
-                time: '10:30 AM',
-                badgeText: 'New',
-                badgeColor: AppColors.successContainer,
-                badgeTextColor: AppColors.success,
-                avatarColor: AppColors.rmAvatarGrey,
-              ),
-              Divider(
-                height: _RmMetrics.dividerHeight.h,
-                color: AppColors.rmDivider,
-              ),
-              _ConversationItem(
-                name: 'Simran Family',
-                lastMessage: 'Meeting Discussion',
-                time: '10:30 AM',
-                avatarColor: AppColors.rmAvatarTan,
-              ),
-              Divider(
-                height: _RmMetrics.dividerHeight.h,
-                color: AppColors.rmDivider,
-              ),
-              _ConversationItem(
-                name: 'Arjun Sharma',
-                lastMessage: 'Horoscope Shared',
-                time: '10:25 AM',
-                badgeText: 'AI Suggested',
-                badgeColor: AppColors.purpleContainer,
-                badgeTextColor: AppColors.purpleText,
-                avatarColor: AppColors.rmAvatarNavy,
-              ),
-              Divider(
-                height: _RmMetrics.dividerHeight.h,
-                color: AppColors.rmDivider,
-              ),
-              _ConversationItem(
-                name: 'Kaur Residence',
-                lastMessage: 'Need Parent Approval',
-                time: '10:20 AM',
-                avatarColor: AppColors.rmAvatarSlate,
-              ),
+              if (whatsappProvider.isLoadingConversations &&
+                  conversations.isEmpty)
+                const _WhatsappConversationMessage(
+                  message: 'Loading live WhatsApp conversations...',
+                  showLoader: true,
+                )
+              else if (whatsappProvider.error != null && conversations.isEmpty)
+                _WhatsappConversationMessage(message: whatsappProvider.error!)
+              else if (conversations.isEmpty)
+                const _WhatsappConversationMessage(
+                  message: 'No live WhatsApp conversations found yet.',
+                )
+              else
+                for (int index = 0; index < conversations.length; index++) ...[
+                  _ConversationItem(
+                    name: conversations[index].name,
+                    lastMessage: conversations[index].lastMessage,
+                    time: _formatConversationTime(
+                      conversations[index].lastMessageAt ??
+                          conversations[index].createdAt,
+                    ),
+                    badgeText: _conversationBadgeText(conversations[index]),
+                    badgeColor: AppColors.successContainer,
+                    badgeTextColor: AppColors.success,
+                    avatarColor: _conversationAvatarColor(index),
+                  ),
+                  if (index != conversations.length - 1)
+                    Divider(
+                      height: _RmMetrics.dividerHeight.h,
+                      color: AppColors.rmDivider,
+                    ),
+                ],
               SizedBox(height: _RmMetrics.contentGap.h),
               Align(
                 alignment: Alignment.centerLeft,
@@ -1436,6 +1583,308 @@ class _WhatsAppConversations extends StatelessWidget {
       ),
     );
   }
+}
+
+class _WhatsappConversationMessage extends StatelessWidget {
+  const _WhatsappConversationMessage({
+    required this.message,
+    this.showLoader = false,
+  });
+
+  final String message;
+  final bool showLoader;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 14.h),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FBF8),
+        borderRadius: BorderRadius.circular(14.r),
+        border: Border.all(
+          color: AppColors.whatsappGreen.withValues(alpha: 0.14),
+        ),
+      ),
+      child: Row(
+        children: [
+          if (showLoader)
+            SizedBox(
+              width: 18.r,
+              height: 18.r,
+              child: const CircularProgressIndicator(
+                strokeWidth: 2,
+                color: AppColors.whatsappGreen,
+              ),
+            )
+          else
+            Icon(
+              Icons.chat_bubble_outline,
+              color: AppColors.whatsappGreen,
+              size: 18.sp,
+            ),
+          SizedBox(width: 10.w),
+          Expanded(
+            child: Text(
+              message,
+              style: GoogleFonts.inter(
+                color: AppColors.rmBodyText,
+                fontSize: 13.sp,
+                fontWeight: FontWeight.w600,
+                height: 1.3,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DashboardInlineMessage extends StatelessWidget {
+  const _DashboardInlineMessage({
+    required this.message,
+    this.showLoader = false,
+  });
+
+  final String message;
+  final bool showLoader;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 14.h),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(12.r),
+        border: Border.all(color: AppColors.rmPaleRoseBorder),
+      ),
+      child: Row(
+        children: [
+          if (showLoader)
+            SizedBox(
+              width: 18.r,
+              height: 18.r,
+              child: const CircularProgressIndicator(
+                strokeWidth: 2,
+                color: AppColors.rmPrimary,
+              ),
+            )
+          else
+            Icon(Icons.info_outline, color: AppColors.rmPrimary, size: 18.sp),
+          SizedBox(width: 10.w),
+          Expanded(
+            child: Text(
+              message,
+              style: GoogleFonts.inter(
+                color: AppColors.rmBodyText,
+                fontSize: 13.sp,
+                fontWeight: FontWeight.w600,
+                height: 1.3,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+List<WhatsappConversation> _dashboardConversations(
+  List<WhatsappConversation> conversations,
+  String? userId,
+) {
+  final active = conversations
+      .where((conversation) => !conversation.archived)
+      .toList(growable: false);
+  if (userId == null || userId.isEmpty) {
+    return active;
+  }
+
+  final assigned = active
+      .where((conversation) => conversation.assignedToId == userId)
+      .toList(growable: false);
+  return assigned.isEmpty ? active : assigned;
+}
+
+String? _conversationBadgeText(WhatsappConversation conversation) {
+  if (conversation.unreadCount <= 0) {
+    return null;
+  }
+
+  return conversation.unreadCount == 1
+      ? 'New'
+      : '${conversation.unreadCount} New';
+}
+
+Color _conversationAvatarColor(int index) {
+  const colors = [
+    AppColors.rmAvatarGrey,
+    AppColors.rmAvatarTan,
+    AppColors.rmAvatarNavy,
+    AppColors.rmAvatarSlate,
+  ];
+  return colors[index % colors.length];
+}
+
+String _formatConversationTime(DateTime? value) {
+  if (value == null) {
+    return '-';
+  }
+
+  final local = value.toLocal();
+  final now = DateTime.now();
+  final isToday =
+      local.year == now.year &&
+      local.month == now.month &&
+      local.day == now.day;
+  if (!isToday) {
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    return '${local.day} ${months[local.month - 1]}';
+  }
+
+  final hour = local.hour % 12 == 0 ? 12 : local.hour % 12;
+  final minute = local.minute.toString().padLeft(2, '0');
+  final period = local.hour >= 12 ? 'PM' : 'AM';
+  return '$hour:$minute $period';
+}
+
+bool _hasFollowUpDueToday(LeadFollowUpItem lead) {
+  final now = DateTime.now();
+  return lead.openFollowUps.any((task) {
+    final dueAt = task.dueAt;
+    if (dueAt == null) {
+      return false;
+    }
+    final local = dueAt.toLocal();
+    return local.year == now.year &&
+        local.month == now.month &&
+        local.day == now.day;
+  });
+}
+
+Map<String, int> _leadStageCounts(List<RmLeadItem> leads) {
+  final counts = <String, int>{};
+  for (final lead in leads) {
+    final key = _dashboardStageKey(lead.stageLabel);
+    counts[key] = (counts[key] ?? 0) + 1;
+  }
+  return counts;
+}
+
+String _dashboardStageKey(String value) {
+  final normalized = value.trim().toLowerCase();
+  if (normalized.contains('interested')) return 'interested';
+  if (normalized.contains('convert')) return 'converted';
+  if (normalized.contains('contact')) return 'contacted';
+  if (normalized.contains('close')) return 'closed';
+  if (normalized.contains('new')) return 'new';
+  return normalized.isEmpty ? 'unknown' : normalized;
+}
+
+int _readDashboardInt(String value) {
+  return int.tryParse(value.trim()) ?? 0;
+}
+
+double _pipelineHeightFactor(int value, int maxValue) {
+  if (maxValue <= 0 || value <= 0) {
+    return 0.16;
+  }
+  return (value / maxValue).clamp(0.16, 0.94);
+}
+
+String _pipelineSummaryText(int totalLeads, Map<String, int> stageCounts) {
+  if (totalLeads == 0) {
+    return 'No live lead pipeline data yet';
+  }
+  final converted = stageCounts['converted'] ?? 0;
+  final contacted = stageCounts['contacted'] ?? 0;
+  return '$converted converted • $contacted contacted • $totalLeads total leads';
+}
+
+List<RegistryProfileItem> _dashboardProfiles(
+  List<RegistryProfileItem> profiles,
+  String? userName,
+) {
+  final normalizedUser = userName?.trim().toLowerCase() ?? '';
+  if (normalizedUser.isEmpty) {
+    return profiles;
+  }
+  final assigned = profiles
+      .where(
+        (profile) =>
+            profile.assignedRmName.trim().toLowerCase() == normalizedUser,
+      )
+      .toList(growable: false);
+  return assigned.isEmpty ? profiles : assigned;
+}
+
+String _initialsForName(String name) {
+  final parts = name
+      .trim()
+      .split(RegExp(r'\s+'))
+      .where((part) => part.isNotEmpty)
+      .toList(growable: false);
+  if (parts.isEmpty) {
+    return 'P';
+  }
+  if (parts.length == 1) {
+    return parts.first.substring(0, 1).toUpperCase();
+  }
+  return '${parts.first.substring(0, 1)}${parts.last.substring(0, 1)}'
+      .toUpperCase();
+}
+
+String _profileDetails(RegistryProfileItem profile) {
+  final details = <String>[
+    if (profile.age.trim().isNotEmpty && profile.age != '-')
+      '${profile.age} Yrs',
+    if (profile.city.trim().isNotEmpty && profile.city != '-') profile.city,
+  ];
+  return details.isEmpty ? profile.type : details.join(' • ');
+}
+
+String _profileStatus(RegistryProfileItem profile) {
+  if (profile.isPremium) {
+    return 'Premium Profile';
+  }
+  if (profile.clientStatus.trim().isNotEmpty && profile.clientStatus != '-') {
+    return profile.clientStatus;
+  }
+  if (profile.shortlistLabel.trim().isNotEmpty) {
+    return profile.shortlistLabel;
+  }
+  return profile.packageType.trim().isEmpty
+      ? 'Registry Profile'
+      : profile.packageType;
+}
+
+List<String> _topLeadStageLabels(List<RmLeadItem> leads) {
+  final counts = <String, int>{};
+  for (final lead in leads) {
+    final label = lead.stageLabel.trim();
+    if (label.isEmpty || label == '-') {
+      continue;
+    }
+    counts[label] = (counts[label] ?? 0) + 1;
+  }
+  final entries = counts.entries.toList()
+    ..sort((first, second) => second.value.compareTo(first.value));
+  return entries.map((entry) => '${entry.key} ${entry.value}').toList();
 }
 
 class _ConversationItem extends StatelessWidget {
@@ -1584,6 +2033,19 @@ class _ConversationItem extends StatelessWidget {
 class _AIInsights extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final user = context.watch<AuthProvider>().userModel?.user;
+    final conversations = _dashboardConversations(
+      context.watch<WhatsappProvider>().conversations,
+      user?.id,
+    );
+    final followUps = context.watch<LeadFollowUpsProvider>().leads;
+    final unreadCount = conversations.fold<int>(
+      0,
+      (total, conversation) => total + conversation.unreadCount,
+    );
+    final riskCount = followUps
+        .where((lead) => lead.isCold || lead.hasOverdueFollowUp)
+        .length;
     return Container(
       width: double.infinity,
       padding: EdgeInsets.all(_RmMetrics.cardPadding.w),
@@ -1630,16 +2092,16 @@ class _AIInsights extends StatelessWidget {
               Icon(
                 Icons.lightbulb_outline,
                 color: AppColors.rmMutedText,
-                size: 34.sp,
+                size: 25.sp,
               ),
             ],
           ),
           SizedBox(height: _RmMetrics.contentGap.h),
           _InsightItem(
-            label: 'Top RM',
-            subtitle: 'Simran Kaur',
-            value: '92%',
-            valueLabel: 'Success Rate',
+            label: 'Current RM',
+            subtitle: user?.name ?? 'Relationship Manager',
+            value: '${conversations.length}',
+            valueLabel: 'Live Chats',
             valueColor: AppColors.success,
             avatarColor: AppColors.purpleContainer,
           ),
@@ -1648,11 +2110,11 @@ class _AIInsights extends StatelessWidget {
             color: AppColors.rmDivider,
           ),
           _InsightItem(
-            label: 'Avg Response',
-            subtitle: 'System-wide',
-            value: '8 Mins',
-            valueLabel: '+24% Faster',
-            valueColor: AppColors.success,
+            label: 'Needs Reply',
+            subtitle: 'Unread WhatsApp',
+            value: '$unreadCount',
+            valueLabel: unreadCount == 0 ? 'Clear' : 'Action Need',
+            valueColor: unreadCount == 0 ? AppColors.success : AppColors.danger,
             avatarColor: AppColors.infoContainer,
           ),
           Divider(
@@ -1661,10 +2123,10 @@ class _AIInsights extends StatelessWidget {
           ),
           _InsightItem(
             label: 'Risk Alerts',
-            subtitle: 'Likely To Ghost',
-            value: '3 Profiles',
-            valueLabel: 'Action Need',
-            valueColor: AppColors.danger,
+            subtitle: 'Cold or overdue',
+            value: '$riskCount',
+            valueLabel: riskCount == 0 ? 'Clear' : 'Action Need',
+            valueColor: riskCount == 0 ? AppColors.success : AppColors.danger,
             avatarColor: AppColors.dangerContainer,
           ),
         ],
@@ -1749,6 +2211,13 @@ class _InsightItem extends StatelessWidget {
 class _AIMatches extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final profilesProvider = context.watch<RegistryProfilesProvider>();
+    final userName = context.watch<AuthProvider>().userModel?.user?.name;
+    final profiles = _dashboardProfiles(
+      profilesProvider.profiles,
+      userName,
+    ).take(3).toList(growable: false);
+
     return Container(
       width: double.infinity,
       padding: EdgeInsets.all(_RmMetrics.cardPadding.w),
@@ -1785,32 +2254,32 @@ class _AIMatches extends StatelessWidget {
             ),
           ),
           SizedBox(height: _RmMetrics.contentGap.h),
-          _MatchCard(
-            initials: 'JK',
-            name: 'Jasmeet Kaur',
-            details: '28 Yrs • Delhi',
-            status: 'Verified Premium',
-            matchPercentage: '94% Match',
-            accentColor: AppColors.rmMatchAccent,
-          ),
-          SizedBox(height: _RmMetrics.itemGap.h),
-          _MatchCard(
-            initials: 'AS',
-            name: 'Amanpreet Singh',
-            details: '29 Yrs • Chandigarh',
-            status: 'Horoscope Match',
-            matchPercentage: '94% Match',
-            accentColor: AppColors.rmMatchAccent,
-          ),
-          SizedBox(height: _RmMetrics.itemGap.h),
-          _MatchCard(
-            initials: 'NK',
-            name: 'Navjot Kaur',
-            details: '27 Yrs • Mumbai',
-            status: 'Parent Approved',
-            matchPercentage: '94% Match',
-            accentColor: AppColors.rmMatchAccent,
-          ),
+          if (profilesProvider.isLoading && profiles.isEmpty)
+            const _DashboardInlineMessage(
+              message: 'Loading live profile matches...',
+              showLoader: true,
+            )
+          else if (profilesProvider.error != null && profiles.isEmpty)
+            _DashboardInlineMessage(message: profilesProvider.error!)
+          else if (profiles.isEmpty)
+            const _DashboardInlineMessage(
+              message: 'No live profile matches found yet.',
+            )
+          else
+            for (int index = 0; index < profiles.length; index++) ...[
+              _MatchCard(
+                initials: _initialsForName(profiles[index].name),
+                name: profiles[index].name,
+                details: _profileDetails(profiles[index]),
+                status: _profileStatus(profiles[index]),
+                matchPercentage: profiles[index].isPremium
+                    ? 'Premium'
+                    : profiles[index].type,
+                accentColor: AppColors.rmMatchAccent,
+              ),
+              if (index != profiles.length - 1)
+                SizedBox(height: _RmMetrics.itemGap.h),
+            ],
         ],
       ),
     );
@@ -1936,6 +2405,10 @@ class _MatchCard extends StatelessWidget {
 class _SmartFilters extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final leads = context.watch<RmLeadsProvider>().leads;
+    final followUps = context.watch<LeadFollowUpsProvider>().leads;
+    final stageLabels = _topLeadStageLabels(leads).take(3).toList();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1949,65 +2422,27 @@ class _SmartFilters extends StatelessWidget {
         ),
         SizedBox(height: _RmMetrics.smallGap.h),
         Text(
-          'Search Your Leads, Narrow The Stage, And Stay On Top Of Scheduled Follow-Ups From One Place.',
+          '${leads.length} live leads • ${followUps.length} follow-up records loaded.',
           style: GoogleFonts.inter(
-            fontSize: 16.sp, // Increased from 14.sp
+            fontSize: 16.sp,
             color: AppColors.rmMutedText,
             fontWeight: FontWeight.w500,
           ),
         ),
         SizedBox(height: _RmMetrics.contentGap.h),
-        Row(
-          children: [
-            Expanded(
-              child: Container(
-                height: _RmMetrics.controlHeight.h,
-                padding: EdgeInsets.symmetric(
-                  horizontal: _RmMetrics.cardPadding.w,
-                ),
-                decoration: BoxDecoration(
-                  color: AppColors.white,
-                  borderRadius: BorderRadius.circular(25.r),
-                  border: Border.all(color: AppColors.rmBorder),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.search,
-                      color: AppColors.rmMutedText,
-                      size: 26.sp,
-                    ),
-                    SizedBox(width: _RmMetrics.itemGap.w),
-                    Expanded(
-                      child: Text(
-                        'Search By Name, Phone...',
-                        style: TextStyle(
-                          fontSize: 16.sp,
-                          color: AppColors.rmHintText,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            SizedBox(width: _RmMetrics.itemGap.w),
-            Container(
-              height: _RmMetrics.controlHeight.h,
-              width: _RmMetrics.controlHeight.h,
-              decoration: BoxDecoration(
-                color: AppColors.white,
-                borderRadius: BorderRadius.circular(25.r),
-                border: Border.all(color: AppColors.rmBorder),
-              ),
-              child: Icon(
-                Icons.keyboard_arrow_down,
-                color: AppColors.rmMutedText,
-                size: 28.sp,
-              ),
-            ),
-          ],
-        ),
+        if (stageLabels.isEmpty)
+          const _DashboardInlineMessage(
+            message: 'No live lead stages found yet.',
+          )
+        else
+          Wrap(
+            spacing: _RmMetrics.itemGap.w,
+            runSpacing: _RmMetrics.itemGap.h,
+            children: [
+              for (int index = 0; index < stageLabels.length; index++)
+                _FilterChip(label: stageLabels[index], isSelected: index == 0),
+            ],
+          ),
       ],
     );
   }
@@ -2016,6 +2451,11 @@ class _SmartFilters extends StatelessWidget {
 class _ActionQueue extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final followUpsProvider = context.watch<LeadFollowUpsProvider>();
+    final queueItems = _dashboardQueueItems(
+      followUpsProvider.leads,
+    ).take(2).toList(growable: false);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -2047,30 +2487,33 @@ class _ActionQueue extends StatelessWidget {
           ],
         ),
         SizedBox(height: _RmMetrics.contentGap.h),
-        _QueueItem(
-          title: 'Kayra Reply Demo',
-          phone: '+91 9000 0003 • Udaipur',
-          time: '09 May, 10:37 AM',
-          status: 'Contacted',
-          message:
-              '"I saw the profile you sent, but I\'m looking for someone closer to my age..."',
-          focus: 'Reply Now',
-          source: 'Website',
-
-          actions: ['Open Chat', 'Mark Done', 'Call Now'],
-        ),
-        SizedBox(height: _RmMetrics.contentGap.h),
-        _QueueItem(
-          title: 'Arjun No Response Demo',
-          phone: '+91 9000 0002 • Indore',
-          status: 'Contacted',
-          isOverdue: true,
-          message:
-              'Automated follow-up triggered 2 days ago. No response received.',
-          focus: 'Call Now',
-          source: 'Ad Campaign',
-          actions: ['Open Chat', 'Mark Done', 'Call Now'],
-        ),
+        if (followUpsProvider.isLoading && queueItems.isEmpty)
+          const _DashboardInlineMessage(
+            message: 'Loading live follow-up queue...',
+            showLoader: true,
+          )
+        else if (followUpsProvider.error != null && queueItems.isEmpty)
+          _DashboardInlineMessage(message: followUpsProvider.error!)
+        else if (queueItems.isEmpty)
+          const _DashboardInlineMessage(
+            message: 'No live follow-up actions need attention.',
+          )
+        else
+          for (int index = 0; index < queueItems.length; index++) ...[
+            _QueueItem(
+              title: queueItems[index].title,
+              phone: queueItems[index].phone,
+              time: queueItems[index].time,
+              status: queueItems[index].status,
+              isOverdue: queueItems[index].isOverdue,
+              message: queueItems[index].message,
+              focus: queueItems[index].focus,
+              source: queueItems[index].source,
+              actions: const ['Open Chat', 'Mark Done', 'Call Now'],
+            ),
+            if (index != queueItems.length - 1)
+              SizedBox(height: _RmMetrics.contentGap.h),
+          ],
       ],
     );
   }
@@ -2129,6 +2572,99 @@ class _FilterChip extends StatelessWidget {
       ),
     );
   }
+}
+
+class _DashboardQueueItemData {
+  const _DashboardQueueItemData({
+    required this.title,
+    required this.phone,
+    required this.time,
+    required this.status,
+    required this.message,
+    required this.focus,
+    required this.source,
+    required this.isOverdue,
+  });
+
+  final String title;
+  final String phone;
+  final String? time;
+  final String status;
+  final String message;
+  final String focus;
+  final String source;
+  final bool isOverdue;
+}
+
+List<_DashboardQueueItemData> _dashboardQueueItems(
+  List<LeadFollowUpItem> leads,
+) {
+  final sorted = [...leads]
+    ..sort((first, second) {
+      if (first.hasOverdueFollowUp != second.hasOverdueFollowUp) {
+        return first.hasOverdueFollowUp ? -1 : 1;
+      }
+      final firstDue = _nextOpenFollowUp(first)?.dueAt;
+      final secondDue = _nextOpenFollowUp(second)?.dueAt;
+      if (firstDue != null || secondDue != null) {
+        if (firstDue == null) return 1;
+        if (secondDue == null) return -1;
+        return firstDue.compareTo(secondDue);
+      }
+      return first.name.compareTo(second.name);
+    });
+
+  return sorted
+      .where(
+        (lead) =>
+            lead.openFollowUps.isNotEmpty ||
+            lead.hasOverdueFollowUp ||
+            lead.isWaiting,
+      )
+      .map((lead) {
+        final task = _nextOpenFollowUp(lead);
+        final time = task?.dueAt ?? lead.latestTaskCreatedAt;
+        final message = lead.notes.trim().isNotEmpty
+            ? lead.notes
+            : task?.title ?? 'Follow up with this lead.';
+        final focus = task?.isOverdue == true
+            ? 'Call Now'
+            : lead.isWaiting
+            ? 'Reply Now'
+            : 'Follow Up';
+        final meta = [
+          lead.phone,
+          if (lead.city.trim().isNotEmpty && lead.city != '-') lead.city,
+        ].join(' • ');
+
+        return _DashboardQueueItemData(
+          title: lead.name,
+          phone: meta,
+          time: _formatConversationTime(time),
+          status: lead.stage,
+          message: message,
+          focus: focus,
+          source: lead.source,
+          isOverdue: task?.isOverdue == true || lead.hasOverdueFollowUp,
+        );
+      })
+      .toList(growable: false);
+}
+
+LeadFollowUpTask? _nextOpenFollowUp(LeadFollowUpItem lead) {
+  if (lead.openFollowUps.isEmpty) {
+    return null;
+  }
+  final tasks = [...lead.openFollowUps]
+    ..sort((first, second) {
+      final firstDue = first.dueAt;
+      final secondDue = second.dueAt;
+      if (firstDue == null && secondDue == null) return 0;
+      if (firstDue == null) return 1;
+      if (secondDue == null) return -1;
+      return firstDue.compareTo(secondDue);
+    });
+  return tasks.first;
 }
 
 class _QueueItem extends StatelessWidget {
@@ -2466,6 +3002,27 @@ class _QueueItem extends StatelessWidget {
 class _LeadConversationFocus extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final userId = context.watch<AuthProvider>().userModel?.user?.id;
+    final whatsappProvider = context.watch<WhatsappProvider>();
+    final conversations = _dashboardConversations(
+      whatsappProvider.conversations,
+      userId,
+    );
+    final conversation = conversations.isEmpty ? null : conversations.first;
+    final statusText = conversation == null
+        ? 'No Chat'
+        : conversation.unreadCount > 0
+        ? 'Needs Reply'
+        : 'Contacted';
+    final latestTaskText = conversation == null
+        ? 'No Conversation'
+        : conversation.unreadCount > 0
+        ? 'Reply Now'
+        : 'Review Chat';
+    final openTaskText = conversation == null
+        ? 'No Open Task Linked'
+        : '${conversation.messageCount} Messages';
+
     return Container(
       padding: EdgeInsets.all(_RmMetrics.conversationPadding.w),
       decoration: BoxDecoration(
@@ -2513,7 +3070,7 @@ class _LeadConversationFocus extends StatelessWidget {
                   ),
                 ),
                 child: Text(
-                  'Contacted',
+                  statusText,
                   style: TextStyle(
                     fontSize: 14.sp,
                     fontWeight: FontWeight.w800,
@@ -2524,56 +3081,89 @@ class _LeadConversationFocus extends StatelessWidget {
             ],
           ),
           SizedBox(height: _RmMetrics.conversationGap.h),
-          Text(
-            'Kayra Reply Demo',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.inter(
-              fontSize: 23.sp,
-              fontWeight: FontWeight.w800,
-              color: AppColors.rmPrimary,
-            ),
-          ),
-          SizedBox(height: _RmMetrics.itemGap.h),
-          Row(
-            children: [
-              Image.asset(
-                'assets/green_whatsapp_icon.png',
-                width: 26.sp,
-                height: 26.sp,
+          if (conversation == null)
+            _DashboardInlineMessage(
+              message: whatsappProvider.isLoadingConversations
+                  ? 'Loading live conversation focus...'
+                  : 'No live WhatsApp conversation found yet.',
+              showLoader: whatsappProvider.isLoadingConversations,
+            )
+          else ...[
+            Text(
+              conversation.name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.inter(
+                fontSize: 23.sp,
+                fontWeight: FontWeight.w800,
+                color: AppColors.rmPrimary,
               ),
-              SizedBox(width: _RmMetrics.itemGap.w),
-              Expanded(
-                child: Text(
-                  '+91 9000 0003',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 17.sp,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.rmHeading,
+            ),
+            SizedBox(height: _RmMetrics.itemGap.h),
+            Row(
+              children: [
+                Image.asset(
+                  'assets/green_whatsapp_icon.png',
+                  width: 26.sp,
+                  height: 26.sp,
+                ),
+                SizedBox(width: _RmMetrics.itemGap.w),
+                Expanded(
+                  child: Text(
+                    conversation.phone,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 17.sp,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.rmHeading,
+                    ),
                   ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
+          ],
           SizedBox(height: _RmMetrics.conversationGap.h),
           Row(
             children: [
               _TaskSmallCard(
                 label: 'Next Step',
-                value: 'Reply Now',
-                icon: Icons.add,
+                value: latestTaskText,
+                icon: conversation?.unreadCount == 0
+                    ? Icons.check
+                    : Icons.reply,
               ),
               SizedBox(width: _RmMetrics.itemGap.w),
               _TaskSmallCard(
                 label: 'Open Task',
-                value: 'No Open Task Linked',
-                icon: Icons.close,
+                value: openTaskText,
+                icon: conversation == null ? Icons.close : Icons.chat,
               ),
             ],
           ),
           SizedBox(height: _RmMetrics.conversationGap.h),
+          if (conversation != null)
+            Container(
+              width: double.infinity,
+              padding: EdgeInsets.all(_RmMetrics.innerPadding.w),
+              decoration: BoxDecoration(
+                color: AppColors.rmBackground,
+                borderRadius: BorderRadius.circular(10.r),
+              ),
+              child: Text(
+                conversation.lastMessage,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 15.sp,
+                  color: AppColors.rmBodyText,
+                  fontStyle: FontStyle.italic,
+                  height: 1.3,
+                ),
+              ),
+            ),
+          if (conversation != null)
+            SizedBox(height: _RmMetrics.conversationGap.h),
           Row(
             children: [
               Expanded(
@@ -2583,7 +3173,7 @@ class _LeadConversationFocus extends StatelessWidget {
                     borderRadius: BorderRadius.circular(8),
                     onTap: () => _showDashboardActionMessage(
                       context,
-                      'Open the manager lead hub to continue the client conversation.',
+                      'Open the WhatsApp conversation to use the saved phone number.',
                     ),
                     child: Container(
                       width: double.infinity,
@@ -2685,10 +3275,8 @@ class _LeadConversationFocus extends StatelessWidget {
               color: AppColors.transparent,
               child: InkWell(
                 borderRadius: BorderRadius.circular(8),
-                onTap: () => _showDashboardActionMessage(
-                  context,
-                  'Scheduling follow-up will be connected in the manager lead hub next.',
-                ),
+                onTap: () =>
+                    Navigator.of(context).pushNamed(AppRoutes.leadFollowUps),
                 child: Container(
                   padding: EdgeInsets.symmetric(
                     horizontal: _RmMetrics.cardPadding.w,
@@ -2755,7 +3343,9 @@ class _LeadConversationFocus extends StatelessWidget {
                 ),
                 SizedBox(height: _RmMetrics.itemGap.h),
                 Text(
-                  'Use The Lead Chatbox For Full Conversation History, Message Typing, And WhatsApp History, Message Typing, And WhatsApp Follow-Up.',
+                  conversation == null
+                      ? 'Open the WhatsApp inbox to view live conversation history and continue follow-ups.'
+                      : 'Use the live chat for message history, typing, and WhatsApp follow-up.',
                   maxLines: 4,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
@@ -2770,11 +3360,11 @@ class _LeadConversationFocus extends StatelessWidget {
                   color: AppColors.transparent,
                   child: InkWell(
                     borderRadius: BorderRadius.circular(14.r),
-                    onTap: () => _openWhatsAppChat(
-                      context,
-                      name: 'Kayra Reply Demo',
-                      phone: '+91 9000 0003',
-                    ),
+                    onTap: () => conversation == null
+                        ? Navigator.of(
+                            context,
+                          ).pushNamed(AppRoutes.whatsappInbox)
+                        : _openWhatsappConversation(context, conversation),
                     child: Container(
                       width: double.infinity,
                       padding: EdgeInsets.symmetric(
@@ -2840,18 +3430,15 @@ class _TaskSmallCard extends StatelessWidget {
         height: _RmMetrics.taskSmallCardHeight.h,
         padding: EdgeInsets.all(_RmMetrics.innerPadding.w),
         decoration: ShapeDecoration(
-          color: AppColors.rmOffWhite,
+          color: AppColors.rmBackground,
           shape: RoundedRectangleBorder(
             side: BorderSide(
               width: 1,
-              strokeAlign: BorderSide.strokeAlignCenter,
-              color: AppColors.rmPaleRoseBorder,
+              color: AppColors.black.withValues(alpha: 0.05),
             ),
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(8),
           ),
         ),
-        // padding: EdgeInsets.all(_RmMetrics.innerPadding.w),
-        // decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(14.r), border: Border.all(color: AppColors.rmBorder)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -2899,6 +3486,15 @@ Future<void> _openWhatsAppChat(
   required String phone,
 }) async {
   Navigator.of(context).pushNamed(AppRoutes.whatsappInbox);
+}
+
+void _openWhatsappConversation(
+  BuildContext context,
+  WhatsappConversation conversation,
+) {
+  Navigator.of(
+    context,
+  ).pushNamed(AppRoutes.whatsappConversation, arguments: conversation);
 }
 
 void _showDashboardActionMessage(BuildContext context, String message) {

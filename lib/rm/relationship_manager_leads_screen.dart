@@ -8,7 +8,9 @@ import 'package:koniwalamatrimonial/owner/Screen/client_registry_screen.dart';
 import 'package:koniwalamatrimonial/providers/auth_provider.dart';
 import 'package:koniwalamatrimonial/providers/navigation_provider.dart';
 import 'package:koniwalamatrimonial/rm/models/rm_lead_item.dart';
+import 'package:koniwalamatrimonial/rm/models/whatsapp_models.dart';
 import 'package:koniwalamatrimonial/rm/providers/rm_leads_provider.dart';
+import 'package:koniwalamatrimonial/rm/providers/whatsapp_provider.dart';
 import 'package:koniwalamatrimonial/routes/app_routes.dart';
 import 'package:provider/provider.dart';
 
@@ -51,15 +53,25 @@ class _RelationshipManagerLeadsScreenState
       }
 
       context.read<RmLeadsProvider>().fetchLeads(accessToken);
+      context.read<WhatsappProvider>().fetchConversations(
+        accessToken: accessToken,
+        forceRefresh: true,
+      );
     });
   }
 
-  Future<void> _refresh() {
+  Future<void> _refresh() async {
     final accessToken = context.read<AuthProvider>().userModel?.accessToken;
-    return context.read<RmLeadsProvider>().fetchLeads(
-      accessToken,
-      forceRefresh: true,
-    );
+    await Future.wait([
+      context.read<RmLeadsProvider>().fetchLeads(
+        accessToken,
+        forceRefresh: true,
+      ),
+      context.read<WhatsappProvider>().fetchConversations(
+        accessToken: accessToken,
+        forceRefresh: true,
+      ),
+    ]);
   }
 
   List<RmLeadItem> _assignedLeads(List<RmLeadItem> leads, String? userId) {
@@ -73,22 +85,27 @@ class _RelationshipManagerLeadsScreenState
     return assigned.isEmpty ? leads : assigned;
   }
 
-  void _openTasksBottomSheet(RmLeadItem lead) {
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: AppColors.white,
-      isScrollControlled: true,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(26.r)),
-      ),
-      builder: (context) => _LeadTasksSheet(lead: lead),
-    );
+  List<WhatsappConversation> _managerConversations(
+    List<WhatsappConversation> conversations,
+    String? userId,
+  ) {
+    final active = conversations
+        .where((conversation) => !conversation.archived)
+        .toList();
+    if (userId == null || userId.isEmpty) {
+      return active;
+    }
+
+    final assigned = active
+        .where((conversation) => conversation.assignedToId == userId)
+        .toList();
+    return assigned.isEmpty ? active : assigned;
   }
 
-  void _openChat(RmLeadItem lead) {
+  void _openConversation(WhatsappConversation conversation) {
     Navigator.of(
       context,
-    ).pushNamed(AppRoutes.whatsappConversation, arguments: lead);
+    ).pushNamed(AppRoutes.whatsappConversation, arguments: conversation);
   }
 
   void _openDashboardTab(int index) {
@@ -105,13 +122,16 @@ class _RelationshipManagerLeadsScreenState
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
     final leadsProvider = context.watch<RmLeadsProvider>();
+    final whatsappProvider = context.watch<WhatsappProvider>();
     final rawSelectedTab = context.watch<NavigationProvider>().selectedIndex;
     final selectedTab = _selectedBottomNavIndex(rawSelectedTab);
     final user = authProvider.userModel?.user;
     final assignedLeads = _assignedLeads(leadsProvider.leads, user?.id);
-    final syncedChats = assignedLeads
-        .where((lead) => lead.hasConversation)
-        .length;
+    final recentConversations = _managerConversations(
+      whatsappProvider.conversations,
+      user?.id,
+    ).take(4).toList(growable: false);
+    final syncedChats = recentConversations.length;
     final openTasks = assignedLeads.fold<int>(
       0,
       (count, lead) => count + lead.openTasksCount,
@@ -128,6 +148,10 @@ class _RelationshipManagerLeadsScreenState
         onLeadFollowUpsTap: () {
           Navigator.of(context).pop();
           Navigator.of(context).pushNamed(AppRoutes.leadFollowUps);
+        },
+        onWhatsAppTap: () {
+          Navigator.of(context).pop();
+          Navigator.of(context).pushNamed(AppRoutes.whatsappInbox);
         },
         onClientTap: () {
           Navigator.of(context).pop();
@@ -253,7 +277,7 @@ class _RelationshipManagerLeadsScreenState
                           ),
                           SizedBox(height: 4.h),
                           Text(
-                            'This screen reads live manager lead data from `/leads` using the current bearer token.',
+                            'This screen shows the first four live WhatsApp conversations for the current manager.',
                             style: GoogleFonts.inter(
                               color: AppColors.rmBodyText,
                               fontSize: 13.sp,
@@ -275,23 +299,27 @@ class _RelationshipManagerLeadsScreenState
                 ),
               ],
               SizedBox(height: 18.h),
-              if (leadsProvider.isLoading && assignedLeads.isEmpty)
+              if (leadsProvider.isLoading &&
+                  assignedLeads.isEmpty &&
+                  recentConversations.isEmpty)
                 const _LeadHubMessage(
                   message: 'Loading manager leads and WhatsApp activity...',
                   showLoader: true,
                 )
-              else if (leadsProvider.error != null && assignedLeads.isEmpty)
+              else if (leadsProvider.error != null &&
+                  assignedLeads.isEmpty &&
+                  recentConversations.isEmpty)
                 _LeadHubMessage(
                   message: leadsProvider.error!,
                   actionLabel: 'Retry',
                   onActionPressed: () =>
                       context.read<RmLeadsProvider>().retry(),
                 )
-              else if (assignedLeads.isEmpty)
+              else if (assignedLeads.isEmpty && recentConversations.isEmpty)
                 _LeadHubMessage(
                   message: user == null
                       ? 'No leads available for this manager.'
-                      : 'No `/leads` records are assigned to ${user.name} yet.',
+                      : 'No live WhatsApp conversations found for ${user.name} yet.',
                 )
               else ...[
                 Text(
@@ -304,7 +332,7 @@ class _RelationshipManagerLeadsScreenState
                 ),
                 SizedBox(height: 6.h),
                 Text(
-                  'Open a lead to continue the conversation in WhatsApp.',
+                  'Open a chat to continue the conversation in WhatsApp.',
                   style: GoogleFonts.inter(
                     color: AppColors.rmBodyText,
                     fontSize: 14.sp,
@@ -312,15 +340,37 @@ class _RelationshipManagerLeadsScreenState
                   ),
                 ),
                 SizedBox(height: 14.h),
-                for (int index = 0; index < assignedLeads.length; index++) ...[
-                  _ManagerLeadCard(
-                    lead: assignedLeads[index],
-                    onOpenChat: () => _openChat(assignedLeads[index]),
-                    onViewTasks: () =>
-                        _openTasksBottomSheet(assignedLeads[index]),
-                  ),
-                  if (index != assignedLeads.length - 1) SizedBox(height: 14.h),
-                ],
+                if (whatsappProvider.isLoadingConversations &&
+                    recentConversations.isEmpty)
+                  const _LeadHubMessage(
+                    message: 'Loading live WhatsApp conversations...',
+                    showLoader: true,
+                  )
+                else if (whatsappProvider.error != null &&
+                    recentConversations.isEmpty)
+                  _LeadHubMessage(
+                    message: whatsappProvider.error!,
+                    actionLabel: 'Retry',
+                    onActionPressed: _refresh,
+                  )
+                else if (recentConversations.isEmpty)
+                  const _LeadHubMessage(
+                    message: 'No live WhatsApp conversations found yet.',
+                  )
+                else
+                  for (
+                    int index = 0;
+                    index < recentConversations.length;
+                    index++
+                  ) ...[
+                    _RecentWhatsappConversationCard(
+                      conversation: recentConversations[index],
+                      onOpenChat: () =>
+                          _openConversation(recentConversations[index]),
+                    ),
+                    if (index != recentConversations.length - 1)
+                      SizedBox(height: 14.h),
+                  ],
               ],
               if (leadsProvider.error != null && assignedLeads.isNotEmpty) ...[
                 SizedBox(height: 16.h),
@@ -506,6 +556,7 @@ class _RelationshipManagerLeadsDrawer extends StatelessWidget {
     required this.onMatchesTap,
     required this.onLeadsTap,
     required this.onLeadFollowUpsTap,
+    required this.onWhatsAppTap,
     required this.onClientTap,
     required this.onLeaveManagementTap,
     required this.onHolidayManagementTap,
@@ -521,6 +572,7 @@ class _RelationshipManagerLeadsDrawer extends StatelessWidget {
   final VoidCallback onMatchesTap;
   final VoidCallback onLeadsTap;
   final VoidCallback onLeadFollowUpsTap;
+  final VoidCallback onWhatsAppTap;
   final VoidCallback onClientTap;
   final VoidCallback onLeaveManagementTap;
   final VoidCallback onHolidayManagementTap;
@@ -674,6 +726,12 @@ class _RelationshipManagerLeadsDrawer extends StatelessWidget {
                     icon: Icons.event_available_outlined,
                     selected: false,
                     onTap: onLeadFollowUpsTap,
+                  ),
+                  _RelationshipManagerLeadsDrawerItem(
+                    label: 'WhatsApp',
+                    icon: Icons.chat_bubble_outline,
+                    selected: false,
+                    onTap: onWhatsAppTap,
                   ),
                   _RelationshipManagerLeadsDrawerItem(
                     label: 'Clients',
@@ -1040,222 +1098,177 @@ class _LeadHubMessage extends StatelessWidget {
   }
 }
 
-class _ManagerLeadCard extends StatelessWidget {
-  const _ManagerLeadCard({
-    required this.lead,
+class _RecentWhatsappConversationCard extends StatelessWidget {
+  const _RecentWhatsappConversationCard({
+    required this.conversation,
     required this.onOpenChat,
-    required this.onViewTasks,
   });
 
-  final RmLeadItem lead;
+  final WhatsappConversation conversation;
   final VoidCallback onOpenChat;
-  final VoidCallback onViewTasks;
 
   @override
   Widget build(BuildContext context) {
-    final profileTask = lead.profileCreationTask;
+    final meta = [
+      conversation.phone,
+      conversation.city,
+    ].where((item) => item.trim().isNotEmpty).join(' - ');
+    final activityAt = conversation.lastMessageAt ?? conversation.createdAt;
 
-    return Container(
-      padding: EdgeInsets.all(14.w),
-      decoration: BoxDecoration(
-        color: AppColors.white,
+    return Material(
+      color: AppColors.transparent,
+      child: InkWell(
+        onTap: onOpenChat,
         borderRadius: BorderRadius.circular(18.r),
-        border: Border.all(color: AppColors.rmPaleRoseBorder),
-        boxShadow: const [
-          BoxShadow(
-            color: AppColors.rmCardShadow,
-            blurRadius: 14,
-            offset: Offset(0, 6),
+        child: Container(
+          padding: EdgeInsets.all(14.w),
+          decoration: BoxDecoration(
+            color: AppColors.white,
+            borderRadius: BorderRadius.circular(18.r),
+            border: Border.all(color: AppColors.rmPaleRoseBorder),
+            boxShadow: const [
+              BoxShadow(
+                color: AppColors.rmCardShadow,
+                blurRadius: 14,
+                offset: Offset(0, 6),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              CircleAvatar(
-                radius: 28.r,
-                backgroundColor: const Color(0xFFF7D9E3),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  CircleAvatar(
+                    radius: 26.r,
+                    backgroundColor: AppColors.whatsappGreen.withValues(
+                      alpha: 0.12,
+                    ),
+                    child: Text(
+                      _conversationInitials(conversation.name),
+                      style: GoogleFonts.inter(
+                        color: AppColors.whatsappGreen,
+                        fontSize: 19.sp,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: 12.w),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                conversation.name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.inter(
+                                  color: AppColors.rmPrimary,
+                                  fontSize: 19.sp,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                            if (conversation.unreadCount > 0) ...[
+                              SizedBox(width: 8.w),
+                              Container(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 8.w,
+                                  vertical: 3.h,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppColors.whatsappGreen,
+                                  borderRadius: BorderRadius.circular(999.r),
+                                ),
+                                child: Text(
+                                  '${conversation.unreadCount}',
+                                  style: GoogleFonts.inter(
+                                    color: AppColors.white,
+                                    fontSize: 11.sp,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        if (meta.isNotEmpty) ...[
+                          SizedBox(height: 5.h),
+                          Text(
+                            meta,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.inter(
+                              color: AppColors.rmBodyText,
+                              fontSize: 13.sp,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 12.h),
+              Container(
+                width: double.infinity,
+                padding: EdgeInsets.all(12.w),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FBF8),
+                  borderRadius: BorderRadius.circular(14.r),
+                  border: Border.all(
+                    color: AppColors.whatsappGreen.withValues(alpha: 0.18),
+                  ),
+                ),
                 child: Text(
-                  lead.initials,
+                  conversation.lastMessage,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.inter(
-                    color: AppColors.rmPrimary,
-                    fontSize: 22.sp,
-                    fontWeight: FontWeight.w800,
+                    color: AppColors.rmBodyText,
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w500,
+                    height: 1.35,
                   ),
                 ),
               ),
-              SizedBox(width: 12.w),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      lead.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.inter(
-                        color: AppColors.rmPrimary,
-                        fontSize: 20.sp,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    SizedBox(height: 5.h),
-                    Text(
-                      '${lead.phone} - ${lead.city}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.inter(
-                        color: AppColors.rmBodyText,
-                        fontSize: 14.sp,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    SizedBox(height: 3.h),
-                    Text(
-                      lead.email,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.inter(
-                        color: AppColors.rmMutedText,
-                        fontSize: 13.sp,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              SizedBox(width: 8.w),
-              _StageBadge(label: lead.stageLabel),
-            ],
-          ),
-          SizedBox(height: 12.h),
-          Wrap(
-            spacing: 8.w,
-            runSpacing: 8.h,
-            children: [
-              _InfoChip(
-                icon: Icons.language,
-                label: lead.sourceLabel,
-                textColor: AppColors.rmHeading,
-                background: const Color(0xFFF7F0F3),
-              ),
-              _InfoChip(
-                icon: Icons.person_search_outlined,
-                label: lead.leadForLabel,
-                textColor: AppColors.rmHeading,
-                background: const Color(0xFFF6F8FF),
-              ),
-              _InfoChip(
-                icon: Icons.apartment_outlined,
-                label: lead.communityLabel,
-                textColor: AppColors.rmHeading,
-                background: const Color(0xFFF9F5ED),
-              ),
-            ],
-          ),
-          SizedBox(height: 12.h),
-          Container(
-            width: double.infinity,
-            padding: EdgeInsets.all(12.w),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF8FBF8),
-              borderRadius: BorderRadius.circular(14.r),
-              border: Border.all(
-                color: AppColors.whatsappGreen.withValues(alpha: 0.18),
-              ),
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(
-                  Icons.chat_bubble_outline,
-                  color: AppColors.whatsappGreen,
-                  size: 18.sp,
-                ),
-                SizedBox(width: 10.w),
-                Expanded(
-                  child: Text(
-                    lead.latestMessagePreview,
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.inter(
-                      color: AppColors.rmBodyText,
-                      fontSize: 14.sp,
-                      fontWeight: FontWeight.w500,
-                      height: 1.35,
+              SizedBox(height: 12.h),
+              Row(
+                children: [
+                  Expanded(
+                    child: _MetricTile(
+                      label: 'Messages',
+                      value: '${conversation.messageCount}',
                     ),
                   ),
-                ),
-              ],
-            ),
-          ),
-          SizedBox(height: 12.h),
-          Row(
-            children: [
-              Expanded(
-                child: _MetricTile(
-                  label: 'Open Tasks',
-                  value: '${lead.openTasksCount}',
-                ),
-              ),
-              SizedBox(width: 10.w),
-              Expanded(
-                child: _MetricTile(
-                  label: 'Intent Score',
-                  value: '${lead.intentScore}%',
-                ),
-              ),
-              SizedBox(width: 10.w),
-              Expanded(
-                child: _MetricTile(
-                  label: 'Latest Activity',
-                  value: _formatDateTime(
-                    lead.latestActivityAt,
-                    fallback: '-',
-                    includeTime: false,
+                  SizedBox(width: 10.w),
+                  Expanded(
+                    child: _MetricTile(
+                      label: 'Unread',
+                      value: '${conversation.unreadCount}',
+                    ),
                   ),
-                ),
+                  SizedBox(width: 10.w),
+                  Expanded(
+                    child: _MetricTile(
+                      label: 'Latest',
+                      value: _formatDateTime(
+                        activityAt,
+                        fallback: '-',
+                        includeTime: false,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
-          SizedBox(height: 12.h),
-          Container(
-            width: double.infinity,
-            padding: EdgeInsets.all(12.w),
-            decoration: BoxDecoration(
-              color: AppColors.rmBackground,
-              borderRadius: BorderRadius.circular(14.r),
-              border: Border.all(color: AppColors.rmPinkBorder),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _InlineMetaRow(
-                  label: 'Assigned To',
-                  value: lead.assignedToName,
-                ),
-                SizedBox(height: 6.h),
-                _InlineMetaRow(
-                  label: 'Petitioner Relation',
-                  value: lead.petitionerRelationLabel,
-                ),
-                SizedBox(height: 6.h),
-                _InlineMetaRow(
-                  label: 'Profile Creation',
-                  value: profileTask == null
-                      ? 'No profile task'
-                      : '${profileTask.title} - ${profileTask.statusLabel}',
-                ),
-              ],
-            ),
-          ),
-          SizedBox(height: 14.h),
-          Row(
-            children: [
-              Expanded(
+              SizedBox(height: 14.h),
+              SizedBox(
+                width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: onOpenChat,
                   icon: Icon(Icons.chat_bubble_outline, size: 18.sp),
@@ -1273,94 +1286,9 @@ class _ManagerLeadCard extends StatelessWidget {
                   ),
                 ),
               ),
-              SizedBox(width: 10.w),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: onViewTasks,
-                  icon: Icon(Icons.task_alt_outlined, size: 18.sp),
-                  label: Text(
-                    'View Tasks',
-                    style: GoogleFonts.inter(fontWeight: FontWeight.w800),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.rmHeading,
-                    side: const BorderSide(color: AppColors.rmPinkBorder),
-                    padding: EdgeInsets.symmetric(vertical: 14.h),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12.r),
-                    ),
-                  ),
-                ),
-              ),
             ],
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _StageBadge extends StatelessWidget {
-  const _StageBadge({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 8.h),
-      decoration: BoxDecoration(
-        color: AppColors.rmStatusBg,
-        borderRadius: BorderRadius.circular(999.r),
-        border: Border.all(color: AppColors.rmStatusBorder),
-      ),
-      child: Text(
-        label,
-        style: GoogleFonts.inter(
-          color: AppColors.rmStatusText,
-          fontSize: 12.sp,
-          fontWeight: FontWeight.w800,
         ),
-      ),
-    );
-  }
-}
-
-class _InfoChip extends StatelessWidget {
-  const _InfoChip({
-    required this.icon,
-    required this.label,
-    required this.textColor,
-    required this.background,
-  });
-
-  final IconData icon;
-  final String label;
-  final Color textColor;
-  final Color background;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 8.h),
-      decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(999.r),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: textColor, size: 15.sp),
-          SizedBox(width: 6.w),
-          Text(
-            label,
-            style: GoogleFonts.inter(
-              color: textColor,
-              fontSize: 12.sp,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -1412,219 +1340,21 @@ class _MetricTile extends StatelessWidget {
   }
 }
 
-class _InlineMetaRow extends StatelessWidget {
-  const _InlineMetaRow({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: Text(
-            label,
-            style: GoogleFonts.inter(
-              color: AppColors.rmMutedText,
-              fontSize: 12.sp,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-        SizedBox(width: 10.w),
-        Flexible(
-          child: Text(
-            value,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.right,
-            style: GoogleFonts.inter(
-              color: AppColors.rmHeading,
-              fontSize: 12.sp,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
-      ],
-    );
+String _conversationInitials(String name) {
+  final parts = name
+      .trim()
+      .split(RegExp(r'\s+'))
+      .where((part) => part.isNotEmpty)
+      .toList();
+  if (parts.isEmpty) {
+    return 'W';
   }
-}
-
-class _LeadTasksSheet extends StatelessWidget {
-  const _LeadTasksSheet({required this.lead});
-
-  final RmLeadItem lead;
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      top: false,
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(18.w, 12.h, 18.w, 22.h),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 54.w,
-                height: 5.h,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFD9D9D9),
-                  borderRadius: BorderRadius.circular(999.r),
-                ),
-              ),
-            ),
-            SizedBox(height: 16.h),
-            Text(
-              '${lead.name} Tasks',
-              style: GoogleFonts.inter(
-                color: AppColors.rmPrimary,
-                fontSize: 22.sp,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            SizedBox(height: 6.h),
-            Text(
-              'Tasks synced from `/leads` for this manager conversation.',
-              style: GoogleFonts.inter(
-                color: AppColors.rmBodyText,
-                fontSize: 13.sp,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            SizedBox(height: 16.h),
-            if (lead.tasks.isEmpty)
-              const _LeadHubMessage(
-                message: 'No tasks are attached to this lead yet.',
-              )
-            else
-              SizedBox(
-                height: MediaQuery.of(context).size.height * 0.55,
-                child: ListView.separated(
-                  shrinkWrap: true,
-                  itemCount: lead.tasks.length,
-                  separatorBuilder: (context, index) => SizedBox(height: 12.h),
-                  itemBuilder: (context, index) {
-                    final task = lead.tasks[index];
-                    return Container(
-                      padding: EdgeInsets.all(14.w),
-                      decoration: BoxDecoration(
-                        color: AppColors.rmBackground,
-                        borderRadius: BorderRadius.circular(14.r),
-                        border: Border.all(color: AppColors.rmPinkBorder),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  task.title,
-                                  style: GoogleFonts.inter(
-                                    color: AppColors.rmHeading,
-                                    fontSize: 15.sp,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
-                              ),
-                              SizedBox(width: 8.w),
-                              _SheetStatusChip(label: task.statusLabel),
-                            ],
-                          ),
-                          SizedBox(height: 10.h),
-                          Wrap(
-                            spacing: 8.w,
-                            runSpacing: 8.h,
-                            children: [
-                              _SheetMetaChip(label: task.typeLabel),
-                              _SheetMetaChip(label: task.priorityLabel),
-                              _SheetMetaChip(label: task.workflowStatusLabel),
-                            ],
-                          ),
-                          SizedBox(height: 10.h),
-                          Text(
-                            'Assigned to ${task.assignedToName}',
-                            style: GoogleFonts.inter(
-                              color: AppColors.rmBodyText,
-                              fontSize: 13.sp,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          SizedBox(height: 4.h),
-                          Text(
-                            'Due: ${_formatDateTime(task.dueAt, fallback: 'Not scheduled')}',
-                            style: GoogleFonts.inter(
-                              color: AppColors.rmMutedText,
-                              fontSize: 12.sp,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
+  if (parts.length == 1) {
+    return parts.first.characters.first.toUpperCase();
   }
-}
 
-class _SheetStatusChip extends StatelessWidget {
-  const _SheetStatusChip({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 6.h),
-      decoration: BoxDecoration(
-        color: AppColors.rmStatusBg,
-        borderRadius: BorderRadius.circular(999.r),
-        border: Border.all(color: AppColors.rmStatusBorder),
-      ),
-      child: Text(
-        label,
-        style: GoogleFonts.inter(
-          color: AppColors.rmStatusText,
-          fontSize: 11.sp,
-          fontWeight: FontWeight.w800,
-        ),
-      ),
-    );
-  }
-}
-
-class _SheetMetaChip extends StatelessWidget {
-  const _SheetMetaChip({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 6.h),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(999.r),
-        border: Border.all(color: AppColors.rmPinkBorder),
-      ),
-      child: Text(
-        label,
-        style: GoogleFonts.inter(
-          color: AppColors.rmHeading,
-          fontSize: 11.sp,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-    );
-  }
+  return '${parts.first.characters.first}${parts.last.characters.first}'
+      .toUpperCase();
 }
 
 String _formatDateTime(
