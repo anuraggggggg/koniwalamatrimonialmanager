@@ -435,28 +435,42 @@ class _LeadsRegistryBodyState extends State<_LeadsRegistryBody> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Expanded(
-                          child: _ExecutiveMultiSelectDropdown(
-                            options: assigneeOptions,
-                            selectedValues: _selectedAssignees,
-                            isExpanded: _showExecutiveDropdown,
-                            onHeaderTap: () => setState(() {
-                              _showExecutiveDropdown = !_showExecutiveDropdown;
-                            }),
-                            onSelectionChanged: (name, selected) =>
-                                setState(() {
-                                  if (selected) {
-                                    _selectedAssignees.add(name);
-                                  } else {
-                                    _selectedAssignees.remove(name);
-                                  }
-                                  _registryLeadLimit = _registryPreviewCount;
-                                }),
-                            onClear: _selectedAssignees.isEmpty
-                                ? null
-                                : () => setState(() {
-                                    _selectedAssignees.clear();
+                          child: TapRegion(
+                            enabled: _showExecutiveDropdown,
+                            onTapOutside: (_) {
+                              if (!_showExecutiveDropdown) {
+                                return;
+                              }
+
+                              setState(() {
+                                _showExecutiveDropdown = false;
+                              });
+                            },
+                            child: _ExecutiveMultiSelectDropdown(
+                              options: assigneeOptions,
+                              selectedValues: _selectedAssignees,
+                              isExpanded: _showExecutiveDropdown,
+                              onHeaderTap: () => setState(() {
+                                _showExecutiveDropdown =
+                                    !_showExecutiveDropdown;
+                              }),
+                              onSelectionChanged: (name, selected) =>
+                                  setState(() {
+                                    if (selected) {
+                                      _selectedAssignees.add(name);
+                                    } else {
+                                      _selectedAssignees.remove(name);
+                                    }
                                     _registryLeadLimit = _registryPreviewCount;
                                   }),
+                              onClear: _selectedAssignees.isEmpty
+                                  ? null
+                                  : () => setState(() {
+                                      _selectedAssignees.clear();
+                                      _registryLeadLimit =
+                                          _registryPreviewCount;
+                                    }),
+                            ),
                           ),
                         ),
                         SizedBox(width: 8.w),
