@@ -68,6 +68,19 @@ class RegistryProfilesProvider extends ChangeNotifier {
   String? get createError => _createError;
   List<RegistryProfileItem> get profiles => _profiles;
 
+  void filterByPackageType(String packageType) {
+    final normalizedPackageType = packageType.trim().toUpperCase();
+    if (normalizedPackageType.isEmpty) {
+      return;
+    }
+
+    _profiles = _profiles.where((profile) {
+      return profile.packageType.trim().toUpperCase() == normalizedPackageType;
+    }).toList();
+    _error = null;
+    notifyListeners();
+  }
+
   Future<void> fetchProfiles(
     String? accessToken, {
     bool forceRefresh = false,

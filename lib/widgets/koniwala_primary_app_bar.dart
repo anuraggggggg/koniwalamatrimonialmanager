@@ -25,6 +25,8 @@ class KoniwalaPrimaryAppBar extends StatelessWidget
 
   @override
   Widget build(BuildContext context) {
+    final canGoBack = Navigator.of(context).canPop();
+
     return AppBar(
       toolbarHeight: 70.h,
       backgroundColor: AppColors.primary,
@@ -32,7 +34,7 @@ class KoniwalaPrimaryAppBar extends StatelessWidget
       elevation: 0,
       centerTitle: true,
       automaticallyImplyLeading: false,
-      leadingWidth: showMenuButton ? 56.w : null,
+      leadingWidth: showMenuButton || canGoBack ? 56.w : null,
 
       leading: showMenuButton
           ? Builder(
@@ -44,6 +46,12 @@ class KoniwalaPrimaryAppBar extends StatelessWidget
                 icon: const Icon(Icons.menu, color: Colors.white),
               ),
             )
+          : canGoBack
+          ? IconButton(
+              tooltip: 'Back',
+              onPressed: () => Navigator.of(context).maybePop(),
+              icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+            )
           : null,
       title: null,
       flexibleSpace: SafeArea(
@@ -52,7 +60,7 @@ class KoniwalaPrimaryAppBar extends StatelessWidget
             alignment: Alignment.centerLeft,
             child: Padding(
               padding: EdgeInsets.only(
-                left: showMenuButton ? 56.w : 0,
+                left: showMenuButton || canGoBack ? 56.w : 0,
                 right: 20.w,
               ),
               child: Image.asset(

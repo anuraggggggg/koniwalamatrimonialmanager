@@ -183,6 +183,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           profession: 'Profile',
           community: 'Verified',
           type: 'Bride',
+          packageType: 'PREMIUM',
           isPremium: true,
           image: 'assets/wedding_hero 1.png',
           photoUrls: ['assets/wedding_hero 1.png'],
@@ -426,6 +427,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   Map<String, dynamic> _buildUpdateProfilePayload() {
     final linkedCustomerId = _linkedCustomerId();
     return _withoutEmptyValues({
+      // ignore: use_null_aware_elements
       if (linkedCustomerId != null) 'customerId': linkedCustomerId,
       'name': _fullNameController.text.trim(),
       'gender': _enumValue(_gender),

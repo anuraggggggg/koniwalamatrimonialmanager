@@ -10,6 +10,7 @@ import 'package:koniwalamatrimonial/constants/api_constants.dart';
 import 'package:koniwalamatrimonial/constants/app_colors.dart';
 import 'package:koniwalamatrimonial/owner/models/hr_employee_item.dart';
 import 'package:koniwalamatrimonial/owner/models/lead_registry_item.dart';
+import 'package:koniwalamatrimonial/owner/providers/dashboard_provider.dart';
 import 'package:koniwalamatrimonial/owner/providers/hr_employees_provider.dart';
 import 'package:koniwalamatrimonial/owner/providers/leads_provider.dart';
 import 'package:koniwalamatrimonial/providers/auth_provider.dart';
@@ -606,17 +607,15 @@ class _EmployeeManagementScreenState extends State<EmployeeManagementScreen> {
       backgroundColor: const Color(0xFFFFF9F6),
       appBar: _StaffRegistryAppBar(
         onBackPressed: () {
-          final navigator = Navigator.of(context);
-          if (navigator.canPop()) {
-            navigator.pop();
-            return;
+          final routeName = canAccessEmployeeManagement
+              ? AppRoutes.ownerDashboard
+              : AppRoutes.hrDashboard;
+          if (canAccessEmployeeManagement) {
+            context.read<DashboardProvider>().reset();
           }
-
-          navigator.pushReplacementNamed(
-            canAccessEmployeeManagement
-                ? AppRoutes.ownerDashboard
-                : AppRoutes.hrDashboard,
-          );
+          Navigator.of(
+            context,
+          ).pushNamedAndRemoveUntil(routeName, (route) => false);
         },
       ),
       body: MediaQuery(

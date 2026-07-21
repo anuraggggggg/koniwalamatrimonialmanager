@@ -733,17 +733,19 @@ class _HomeViewState extends State<HomeView> {
     }).length;
   }
 
-  double _totalBaseSalary(List<HrEmployeeItem> employees) {
-    return employees.fold<double>(
-      0,
-      (total, employee) => total + _salaryAmount(employee.baseSalary),
-    );
-  }
+  // Salary dashboard card is hidden for now. Keep this helper ready if that
+  // metric comes back.
+  // double _totalBaseSalary(List<HrEmployeeItem> employees) {
+  //   return employees.fold<double>(
+  //     0,
+  //     (total, employee) => total + _salaryAmount(employee.baseSalary),
+  //   );
+  // }
 
-  double _salaryAmount(String value) {
-    final text = value.replaceAll(RegExp(r'[^0-9.]'), '');
-    return double.tryParse(text) ?? 0;
-  }
+  // double _salaryAmount(String value) {
+  //   final text = value.replaceAll(RegExp(r'[^0-9.]'), '');
+  //   return double.tryParse(text) ?? 0;
+  // }
 
   String _metricKey(String value) {
     return value
@@ -781,24 +783,26 @@ class _HomeViewState extends State<HomeView> {
         : text;
   }
 
-  String _dashboardCurrencyText(
-    ManagerDashboard? dashboard,
-    List<String> aliases, {
-    required String fallback,
-  }) {
-    final value = _dashboardMetricValue(dashboard, aliases);
-    if (value == null) {
-      return fallback;
-    }
+  // Salary dashboard card is hidden for now. Keep this helper ready if that
+  // metric comes back.
+  // String _dashboardCurrencyText(
+  //   ManagerDashboard? dashboard,
+  //   List<String> aliases, {
+  //   required String fallback,
+  // }) {
+  //   final value = _dashboardMetricValue(dashboard, aliases);
+  //   if (value == null) {
+  //     return fallback;
+  //   }
 
-    final text = _metricValueText(value);
-    if (text.isEmpty) {
-      return fallback;
-    }
+  //   final text = _metricValueText(value);
+  //   if (text.isEmpty) {
+  //     return fallback;
+  //   }
 
-    final numeric = num.tryParse(text.replaceAll(RegExp(r'[^0-9.]'), ''));
-    return numeric == null ? text : _formatCompactCurrency(numeric.toDouble());
-  }
+  //   final numeric = num.tryParse(text.replaceAll(RegExp(r'[^0-9.]'), ''));
+  //   return numeric == null ? text : _formatCompactCurrency(numeric.toDouble());
+  // }
 
   dynamic _dashboardMetricValue(
     ManagerDashboard? dashboard,
@@ -1165,7 +1169,7 @@ class _HomeViewState extends State<HomeView> {
     final callsDoneToday = _callsDoneToday(followUpsProvider.leads);
     final rmCount = _relationshipManagerCount(dashboard?.liveTeamStatus ?? []);
     final matchedProfileCount = dashboard?.aiPanel.suggestedMatches.length ?? 0;
-    final salaryTotal = _totalBaseSalary(hrEmployees);
+    // final salaryTotal = _totalBaseSalary(hrEmployees);
     final totalLeadsText = _dashboardMetricText(dashboard, const [
       'totalLeads',
       'total leads',
@@ -1220,25 +1224,27 @@ class _HomeViewState extends State<HomeView> {
       'matchesToday',
       'suggestedMatches',
     ], fallback: _formatCompactNumber(matchedProfileCount));
-    final attendanceText = _dashboardMetricText(
-      dashboard,
-      const [
-        'attendance',
-        'todayAttendance',
-        'attendanceToday',
-        'presentToday',
-      ],
-      fallback: '$presentCount/$totalTeamCount',
-      compactNumber: false,
-    );
-    final salaryText = _dashboardCurrencyText(dashboard, const [
-      'salary',
-      'salaryTotal',
-      'totalSalary',
-      'payroll',
-      'payrollTotal',
-      'monthlySalary',
-    ], fallback: _formatCompactCurrency(salaryTotal));
+    // Attendance and salary cards are hidden for now. Keep these metric lookups
+    // ready if those cards come back.
+    // final attendanceText = _dashboardMetricText(
+    //   dashboard,
+    //   const [
+    //     'attendance',
+    //     'todayAttendance',
+    //     'attendanceToday',
+    //     'presentToday',
+    //   ],
+    //   fallback: '$presentCount/$totalTeamCount',
+    //   compactNumber: false,
+    // );
+    // final salaryText = _dashboardCurrencyText(dashboard, const [
+    //   'salary',
+    //   'salaryTotal',
+    //   'totalSalary',
+    //   'payroll',
+    //   'payrollTotal',
+    //   'monthlySalary',
+    // ], fallback: _formatCompactCurrency(salaryTotal));
 
     if (accessToken != null &&
         accessToken.isNotEmpty &&
@@ -1511,23 +1517,25 @@ class _HomeViewState extends State<HomeView> {
                         ).pushNamed(AppRoutes.aiMatching),
                       ),
                     ),
-                    SizedBox(
-                      width: itemWidth,
-                      child: _buildStatCard(
-                        'Attendance',
-                        attendanceText,
-                        label: 'Present',
-                        trendIcon: Icons.how_to_reg_rounded,
-                      ),
-                    ),
-                    SizedBox(
-                      width: itemWidth,
-                      child: _buildStatCard(
-                        'Salary',
-                        salaryText,
-                        trendIcon: Icons.payments_rounded,
-                      ),
-                    ),
+                    // Hidden for now; uncomment when Attendance is needed again.
+                    // SizedBox(
+                    //   width: itemWidth,
+                    //   child: _buildStatCard(
+                    //     'Attendance',
+                    //     attendanceText,
+                    //     label: 'Present',
+                    //     trendIcon: Icons.how_to_reg_rounded,
+                    //   ),
+                    // ),
+                    // Hidden for now; uncomment when Salary is needed again.
+                    // SizedBox(
+                    //   width: itemWidth,
+                    //   child: _buildStatCard(
+                    //     'Salary',
+                    //     salaryText,
+                    //     trendIcon: Icons.payments_rounded,
+                    //   ),
+                    // ),
                   ],
                 );
               },
@@ -4440,26 +4448,28 @@ class _HomeViewState extends State<HomeView> {
     return '$value';
   }
 
-  String _formatCompactCurrency(double value) {
-    if (value <= 0) {
-      return 'Rs. 0';
-    }
-    if (value >= 100000) {
-      final compact = value / 100000;
-      final text = compact % 1 == 0
-          ? compact.toStringAsFixed(0)
-          : compact.toStringAsFixed(1);
-      return 'Rs. ${text}L';
-    }
-    if (value >= 1000) {
-      final compact = value / 1000;
-      final text = compact % 1 == 0
-          ? compact.toStringAsFixed(0)
-          : compact.toStringAsFixed(1);
-      return 'Rs. ${text}k';
-    }
-    return 'Rs. ${value.toStringAsFixed(0)}';
-  }
+  // Salary dashboard card is hidden for now. Keep this formatter ready if that
+  // metric comes back.
+  // String _formatCompactCurrency(double value) {
+  //   if (value <= 0) {
+  //     return 'Rs. 0';
+  //   }
+  //   if (value >= 100000) {
+  //     final compact = value / 100000;
+  //     final text = compact % 1 == 0
+  //         ? compact.toStringAsFixed(0)
+  //         : compact.toStringAsFixed(1);
+  //     return 'Rs. ${text}L';
+  //   }
+  //   if (value >= 1000) {
+  //     final compact = value / 1000;
+  //     final text = compact % 1 == 0
+  //         ? compact.toStringAsFixed(0)
+  //         : compact.toStringAsFixed(1);
+  //     return 'Rs. ${text}k';
+  //   }
+  //   return 'Rs. ${value.toStringAsFixed(0)}';
+  // }
 
   double _safeProgress(int numerator, int denominator) {
     if (denominator <= 0) {

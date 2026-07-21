@@ -357,20 +357,22 @@ class _CompareProfileScreenState extends State<CompareProfileScreen> {
       ),
       child: Row(
         children: [
-          Container(
-            width: 32.r,
-            height: 32.r,
-            decoration: const BoxDecoration(
-              color: AppColors.rmPrimary,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              Icons.auto_awesome,
-              color: AppColors.white,
-              size: 15.sp,
+          SizedBox(
+            width: 36.r,
+            height: 36.r,
+            child: IconButton(
+              tooltip: 'Back',
+              padding: EdgeInsets.zero,
+              visualDensity: VisualDensity.compact,
+              onPressed: () => Navigator.of(context).maybePop(),
+              icon: Icon(
+                Icons.arrow_back_rounded,
+                color: AppColors.rmPrimary,
+                size: 22.sp,
+              ),
             ),
           ),
-          SizedBox(width: 12.w),
+          SizedBox(width: 8.w),
           Expanded(
             child: Text(
               'Match Comparison Overview',
@@ -1022,6 +1024,7 @@ class _ProfileComparisonColumn extends StatelessWidget {
       profession: '-',
       community: '-',
       type: 'Profile',
+      packageType: '',
       isPremium: false,
       image: imageUrl ?? 'assets/wedding_hero 1.png',
       photoUrls: [imageUrl ?? 'assets/wedding_hero 1.png'],

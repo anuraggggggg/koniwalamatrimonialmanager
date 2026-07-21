@@ -362,6 +362,66 @@ class LeadsProvider extends ChangeNotifier {
     }
   }
 
+  Future<String?> updateLeadStage({
+    required LeadRegistryItem lead,
+    required String? accessToken,
+    required String stage,
+  }) async {
+    if (accessToken == null || accessToken.isEmpty) {
+      return 'Login required to update lead status.';
+    }
+
+    if (lead.id.isEmpty) {
+      return 'Lead id is missing.';
+    }
+
+    final normalizedStage = _enumValue(stage);
+    final data = {'stage': normalizedStage};
+
+    try {
+      final url = '${ApiConstants.baseUrl}${ApiConstants.lead(lead.id)}/stage';
+      debugPrint('Calling lead stage API: $url');
+      debugPrint('Lead stage payload: ${jsonEncode(data)}');
+      final response = await http.patch(
+        Uri.parse(url),
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${accessToken.trim()}',
+        },
+        body: jsonEncode(data),
+      );
+
+      debugPrint(
+        'Lead stage API response status=${response.statusCode}, '
+        'body=${response.body}',
+      );
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        return _extractErrorMessage(response.body) ??
+            'Unable to update lead status.';
+      }
+
+      final decoded = response.body.trim().isEmpty
+          ? null
+          : jsonDecode(response.body);
+      final responseLead = decoded is Map<String, dynamic>
+          ? _extractLeadMap(decoded)
+          : null;
+      final updatedLead = responseLead == null
+          ? lead.copyWith(stage: _formatEnumLabel(normalizedStage))
+          : LeadRegistryItem.fromJson(responseLead);
+
+      _leads = _leads
+          .map((item) => _leadKey(item) == _leadKey(lead) ? updatedLead : item)
+          .toList();
+      notifyListeners();
+      return null;
+    } catch (error) {
+      return 'Unable to update lead status. ${error.toString()}';
+    }
+  }
+
   Future<http.Response> _patchLeadMultipart({
     required String url,
     required String accessToken,

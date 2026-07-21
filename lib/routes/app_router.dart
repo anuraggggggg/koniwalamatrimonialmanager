@@ -58,9 +58,7 @@ class AppRouter {
       case AppRoutes.dashboard:
         return MaterialPageRoute(builder: (_) => const DashboardScreen());
       case AppRoutes.registry:
-        return MaterialPageRoute(
-          builder: (_) => RegistryScreen(onMenuPressed: () {}),
-        );
+        return MaterialPageRoute(builder: (_) => const RegistryScreen());
       case AppRoutes.leadsRegistry:
         final initialStage = settings.arguments is String
             ? settings.arguments as String

@@ -13,6 +13,7 @@ class WhatsappProvider extends ChangeNotifier {
   bool _isLoadingMessages = false;
   bool _isLoadingTemplates = false;
   bool _isSending = false;
+  bool _isStartingChat = false;
   String? _error;
   String? _messageError;
   String? _conversationCursor;
@@ -41,6 +42,7 @@ class WhatsappProvider extends ChangeNotifier {
   bool get isLoadingMessages => _isLoadingMessages;
   bool get isLoadingTemplates => _isLoadingTemplates;
   bool get isSending => _isSending;
+  bool get isStartingChat => _isStartingChat;
   String? get error => _error;
   String? get messageError => _messageError;
   WhatsappApiStatus? get status => _status;
@@ -90,7 +92,10 @@ class WhatsappProvider extends ChangeNotifier {
     return _leadCommentErrorsById[leadId];
   }
 
-  Future<void> initialize(String? accessToken) async {
+  Future<void> initialize(
+    String? accessToken, {
+    bool allowLeadFallback = false,
+  }) async {
     if (accessToken == null || accessToken.trim().isEmpty) {
       _error = 'Login required to load WhatsApp conversations.';
       _conversations = const [];
@@ -106,7 +111,11 @@ class WhatsappProvider extends ChangeNotifier {
     await Future.wait([
       fetchStatus(accessToken),
       fetchTemplates(accessToken),
-      fetchConversations(accessToken: accessToken, forceRefresh: true),
+      fetchConversations(
+        accessToken: accessToken,
+        forceRefresh: true,
+        allowLeadFallback: allowLeadFallback,
+      ),
     ]);
   }
 
@@ -356,6 +365,7 @@ class WhatsappProvider extends ChangeNotifier {
     String search = '',
     bool includeArchived = false,
     bool forceRefresh = false,
+    bool allowLeadFallback = false,
   }) async {
     if (accessToken == null || accessToken.trim().isEmpty) {
       _isLoadingConversations = false;
@@ -396,6 +406,16 @@ class WhatsappProvider extends ChangeNotifier {
       _error = null;
       notifyListeners();
     } catch (error) {
+      if (allowLeadFallback && _isAuthorizationError(error)) {
+        final fallbackLoaded = await _loadLeadConversationFallback(
+          accessToken: accessToken,
+          search: search,
+        );
+        if (fallbackLoaded) {
+          return;
+        }
+      }
+
       _isLoadingConversations = false;
       _error = _cleanError(error, 'Unable to load WhatsApp conversations.');
       notifyListeners();
@@ -434,6 +454,145 @@ class WhatsappProvider extends ChangeNotifier {
       _isLoadingMoreConversations = false;
       notifyListeners();
     }
+  }
+
+  Future<WhatsappConversation?> startChat({
+    required String? accessToken,
+    required String countryCode,
+    required String phone,
+    required String name,
+  }) async {
+    final token = accessToken?.trim() ?? '';
+    if (token.isEmpty) {
+      throw Exception('Login required to start WhatsApp chat.');
+    }
+
+    final nationalPhone = _normalizePhone(phone);
+    if (nationalPhone.length < 10) {
+      throw Exception('Enter a valid WhatsApp number.');
+    }
+
+    final normalizedCountryCode = countryCode.replaceAll(RegExp(r'\D'), '');
+    final whatsappPhone = normalizedCountryCode.isEmpty
+        ? nationalPhone
+        : '$normalizedCountryCode$nationalPhone';
+    final contactName = name.trim().isEmpty
+        ? 'WhatsApp $nationalPhone'
+        : name.trim();
+
+    _isStartingChat = true;
+    notifyListeners();
+
+    try {
+      final searchPayload = await _service.fetchConversations(
+        accessToken: token,
+        search: nationalPhone,
+        includeArchived: false,
+        limit: 1,
+      );
+      final searchResult = parseWhatsappConversations(searchPayload);
+      final existing = _bestConversationMatch(
+        searchResult.items,
+        nationalPhone: nationalPhone,
+        whatsappPhone: whatsappPhone,
+      );
+      if (existing != null) {
+        _upsertConversation(existing);
+        return existing;
+      }
+
+      final leadPayload = await _createWhatsAppLeadWithFallback(
+        accessToken: token,
+        name: contactName,
+        phone: whatsappPhone,
+      );
+      final leadMap = _extractLeadDetailMap(leadPayload);
+      if (leadMap != null) {
+        final lead = RmLeadItem.fromJson(leadMap);
+        final conversation = WhatsappConversation.fromLead(lead);
+        _leadDetailsById[lead.id] = lead;
+        _upsertConversation(conversation);
+        return conversation;
+      }
+
+      final refreshPayload = await _service.fetchConversations(
+        accessToken: token,
+        search: nationalPhone,
+        includeArchived: false,
+        limit: 1,
+      );
+      final refreshed = _bestConversationMatch(
+        parseWhatsappConversations(refreshPayload).items,
+        nationalPhone: nationalPhone,
+        whatsappPhone: whatsappPhone,
+      );
+      if (refreshed != null) {
+        _upsertConversation(refreshed);
+        return refreshed;
+      }
+
+      throw Exception('Unable to create WhatsApp lead.');
+    } finally {
+      _isStartingChat = false;
+      notifyListeners();
+    }
+  }
+
+  Future<dynamic> _createWhatsAppLeadWithFallback({
+    required String accessToken,
+    required String name,
+    required String phone,
+  }) async {
+    try {
+      return await _service.createLead(
+        accessToken: accessToken,
+        name: name,
+        phone: phone,
+        source: 'WHATSAPP',
+        leadFor: 'FAMILY',
+        notes: 'Created from WhatsApp inbox.',
+      );
+    } catch (_) {
+      return _service.createLead(
+        accessToken: accessToken,
+        name: name,
+        phone: phone,
+        source: 'PHONE_CALL',
+        leadFor: 'FAMILY',
+        notes: 'Created from WhatsApp inbox.',
+      );
+    }
+  }
+
+  WhatsappConversation? _bestConversationMatch(
+    List<WhatsappConversation> conversations, {
+    required String nationalPhone,
+    required String whatsappPhone,
+  }) {
+    final national = _normalizePhone(nationalPhone);
+    final full = whatsappPhone.replaceAll(RegExp(r'\D'), '');
+    for (final conversation in conversations) {
+      final conversationDigits = conversation.phone.replaceAll(
+        RegExp(r'\D'),
+        '',
+      );
+      if (_normalizePhone(conversation.phone) == national ||
+          conversationDigits == full) {
+        return conversation;
+      }
+    }
+    return conversations.isEmpty ? null : conversations.first;
+  }
+
+  void _upsertConversation(WhatsappConversation conversation) {
+    _conversations = [
+      conversation,
+      ..._conversations.where(
+        (item) =>
+            item.leadId != conversation.leadId && item.id != conversation.id,
+      ),
+    ];
+    notifyListeners();
   }
 
   Future<void> fetchMessages({
@@ -862,6 +1021,70 @@ class WhatsappProvider extends ChangeNotifier {
       }
     }
     return const [];
+  }
+
+  Future<bool> _loadLeadConversationFallback({
+    required String accessToken,
+    required String search,
+  }) async {
+    try {
+      final payload = await _service.fetchLeads(accessToken: accessToken);
+      final normalizedSearch = search.trim().toLowerCase();
+      final leadConversations =
+          _extractLeadRows(payload)
+              .map(
+                (row) => row is Map<String, dynamic>
+                    ? row
+                    : row is Map
+                    ? row.map((key, value) => MapEntry(key.toString(), value))
+                    : null,
+              )
+              .whereType<Map<String, dynamic>>()
+              .map(RmLeadItem.fromJson)
+              .where((lead) {
+                final phone = _normalizePhone(lead.phone);
+                if (phone.isEmpty) {
+                  return false;
+                }
+                if (normalizedSearch.isEmpty) {
+                  return true;
+                }
+                return lead.name.toLowerCase().contains(normalizedSearch) ||
+                    lead.phone.toLowerCase().contains(normalizedSearch) ||
+                    phone.contains(_normalizePhone(normalizedSearch));
+              })
+              .map((lead) {
+                _leadDetailsById[lead.id] = lead;
+                return WhatsappConversation.fromLead(lead);
+              })
+              .toList()
+            ..sort((a, b) {
+              final left = a.lastMessageAt ?? a.createdAt ?? DateTime(1970);
+              final right = b.lastMessageAt ?? b.createdAt ?? DateTime(1970);
+              return right.compareTo(left);
+            });
+
+      _conversations = leadConversations;
+      _conversationCursor = null;
+      _hasMoreConversations = false;
+      _isLoadingConversations = false;
+      _error = null;
+      notifyListeners();
+      return true;
+    } catch (fallbackError) {
+      if (kDebugMode) {
+        debugPrint('[WhatsApp Provider] lead fallback failed: $fallbackError');
+      }
+      return false;
+    }
+  }
+
+  bool _isAuthorizationError(Object error) {
+    final message = error.toString().toLowerCase();
+    return message.contains('unauthorized') ||
+        message.contains('forbidden') ||
+        message.contains('401') ||
+        message.contains('403');
   }
 
   String _normalizePhone(String value) {

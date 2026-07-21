@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -9,9 +7,19 @@ import 'package:koniwalamatrimonial/owner/providers/customer_registry_provider.d
 import 'package:koniwalamatrimonial/providers/auth_provider.dart';
 import 'package:provider/provider.dart';
 
-enum _ClientRegistryAction { viewLedger, delete }
-
 enum ClientRegistryInitialFilter { all, standard, vip }
+
+enum _ClientDateFilter {
+  all('All Dates'),
+  today('Today'),
+  sevenDays('7 Days'),
+  month('Month'),
+  custom('Custom');
+
+  const _ClientDateFilter(this.label);
+
+  final String label;
+}
 
 class ClientRegistryScreen extends StatefulWidget {
   const ClientRegistryScreen({
@@ -29,40 +37,16 @@ class ClientRegistryScreen extends StatefulWidget {
 
 class _ClientRegistryScreenState extends State<ClientRegistryScreen> {
   int _selectedFilter = 0;
-  String _searchQuery = '';
+  final Set<String> _selectedRmNames = <String>{};
+  _ClientDateFilter _selectedDateFilter = _ClientDateFilter.all;
+  DateTimeRange? _customDateRange;
   bool _hasRequestedCustomers = false;
   String? _requestedAccessToken;
-  Timer? _searchDebounce;
-
-  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _selectedFilter = widget.initialFilter.index;
-  }
-
-  @override
-  void dispose() {
-    _searchDebounce?.cancel();
-    _searchController.dispose();
-    super.dispose();
-  }
-
-  void _handleSearchChanged(String value) {
-    _searchDebounce?.cancel();
-    _searchDebounce = Timer(const Duration(milliseconds: 220), () {
-      if (!mounted) {
-        return;
-      }
-
-      final normalized = value.trim();
-      if (normalized == _searchQuery) {
-        return;
-      }
-
-      setState(() => _searchQuery = normalized);
-    });
   }
 
   List<_RegistryMetric> _metrics(List<CustomerRegistryItem> customers) => [
@@ -79,20 +63,6 @@ class _ClientRegistryScreenState extends State<ClientRegistryScreen> {
       caption: 'Digitized matrimonial\nentries',
       icon: Icons.group_add_outlined,
       accent: const Color(0xFF338AF3),
-    ),
-    _RegistryMetric(
-      label: 'Assigned RM',
-      value: '${_assignedRmCount(customers)}',
-      caption: 'Clients with active\nownership',
-      icon: Icons.badge_outlined,
-      accent: const Color(0xFF18A957),
-    ),
-    _RegistryMetric(
-      label: 'Priority Registry',
-      value: '${_premiumCustomersCount(customers)}',
-      caption: 'Premium and elite\nentries',
-      icon: Icons.star_border_rounded,
-      accent: const Color(0xFFE3A300),
     ),
   ];
 
@@ -131,19 +101,197 @@ class _ClientRegistryScreenState extends State<ClientRegistryScreen> {
       filtered = filtered.where(_isVipCustomer).toList();
     }
 
-    if (_searchQuery.isNotEmpty) {
-      final query = _searchQuery.toLowerCase();
+    if (_selectedRmNames.isNotEmpty) {
       filtered = filtered
           .where(
-            (customer) =>
-                customer.name.toLowerCase().contains(query) ||
-                customer.phone.contains(query) ||
-                customer.email.toLowerCase().contains(query),
+            (customer) => _selectedRmNames.contains(customer.assignedRmName),
           )
           .toList();
     }
 
+    final dateRange = _activeDateRange();
+    if (dateRange != null) {
+      filtered = filtered.where((customer) {
+        final createdAt = customer.createdAt;
+        if (createdAt == null) {
+          return false;
+        }
+
+        return !createdAt.isBefore(dateRange.start) &&
+            createdAt.isBefore(dateRange.end);
+      }).toList();
+    }
+
+    filtered.
+    
+    
+    
+    
+    
+    
+    
+    
+    sort((left, right) {
+      final leftCreatedAt = left.createdAt;
+      final rightCreatedAt = right.createdAt;
+      if (leftCreatedAt == null && rightCreatedAt == null) {
+        return 0;
+      }
+      if (leftCreatedAt == null) {
+        return 1;
+      }
+      if (rightCreatedAt == null) {
+        return -1;
+      }
+      return rightCreatedAt.compareTo(leftCreatedAt);
+    });
+
     return filtered;
+  }
+
+  List<String> _rmOptions(List<CustomerRegistryItem> customers) {
+    final options = customers
+        .map((customer) => customer.assignedRmName.trim())
+        .where((name) => name.isNotEmpty && name != '-')
+        .toSet()
+        .toList();
+    options.sort(
+      (left, right) => left.toLowerCase().compareTo(right.toLowerCase()),
+    );
+    return options;
+  }
+
+  DateTimeRange? _activeDateRange() {
+    final now = DateTime.now();
+    final todayStart = DateTime(now.year, now.month, now.day);
+
+    return switch (_selectedDateFilter) {
+      _ClientDateFilter.all => null,
+      _ClientDateFilter.today => DateTimeRange(
+        start: todayStart,
+        end: todayStart.add(const Duration(days: 1)),
+      ),
+      _ClientDateFilter.sevenDays => DateTimeRange(
+        start: todayStart.subtract(const Duration(days: 6)),
+        end: todayStart.add(const Duration(days: 1)),
+      ),
+      _ClientDateFilter.month => DateTimeRange(
+        start: DateTime(now.year, now.month),
+        end: DateTime(now.year, now.month + 1),
+      ),
+      _ClientDateFilter.custom =>
+        _customDateRange == null
+            ? null
+            : DateTimeRange(
+                start: DateTime(
+                  _customDateRange!.start.year,
+                  _customDateRange!.start.month,
+                  _customDateRange!.start.day,
+                ),
+                end: DateTime(
+                  _customDateRange!.end.year,
+                  _customDateRange!.end.month,
+                  _customDateRange!.end.day,
+                ).add(const Duration(days: 1)),
+              ),
+    };
+  }
+
+  void _toggleRmFilter(String rmName) {
+    setState(() {
+      if (_selectedRmNames.contains(rmName)) {
+        _selectedRmNames.remove(rmName);
+      } else {
+        _selectedRmNames.add(rmName);
+      }
+    });
+  }
+
+  void _clearRmFilter() {
+    if (_selectedRmNames.isEmpty) {
+      return;
+    }
+    setState(_selectedRmNames.clear);
+  }
+
+  Future<void> _selectDateFilter(_ClientDateFilter filter) async {
+    if (filter == _ClientDateFilter.custom) {
+      final now = DateTime.now();
+      final initialRange =
+          _customDateRange ??
+          DateTimeRange(start: now.subtract(const Duration(days: 7)), end: now);
+      final pickedRange = await showDateRangePicker(
+        context: context,
+        firstDate: DateTime(now.year - 5),
+        lastDate: DateTime(now.year + 1),
+        initialDateRange: initialRange,
+        helpText: 'Select client date range',
+        builder: (context, child) {
+          return Theme(
+            data: Theme.of(context).copyWith(
+              colorScheme: const ColorScheme.light(
+                primary: AppColors.black,
+                onPrimary: AppColors.white,
+                surface: AppColors.white,
+                onSurface: AppColors.black,
+              ),
+              dialogTheme: const DialogThemeData(
+                backgroundColor: AppColors.white,
+              ),
+              datePickerTheme: DatePickerThemeData(
+                backgroundColor: AppColors.white,
+                surfaceTintColor: AppColors.white,
+                headerBackgroundColor: AppColors.white,
+                headerForegroundColor: AppColors.black,
+                rangePickerBackgroundColor: AppColors.white,
+                rangePickerHeaderBackgroundColor: AppColors.white,
+                rangePickerHeaderForegroundColor: AppColors.black,
+                dayForegroundColor: WidgetStateProperty.resolveWith((states) {
+                  if (states.contains(WidgetState.selected)) {
+                    return AppColors.white;
+                  }
+                  return AppColors.black;
+                }),
+                dayBackgroundColor: WidgetStateProperty.resolveWith((states) {
+                  if (states.contains(WidgetState.selected)) {
+                    return AppColors.black;
+                  }
+                  return AppColors.transparent;
+                }),
+                todayForegroundColor: const WidgetStatePropertyAll(
+                  AppColors.black,
+                ),
+                todayBorder: const BorderSide(color: AppColors.black),
+                rangeSelectionBackgroundColor: Color(0xFFEDEDED),
+              ),
+              textButtonTheme: TextButtonThemeData(
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.black,
+                  textStyle: GoogleFonts.inter(fontWeight: FontWeight.w800),
+                ),
+              ),
+            ),
+            child: child ?? const SizedBox.shrink(),
+          );
+        },
+      );
+      if (!mounted || pickedRange == null) {
+        return;
+      }
+
+      setState(() {
+        _selectedDateFilter = filter;
+        _customDateRange = pickedRange;
+      });
+      return;
+    }
+
+    setState(() {
+      _selectedDateFilter = filter;
+      if (filter != _ClientDateFilter.custom) {
+        _customDateRange = null;
+      }
+    });
   }
 
   int _activeProfilesCount(List<CustomerRegistryItem> customers) {
@@ -151,10 +299,6 @@ class _ClientRegistryScreenState extends State<ClientRegistryScreen> {
       0,
       (total, customer) => total + customer.activeProfilesCount,
     );
-  }
-
-  int _assignedRmCount(List<CustomerRegistryItem> customers) {
-    return customers.where((customer) => customer.assignedRmName != '-').length;
   }
 
   int _premiumCustomersCount(List<CustomerRegistryItem> customers) {
@@ -166,143 +310,6 @@ class _ClientRegistryScreenState extends State<ClientRegistryScreen> {
     return packageType == 'PREMIUM' ||
         packageType == 'ELITE' ||
         packageType == 'VIP';
-  }
-
-  Future<void> _showClientActions(CustomerRegistryItem customer) async {
-    final action = await showModalBottomSheet<_ClientRegistryAction>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (sheetContext) {
-        return _ClientActionSheet(
-          customer: customer,
-          onSelected: (selectedAction) {
-            Navigator.of(sheetContext).pop(selectedAction);
-          },
-        );
-      },
-    );
-
-    if (!mounted || action == null) {
-      return;
-    }
-
-    switch (action) {
-      case _ClientRegistryAction.viewLedger:
-        _showClientDetailsDialog(customer);
-        break;
-      case _ClientRegistryAction.delete:
-        await _handleDeleteClient(customer);
-        break;
-    }
-  }
-
-  void _showClientDetailsDialog(CustomerRegistryItem customer) {
-    showDialog(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: Text(
-            'Client Details',
-            style: GoogleFonts.inter(fontWeight: FontWeight.w800),
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _DetailRow(label: 'Name', value: customer.name),
-                _DetailRow(label: 'Phone', value: customer.phone),
-                _DetailRow(label: 'Email', value: customer.email),
-                _DetailRow(label: 'Package', value: customer.packageType),
-                _DetailRow(
-                  label: 'Assigned RM',
-                  value: customer.assignedRmName,
-                ),
-                _DetailRow(label: 'Created', value: customer.createdOn),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: Text(
-                'Close',
-                style: GoogleFonts.inter(fontWeight: FontWeight.w700),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Future<void> _handleDeleteClient(CustomerRegistryItem customer) async {
-    final confirmed = await _confirmDeleteClient(customer);
-    if (confirmed != true || !mounted) {
-      return;
-    }
-
-    final accessToken = context.read<AuthProvider>().userModel?.accessToken;
-    final message = await context
-        .read<CustomerRegistryProvider>()
-        .deleteCustomer(customer, accessToken);
-
-    if (!mounted) {
-      return;
-    }
-
-    _showMessage(message ?? 'Client deleted successfully.');
-  }
-
-  Future<bool?> _confirmDeleteClient(CustomerRegistryItem customer) {
-    return showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: Text(
-            'Delete Client',
-            style: GoogleFonts.inter(fontWeight: FontWeight.w800),
-          ),
-          content: Text(
-            customer.id.isNotEmpty
-                ? 'Are you sure you want to delete ${customer.name}? This action cannot be undone.'
-                : 'This client does not include an id yet, so the delete API cannot be called.',
-            style: GoogleFonts.inter(height: 1.45),
-          ),
-          actions: [
-            OutlinedButton(
-              onPressed: () => Navigator.of(dialogContext).pop(false),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFF6F5F64),
-                side: const BorderSide(color: Color(0xFFEECAD4)),
-              ),
-              child: Text(
-                'No, Cancel',
-                style: GoogleFonts.inter(fontWeight: FontWeight.w700),
-              ),
-            ),
-            ElevatedButton(
-              onPressed: () =>
-                  Navigator.of(dialogContext).pop(customer.id.isNotEmpty),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFD1213E),
-                foregroundColor: Colors.white,
-              ),
-              child: Text(
-                customer.id.isNotEmpty ? 'Yes, Delete' : 'Close',
-                style: GoogleFonts.inter(fontWeight: FontWeight.w800),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  void _showMessage(String message) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -343,6 +350,7 @@ class _ClientRegistryScreenState extends State<ClientRegistryScreen> {
     );
     final metrics = _metrics(customers);
     final filters = _registryFilters(customers);
+    final rmOptions = _rmOptions(customers);
     final visibleCustomers = _visibleCustomers(customers);
 
     return Scaffold(
@@ -378,9 +386,7 @@ class _ClientRegistryScreenState extends State<ClientRegistryScreen> {
                 padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 0),
                 sliver: SliverLayoutBuilder(
                   builder: (context, constraints) {
-                    final crossAxisCount = constraints.crossAxisExtent >= 620
-                        ? 4
-                        : 2;
+                    const crossAxisCount = 2;
                     return SliverGrid(
                       delegate: SliverChildBuilderDelegate(
                         (context, index) => _MetricCard(metric: metrics[index]),
@@ -410,8 +416,13 @@ class _ClientRegistryScreenState extends State<ClientRegistryScreen> {
                 padding: EdgeInsets.fromLTRB(16.w, 12.h, 16.w, 0),
                 sliver: SliverToBoxAdapter(
                   child: _RegistryToolsRow(
-                    controller: _searchController,
-                    onSearchChanged: _handleSearchChanged,
+                    rmOptions: rmOptions,
+                    selectedRmNames: _selectedRmNames,
+                    selectedDateFilter: _selectedDateFilter,
+                    customDateRange: _customDateRange,
+                    onRmSelected: _toggleRmFilter,
+                    onClearRmFilter: _clearRmFilter,
+                    onDateFilterSelected: _selectDateFilter,
                   ),
                 ),
               ),
@@ -420,7 +431,6 @@ class _ClientRegistryScreenState extends State<ClientRegistryScreen> {
                 error: error,
                 customers: visibleCustomers,
                 onRetry: () => context.read<CustomerRegistryProvider>().retry(),
-                onClientActionsPressed: _showClientActions,
               ),
               SliverToBoxAdapter(child: SizedBox(height: 20.h)),
             ],
@@ -447,24 +457,24 @@ class _ClientRegistryHeader extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (onMenuPressed != null) ...[
-          SizedBox(
-            width: 34.r,
-            height: 34.r,
-            child: IconButton(
-              tooltip: 'Menu',
-              visualDensity: VisualDensity.compact,
-              padding: EdgeInsets.zero,
-              onPressed: onMenuPressed,
-              icon: Icon(
-                Icons.menu_rounded,
-                color: AppColors.rmPrimary,
-                size: 23.sp,
-              ),
+        SizedBox(
+          width: 34.r,
+          height: 34.r,
+          child: IconButton(
+            tooltip: onMenuPressed == null ? 'Back' : 'Menu',
+            visualDensity: VisualDensity.compact,
+            padding: EdgeInsets.zero,
+            onPressed: onMenuPressed ?? () => Navigator.of(context).maybePop(),
+            icon: Icon(
+              onMenuPressed == null
+                  ? Icons.arrow_back_rounded
+                  : Icons.menu_rounded,
+              color: AppColors.rmPrimary,
+              size: 23.sp,
             ),
           ),
-          SizedBox(width: 8.w),
-        ],
+        ),
+        SizedBox(width: 8.w),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -635,9 +645,7 @@ class _RegistryFilterChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final foreground = filter.selected
-        ? AppColors.rmPrimary
-        : const Color(0xFF62565B);
+    final foreground = AppColors.black;
 
     return Material(
       color: AppColors.transparent,
@@ -652,8 +660,8 @@ class _RegistryFilterChip extends StatelessWidget {
             borderRadius: BorderRadius.circular(18.r),
             border: Border.all(
               color: filter.selected
-                  ? const Color(0xFFE4AFC3)
-                  : const Color(0xFFEADCE1),
+                  ? AppColors.black
+                  : const Color(0xFFE2E2E2),
             ),
           ),
           child: Row(
@@ -674,8 +682,9 @@ class _RegistryFilterChip extends StatelessWidget {
                 alignment: Alignment.center,
                 padding: EdgeInsets.symmetric(horizontal: 5.w),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF6EEF2),
+                  color: AppColors.white,
                   borderRadius: BorderRadius.circular(10.r),
+                  border: Border.all(color: const Color(0xFFE2E2E2)),
                 ),
                 child: Text(
                   '${filter.count}',
@@ -696,52 +705,118 @@ class _RegistryFilterChip extends StatelessWidget {
 
 class _RegistryToolsRow extends StatelessWidget {
   const _RegistryToolsRow({
-    required this.controller,
-    required this.onSearchChanged,
+    required this.rmOptions,
+    required this.selectedRmNames,
+    required this.selectedDateFilter,
+    required this.customDateRange,
+    required this.onRmSelected,
+    required this.onClearRmFilter,
+    required this.onDateFilterSelected,
   });
 
-  final TextEditingController controller;
-  final ValueChanged<String> onSearchChanged;
+  final List<String> rmOptions;
+  final Set<String> selectedRmNames;
+  final _ClientDateFilter selectedDateFilter;
+  final DateTimeRange? customDateRange;
+  final ValueChanged<String> onRmSelected;
+  final VoidCallback onClearRmFilter;
+  final ValueChanged<_ClientDateFilter> onDateFilterSelected;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
         Expanded(
-          child: Container(
-            height: 40.h,
-            padding: EdgeInsets.symmetric(horizontal: 11.w),
-            decoration: BoxDecoration(
-              color: AppColors.white,
-              borderRadius: BorderRadius.circular(9.r),
-              border: Border.all(color: const Color(0xFFE9D9DE)),
+          child: _RmFilterButton(
+            rmOptions: rmOptions,
+            selectedRmNames: selectedRmNames,
+            onRmSelected: onRmSelected,
+            onClear: onClearRmFilter,
+          ),
+        ),
+        SizedBox(width: 8.w),
+        _DateFilterButton(
+          selectedDateFilter: selectedDateFilter,
+          customDateRange: customDateRange,
+          onSelected: onDateFilterSelected,
+        ),
+      ],
+    );
+  }
+}
+
+class _RmFilterButton extends StatelessWidget {
+  const _RmFilterButton({
+    required this.rmOptions,
+    required this.selectedRmNames,
+    required this.onRmSelected,
+    required this.onClear,
+  });
+
+  final List<String> rmOptions;
+  final Set<String> selectedRmNames;
+  final ValueChanged<String> onRmSelected;
+  final VoidCallback onClear;
+
+  String get _label {
+    if (selectedRmNames.isEmpty) {
+      return 'All RM';
+    }
+    if (selectedRmNames.length == 1) {
+      return selectedRmNames.first;
+    }
+    return '${selectedRmNames.length} RM selected';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<String>(
+      enabled: rmOptions.isNotEmpty,
+      tooltip: 'Filter by RM',
+      color: AppColors.white,
+      surfaceTintColor: AppColors.white,
+      onSelected: (value) {
+        if (value == '__clear__') {
+          onClear();
+          return;
+        }
+        onRmSelected(value);
+      },
+      itemBuilder: (context) => [
+        if (selectedRmNames.isNotEmpty)
+          PopupMenuItem<String>(
+            value: '__clear__',
+            child: Text(
+              'Clear RM filter',
+              style: GoogleFonts.inter(
+                color: AppColors.black,
+                fontWeight: FontWeight.w800,
+              ),
             ),
+          ),
+        ...rmOptions.map(
+          (rmName) => PopupMenuItem<String>(
+            value: rmName,
             child: Row(
               children: [
-                Icon(
-                  Icons.search_rounded,
-                  size: 17.sp,
-                  color: const Color(0xFF797178),
+                IgnorePointer(
+                  child: Checkbox(
+                    value: selectedRmNames.contains(rmName),
+                    onChanged: (_) {},
+                    activeColor: AppColors.black,
+                    checkColor: AppColors.white,
+                    side: const BorderSide(color: AppColors.black),
+                    visualDensity: VisualDensity.compact,
+                  ),
                 ),
-                SizedBox(width: 8.w),
+                SizedBox(width: 6.w),
                 Expanded(
-                  child: TextField(
-                    controller: controller,
-                    onChanged: onSearchChanged,
-                    decoration: InputDecoration(
-                      hintText: 'Search registry...',
-                      hintStyle: GoogleFonts.inter(
-                        color: const Color(0xFF7A7379),
-                        fontSize: 12.5.sp,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      border: InputBorder.none,
-                      contentPadding: EdgeInsets.zero,
-                    ),
+                  child: Text(
+                    rmName,
+                    overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.inter(
-                      color: const Color(0xFF272429),
-                      fontSize: 12.5.sp,
-                      fontWeight: FontWeight.w600,
+                      color: AppColors.black,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),
@@ -749,36 +824,162 @@ class _RegistryToolsRow extends StatelessWidget {
             ),
           ),
         ),
-        SizedBox(width: 8.w),
-        Container(
+      ],
+      child: Container(
+        height: 40.h,
+        padding: EdgeInsets.symmetric(horizontal: 11.w),
+        decoration: BoxDecoration(
+          color: AppColors.white,
+          borderRadius: BorderRadius.circular(9.r),
+          border: Border.all(color: const Color(0xFFE2E2E2)),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.badge_outlined, size: 17.sp, color: AppColors.black),
+            SizedBox(width: 8.w),
+            Expanded(
+              child: Text(
+                rmOptions.isEmpty ? 'No RM assigned' : _label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.inter(
+                  color: AppColors.black,
+                  fontSize: 12.5.sp,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+            Icon(
+              Icons.keyboard_arrow_down_rounded,
+              size: 17.sp,
+              color: AppColors.black,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DateFilterButton extends StatelessWidget {
+  const _DateFilterButton({
+    required this.selectedDateFilter,
+    required this.customDateRange,
+    required this.onSelected,
+  });
+
+  final _ClientDateFilter selectedDateFilter;
+  final DateTimeRange? customDateRange;
+  final ValueChanged<_ClientDateFilter> onSelected;
+
+  String get _label {
+    if (selectedDateFilter != _ClientDateFilter.custom ||
+        customDateRange == null) {
+      return selectedDateFilter.label;
+    }
+
+    return '${_shortDate(customDateRange!.start)} - ${_shortDate(customDateRange!.end)}';
+  }
+
+  static String _shortDate(DateTime date) {
+    return '${date.day}/${date.month}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Theme(
+      data: Theme.of(context).copyWith(
+        popupMenuTheme: PopupMenuThemeData(
+          color: AppColors.white,
+          surfaceTintColor: AppColors.white,
+          textStyle: GoogleFonts.inter(
+            color: AppColors.black,
+            fontWeight: FontWeight.w800,
+          ),
+          labelTextStyle: WidgetStatePropertyAll(
+            GoogleFonts.inter(
+              color: AppColors.black,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+      ),
+      child: PopupMenuButton<_ClientDateFilter>(
+        tooltip: 'Filter by date',
+        color: AppColors.white,
+        surfaceTintColor: AppColors.white,
+        onSelected: onSelected,
+        itemBuilder: (context) => _ClientDateFilter.values.map((filter) {
+          final selected = selectedDateFilter == filter;
+          return PopupMenuItem<_ClientDateFilter>(
+            value: filter,
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 22.w,
+                  child: selected
+                      ? Icon(
+                          Icons.check_rounded,
+                          color: AppColors.black,
+                          size: 18.sp,
+                        )
+                      : null,
+                ),
+                SizedBox(width: 4.w),
+                Expanded(
+                  child: Text(
+                    filter.label,
+                    style: GoogleFonts.inter(
+                      color: AppColors.black,
+                      fontSize: 13.sp,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }).toList(),
+        child: Container(
           height: 40.h,
+          constraints: BoxConstraints(maxWidth: 142.w),
           padding: EdgeInsets.symmetric(horizontal: 10.w),
           decoration: BoxDecoration(
             color: AppColors.white,
             borderRadius: BorderRadius.circular(9.r),
-            border: Border.all(color: const Color(0xFFE9D9DE)),
+            border: Border.all(color: const Color(0xFFE2E2E2)),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                'Newest',
-                style: GoogleFonts.inter(
-                  color: const Color(0xFF6E6369),
-                  fontSize: 12.sp,
-                  fontWeight: FontWeight.w800,
+              Icon(
+                Icons.calendar_today_outlined,
+                size: 15.sp,
+                color: AppColors.black,
+              ),
+              SizedBox(width: 6.w),
+              Flexible(
+                child: Text(
+                  _label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.inter(
+                    color: AppColors.black,
+                    fontSize: 12.sp,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
               ),
-              SizedBox(width: 5.w),
+              SizedBox(width: 3.w),
               Icon(
                 Icons.keyboard_arrow_down_rounded,
                 size: 17.sp,
-                color: const Color(0xFF6E6369),
+                color: AppColors.black,
               ),
             ],
           ),
         ),
-      ],
+      ),
     );
   }
 }
@@ -789,14 +990,12 @@ class _RegistryListSliver extends StatelessWidget {
     required this.error,
     required this.customers,
     required this.onRetry,
-    required this.onClientActionsPressed,
   });
 
   final bool isLoading;
   final String? error;
   final List<CustomerRegistryItem> customers;
   final VoidCallback onRetry;
-  final ValueChanged<CustomerRegistryItem> onClientActionsPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -838,16 +1037,7 @@ class _RegistryListSliver extends StatelessWidget {
         separatorBuilder: (context, index) => SizedBox(height: 8.h),
         itemBuilder: (context, index) {
           final customer = customers[index];
-          return Selector<CustomerRegistryProvider, bool>(
-            selector: (_, provider) => provider.isRemovingCustomer(customer.id),
-            builder: (context, isDeleting, _) {
-              return _ClientRegistryCard(
-                customer: customer,
-                isDeleting: isDeleting,
-                onActionsPressed: () => onClientActionsPressed(customer),
-              );
-            },
-          );
+          return _ClientRegistryCard(customer: customer);
         },
       ),
     );
@@ -917,15 +1107,9 @@ class _RegistryMessage extends StatelessWidget {
 }
 
 class _ClientRegistryCard extends StatelessWidget {
-  const _ClientRegistryCard({
-    required this.customer,
-    required this.isDeleting,
-    required this.onActionsPressed,
-  });
+  const _ClientRegistryCard({required this.customer});
 
   final CustomerRegistryItem customer;
-  final bool isDeleting;
-  final VoidCallback onActionsPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -1010,22 +1194,6 @@ class _ClientRegistryCard extends StatelessWidget {
                   ],
                 ),
               ),
-              IconButton(
-                constraints: BoxConstraints.tight(Size(30.r, 30.r)),
-                padding: EdgeInsets.zero,
-                onPressed: isDeleting ? null : onActionsPressed,
-                icon: isDeleting
-                    ? SizedBox(
-                        width: 18.w,
-                        height: 18.w,
-                        child: const CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : Icon(
-                        Icons.more_vert_rounded,
-                        color: const Color(0xFF6E656B),
-                        size: 20.sp,
-                      ),
-              ),
             ],
           ),
           SizedBox(height: 10.h),
@@ -1046,158 +1214,6 @@ class _ClientRegistryCard extends StatelessWidget {
           SizedBox(height: 9.h),
           _ProfileStatusBox(customer: customer),
         ],
-      ),
-    );
-  }
-}
-
-class _ClientActionSheet extends StatelessWidget {
-  const _ClientActionSheet({required this.customer, required this.onSelected});
-
-  final CustomerRegistryItem customer;
-  final ValueChanged<_ClientRegistryAction> onSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24.r)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: EdgeInsets.fromLTRB(18.w, 12.h, 18.w, 18.h),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 44.w,
-                height: 4.h,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFD9C8CF),
-                  borderRadius: BorderRadius.circular(999.r),
-                ),
-              ),
-              SizedBox(height: 16.h),
-              Text(
-                customer.name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.inter(
-                  color: AppColors.rmHeading,
-                  fontSize: 18.sp,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              SizedBox(height: 14.h),
-              _ClientActionTile(
-                icon: Icons.info_outline,
-                label: 'View Ledger',
-                color: AppColors.rmPrimary,
-                onTap: () => onSelected(_ClientRegistryAction.viewLedger),
-              ),
-              SizedBox(height: 10.h),
-              _ClientActionTile(
-                icon: Icons.delete_outline,
-                label: 'Delete Client',
-                color: const Color(0xFFD1213E),
-                onTap: () => onSelected(_ClientRegistryAction.delete),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _DetailRow extends StatelessWidget {
-  const _DetailRow({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.symmetric(vertical: 4.h),
-      child: Row(
-        children: [
-          Text(
-            '$label: ',
-            style: GoogleFonts.inter(
-              fontWeight: FontWeight.w800,
-              color: const Color(0xFF6E656B),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: GoogleFonts.inter(fontWeight: FontWeight.w600),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ClientActionTile extends StatelessWidget {
-  const _ClientActionTile({
-    required this.icon,
-    required this.label,
-    required this.color,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final Color color;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16.r),
-      child: Container(
-        width: double.infinity,
-        padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 14.h),
-        decoration: BoxDecoration(
-          color: const Color(0xFFFFF9FB),
-          borderRadius: BorderRadius.circular(16.r),
-          border: Border.all(color: const Color(0xFFEECFD9)),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 40.r,
-              height: 40.r,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.12),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, color: color, size: 20.sp),
-            ),
-            SizedBox(width: 12.w),
-            Expanded(
-              child: Text(
-                label,
-                style: GoogleFonts.inter(
-                  color: AppColors.rmHeading,
-                  fontSize: 15.sp,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ),
-            Icon(
-              Icons.chevron_right_rounded,
-              color: const Color(0xFF8B7D84),
-              size: 22.sp,
-            ),
-          ],
-        ),
       ),
     );
   }

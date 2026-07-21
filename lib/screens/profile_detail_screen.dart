@@ -197,35 +197,44 @@ class _ProfileHeroImage extends StatelessWidget {
 
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 14.w),
-      child: Stack(
-        alignment: Alignment.bottomCenter,
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(4.r),
-            child: _ProfileImageView(
-              image: heroImage,
-              height: 264.h,
-              fit: BoxFit.cover,
-              alignment: Alignment.topCenter,
-            ),
-          ),
-          Positioned(
-            top: 10.h,
-            right: 10.w,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                const _ActiveMemberBadge(),
-                SizedBox(height: 8.h),
-                _PhotoManagerBadge(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final badgeInset = 10.w;
+          final managerMaxWidth = (constraints.maxWidth - 166.w).clamp(
+            118.w,
+            260.w,
+          );
+
+          return Stack(
+            alignment: Alignment.bottomCenter,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4.r),
+                child: _ProfileImageView(
+                  image: heroImage,
+                  height: 264.h,
+                  fit: BoxFit.cover,
+                  alignment: Alignment.topCenter,
+                ),
+              ),
+              Positioned(
+                top: 10.h,
+                left: badgeInset,
+                child: _PhotoManagerBadge(
                   managerName: profile.assignedRmName == '-'
                       ? 'Not assigned'
                       : profile.assignedRmName,
+                  maxWidth: managerMaxWidth,
                 ),
-              ],
-            ),
-          ),
-        ],
+              ),
+              Positioned(
+                top: 10.h,
+                right: badgeInset,
+                child: const _ActiveMemberBadge(),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -274,14 +283,15 @@ class _ActiveMemberBadge extends StatelessWidget {
 }
 
 class _PhotoManagerBadge extends StatelessWidget {
-  const _PhotoManagerBadge({required this.managerName});
+  const _PhotoManagerBadge({required this.managerName, this.maxWidth});
 
   final String managerName;
+  final double? maxWidth;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      constraints: BoxConstraints(maxWidth: 260.w),
+      constraints: BoxConstraints(maxWidth: maxWidth ?? 260.w),
       padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 7.h),
       decoration: BoxDecoration(
         color: const Color(0xF7FFFFFF),

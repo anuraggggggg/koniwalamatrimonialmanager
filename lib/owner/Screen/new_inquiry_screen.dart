@@ -309,17 +309,18 @@ class _InquiryHeader extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
+        SizedBox(
           width: 44.w,
           height: 44.w,
-          decoration: const BoxDecoration(
-            color: Color(0xFFFFF0F5),
-            shape: BoxShape.circle,
-          ),
-          child: Icon(
-            Icons.person_add_alt_1,
-            color: AppColors.rmPrimary,
-            size: 22.sp,
+          child: IconButton(
+            tooltip: 'Back',
+            onPressed: () => Navigator.of(context).maybePop(),
+            padding: EdgeInsets.zero,
+            icon: Icon(
+              Icons.arrow_back_rounded,
+              color: AppColors.rmPrimary,
+              size: 24.sp,
+            ),
           ),
         ),
         SizedBox(width: 12.w),

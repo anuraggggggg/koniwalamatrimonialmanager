@@ -226,16 +226,17 @@ class AdminDrawerScreen extends StatelessWidget {
                               navigator.pushNamed(AppRoutes.employeeManagement);
                             },
                           ),
-                          _AdminDrawerItem(
-                            label: 'Payroll Management',
-                            icon: Icons.payments_outlined,
-                            selected: false,
-                            onTap: () {
-                              Navigator.of(
-                                context,
-                              ).pushNamed(AppRoutes.payrollManagement);
-                            },
-                          ),
+                          // Payroll Management is hidden from the drawer for now.
+                          // _AdminDrawerItem(
+                          //   label: 'Payroll Management',
+                          //   icon: Icons.payments_outlined,
+                          //   selected: false,
+                          //   onTap: () {
+                          //     Navigator.of(
+                          //       context,
+                          //     ).pushNamed(AppRoutes.payrollManagement);
+                          //   },
+                          // ),
                           _AdminDrawerItem(
                             label: 'Holiday Management',
                             icon: Icons.beach_access_outlined,
@@ -650,12 +651,13 @@ class AdminDrawerContent extends StatelessWidget {
                     selected: false,
                     onTap: () => closeThenPush(AppRoutes.employeeManagement),
                   ),
-                  _AdminDrawerItem(
-                    label: 'Payroll Management',
-                    icon: Icons.payments_outlined,
-                    selected: false,
-                    onTap: () => closeThenPush(AppRoutes.payrollManagement),
-                  ),
+                  // Payroll Management is hidden from the drawer for now.
+                  // _AdminDrawerItem(
+                  //   label: 'Payroll Management',
+                  //   icon: Icons.payments_outlined,
+                  //   selected: false,
+                  //   onTap: () => closeThenPush(AppRoutes.payrollManagement),
+                  // ),
                   _AdminDrawerItem(
                     label: 'Holiday Management',
                     icon: Icons.beach_access_outlined,

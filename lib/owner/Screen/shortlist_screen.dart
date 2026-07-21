@@ -13,6 +13,7 @@ import 'package:koniwalamatrimonial/owner/providers/registry_profiles_provider.d
 import 'package:koniwalamatrimonial/providers/auth_provider.dart';
 import 'package:koniwalamatrimonial/routes/app_routes.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class ShortlistScreen extends StatefulWidget {
   const ShortlistScreen({super.key, this.profile});
@@ -199,15 +200,16 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
                                   SizedBox(width: 8.w),
                                   Expanded(
                                     child: OutlinedButton.icon(
-                                      onPressed: () => _showSnackBar(
+                                      onPressed: () => _openProfileWhatsAppChat(
                                         context,
-                                        'Chat support will be available soon.',
+                                        name: displayName,
+                                        phone: profile?.phone ?? '',
                                       ),
                                       icon: Icon(
                                         Icons.chat_bubble_outline_rounded,
                                         size: 18.sp,
                                       ),
-                                      label: const Text('Open chat'),
+                                      label: const Text('Open WhatsApp'),
                                       style: OutlinedButton.styleFrom(
                                         foregroundColor: AppColors.rmPrimary,
                                         side: const BorderSide(
@@ -1058,22 +1060,30 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
   }
 
   Widget _buildRegistryProfileThumb(String image) {
-    if (image.startsWith('http')) {
-      return Image.network(
-        image,
-        width: 70.w,
-        height: 70.w,
-        fit: BoxFit.cover,
-        errorBuilder: (_, _, _) => _fallbackRegistryProfileThumb(),
-      );
-    }
+    final imageWidget = image.startsWith('http')
+        ? Image.network(
+            image,
+            width: 70.w,
+            height: 70.w,
+            fit: BoxFit.contain,
+            alignment: Alignment.topCenter,
+            errorBuilder: (_, _, _) => _fallbackRegistryProfileThumb(),
+          )
+        : Image.asset(
+            image,
+            width: 70.w,
+            height: 70.w,
+            fit: BoxFit.contain,
+            alignment: Alignment.topCenter,
+            errorBuilder: (_, _, _) => _fallbackRegistryProfileThumb(),
+          );
 
-    return Image.asset(
-      image,
+    return Container(
       width: 70.w,
       height: 70.w,
-      fit: BoxFit.cover,
-      errorBuilder: (_, _, _) => _fallbackRegistryProfileThumb(),
+      color: const Color(0xFFFFF5F0),
+      alignment: Alignment.center,
+      child: imageWidget,
     );
   }
 
@@ -1082,7 +1092,8 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
       'assets/wedding_hero 1.png',
       width: 70.w,
       height: 70.w,
-      fit: BoxFit.cover,
+      fit: BoxFit.contain,
+      alignment: Alignment.topCenter,
     );
   }
 
@@ -1090,6 +1101,40 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
     Navigator.of(
       context,
     ).pushNamed(AppRoutes.profileDetail, arguments: profile);
+  }
+
+  Future<void> _openProfileWhatsAppChat(
+    BuildContext context, {
+    required String name,
+    required String? phone,
+  }) async {
+    final message =
+        'Hello $name, sharing your Koniwala Matrimonial shortlist update.';
+    final encodedMessage = Uri.encodeComponent(message);
+    final normalizedPhone = _normalizeWhatsAppPhone(phone);
+    final uri = normalizedPhone.isEmpty
+        ? Uri.parse('whatsapp://send?text=$encodedMessage')
+        : Uri.parse('https://wa.me/$normalizedPhone?text=$encodedMessage');
+
+    var opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!opened && normalizedPhone.isEmpty) {
+      opened = await launchUrl(
+        Uri.parse('https://wa.me/?text=$encodedMessage'),
+        mode: LaunchMode.externalApplication,
+      );
+    }
+
+    if (!opened && context.mounted) {
+      _showSnackBar(context, 'Unable to open WhatsApp chat.', isError: true);
+    }
+  }
+
+  String _normalizeWhatsAppPhone(String? phone) {
+    var cleaned = (phone ?? '').replaceAll(RegExp(r'\D'), '');
+    if (cleaned.length == 10) {
+      cleaned = '91$cleaned';
+    }
+    return cleaned.length < 10 ? '' : cleaned;
   }
 
   Future<void> _addGroomToShortlist(RegistryProfileItem profile) async {
@@ -2368,21 +2413,32 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
   }
 
   Widget _buildHeaderImage(String image) {
-    if (image.startsWith('http')) {
-      return Image.network(
-        image,
-        height: 142.h,
-        width: double.infinity,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => _fallbackHeaderImage(),
-      );
-    }
-    return Image.asset(
-      image,
+    final imageWidget = image.startsWith('http')
+        ? Image.network(
+            image,
+            height: 142.h,
+            width: double.infinity,
+            fit: BoxFit.contain,
+            alignment: Alignment.topCenter,
+            errorBuilder: (context, error, stackTrace) =>
+                _fallbackHeaderImage(),
+          )
+        : Image.asset(
+            image,
+            height: 142.h,
+            width: double.infinity,
+            fit: BoxFit.contain,
+            alignment: Alignment.topCenter,
+            errorBuilder: (context, error, stackTrace) =>
+                _fallbackHeaderImage(),
+          );
+
+    return Container(
       height: 142.h,
       width: double.infinity,
-      fit: BoxFit.cover,
-      errorBuilder: (context, error, stackTrace) => _fallbackHeaderImage(),
+      color: const Color(0xFFFFF5F0),
+      alignment: Alignment.center,
+      child: imageWidget,
     );
   }
 
@@ -2391,7 +2447,8 @@ class _ShortlistScreenState extends State<ShortlistScreen> {
       'assets/wedding_hero 1.png',
       height: 142.h,
       width: double.infinity,
-      fit: BoxFit.cover,
+      fit: BoxFit.contain,
+      alignment: Alignment.topCenter,
     );
   }
 
@@ -3350,22 +3407,30 @@ class _ShortlistProfileImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (image.startsWith('http')) {
-      return Image.network(
-        image,
-        width: width,
-        height: height,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => _fallback(),
-      );
-    }
+    final imageWidget = image.startsWith('http')
+        ? Image.network(
+            image,
+            width: width,
+            height: height,
+            fit: BoxFit.contain,
+            alignment: Alignment.topCenter,
+            errorBuilder: (context, error, stackTrace) => _fallback(),
+          )
+        : Image.asset(
+            image,
+            width: width,
+            height: height,
+            fit: BoxFit.contain,
+            alignment: Alignment.topCenter,
+            errorBuilder: (context, error, stackTrace) => _fallback(),
+          );
 
-    return Image.asset(
-      image,
+    return Container(
       width: width,
       height: height,
-      fit: BoxFit.cover,
-      errorBuilder: (context, error, stackTrace) => _fallback(),
+      color: const Color(0xFFFFF5F0),
+      alignment: Alignment.center,
+      child: imageWidget,
     );
   }
 
@@ -3374,7 +3439,8 @@ class _ShortlistProfileImage extends StatelessWidget {
       'assets/wedding_hero 1.png',
       width: width,
       height: height,
-      fit: BoxFit.cover,
+      fit: BoxFit.contain,
+      alignment: Alignment.topCenter,
     );
   }
 }

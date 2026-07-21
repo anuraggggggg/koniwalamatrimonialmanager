@@ -97,6 +97,34 @@ class WhatsappService {
     return _decode(await http.get(uri, headers: _headers(accessToken)));
   }
 
+  Future<dynamic> createLead({
+    required String accessToken,
+    required String name,
+    required String phone,
+    required String source,
+    required String leadFor,
+    String city = '',
+    String notes = '',
+  }) async {
+    final uri = _uri(ApiConstants.leads);
+    final body = {
+      'name': name,
+      'phone': phone,
+      'source': source,
+      'leadFor': leadFor,
+      if (city.trim().isNotEmpty) 'city': city.trim(),
+      if (notes.trim().isNotEmpty) 'notes': notes.trim(),
+    };
+    _debugRequest('POST', uri, body: body);
+    return _decode(
+      await http.post(
+        uri,
+        headers: _headers(accessToken, json: true),
+        body: jsonEncode(body),
+      ),
+    );
+  }
+
   Future<dynamic> sendMessage({
     required String accessToken,
     required String leadId,

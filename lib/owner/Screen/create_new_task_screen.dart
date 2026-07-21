@@ -301,17 +301,19 @@ class _CreateNewTaskScreenState extends State<CreateNewTaskScreen> {
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
+            SizedBox(
               width: 38.r,
               height: 38.r,
-              decoration: const BoxDecoration(
-                color: Color(0xFFFFF1F5),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.add_task_rounded,
-                size: 19.sp,
-                color: AppColors.rmPrimary,
+              child: IconButton(
+                tooltip: 'Back',
+                onPressed: () => Navigator.of(context).maybePop(),
+                padding: EdgeInsets.zero,
+                visualDensity: VisualDensity.compact,
+                icon: Icon(
+                  Icons.arrow_back_rounded,
+                  size: 22.sp,
+                  color: AppColors.rmPrimary,
+                ),
               ),
             ),
             SizedBox(width: 10.w),

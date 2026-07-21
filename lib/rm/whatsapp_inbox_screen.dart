@@ -64,7 +64,12 @@ class _WhatsappInboxScreenState extends State<WhatsappInboxScreen> {
       if (!mounted) {
         return;
       }
-      context.read<WhatsappProvider>().initialize(accessToken);
+      context.read<WhatsappProvider>().initialize(
+        accessToken,
+        allowLeadFallback: _allowsManagerWhatsappFallback(
+          auth.userModel?.user?.role,
+        ),
+      );
       _startPolling();
     });
   }
@@ -85,6 +90,13 @@ class _WhatsappInboxScreenState extends State<WhatsappInboxScreen> {
   bool _isRelationshipManagerRole(String? role) {
     final normalizedRole = role?.trim().toUpperCase() ?? '';
     return normalizedRole == 'RELATIONSHIP_MANAGER' || normalizedRole == 'RM';
+  }
+
+  bool _allowsManagerWhatsappFallback(String? role) {
+    final normalizedRole = role?.trim().toUpperCase() ?? '';
+    return normalizedRole == 'RELATIONSHIP_MANAGER' ||
+        normalizedRole == 'RM' ||
+        normalizedRole == 'MANAGER';
   }
 
   void _openDashboardTab(int dashboardTabIndex) {
@@ -176,12 +188,16 @@ class _WhatsappInboxScreenState extends State<WhatsappInboxScreen> {
   }
 
   Future<void> _fetch({bool forceRefresh = false}) {
-    final accessToken = context.read<AuthProvider>().userModel?.accessToken;
+    final auth = context.read<AuthProvider>();
+    final accessToken = auth.userModel?.accessToken;
     return context.read<WhatsappProvider>().fetchConversations(
       accessToken: accessToken,
       search: _searchController.text.trim(),
       includeArchived: _filter == WhatsappInboxFilter.archived,
       forceRefresh: forceRefresh,
+      allowLeadFallback: _allowsManagerWhatsappFallback(
+        auth.userModel?.user?.role,
+      ),
     );
   }
 
@@ -289,7 +305,12 @@ class _WhatsappInboxScreenState extends State<WhatsappInboxScreen> {
                 _InboxHeader(onMenuTap: _openDrawer, onSearchTap: () {}),
                 Padding(
                   padding: EdgeInsets.fromLTRB(20.w, 24.h, 20.w, 0),
-                  child: _BusinessAccountCard(status: status),
+                  child: _BusinessAccountCard(
+                    status: status,
+                    useManagerAccess: _allowsManagerWhatsappFallback(
+                      auth.userModel?.user?.role,
+                    ),
+                  ),
                 ),
                 Padding(
                   padding: EdgeInsets.fromLTRB(20.w, 24.h, 20.w, 0),
@@ -746,14 +767,23 @@ class _InboxHeader extends StatelessWidget {
 }
 
 class _BusinessAccountCard extends StatelessWidget {
-  const _BusinessAccountCard({required this.status});
+  const _BusinessAccountCard({
+    required this.status,
+    required this.useManagerAccess,
+  });
 
   final WhatsappApiStatus? status;
+  final bool useManagerAccess;
 
   @override
   Widget build(BuildContext context) {
-    final configured = status?.configured ?? false;
+    final configured = status?.configured ?? useManagerAccess;
     final phone = status?.phone ?? '';
+    final phoneLabel = phone.isEmpty
+        ? useManagerAccess
+              ? 'Team WhatsApp access'
+              : 'No business phone returned'
+        : phone;
 
     return Container(
       width: double.infinity,
@@ -805,7 +835,7 @@ class _BusinessAccountCard extends StatelessWidget {
               ConstrainedBox(
                 constraints: BoxConstraints(maxWidth: 205.w),
                 child: Text(
-                  phone.isEmpty ? 'No business phone returned' : phone,
+                  phoneLabel,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.inter(

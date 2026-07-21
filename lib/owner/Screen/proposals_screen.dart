@@ -17,6 +17,15 @@ class ProposalsScreen extends StatelessWidget {
               padding: EdgeInsets.fromLTRB(16.r, 20.r, 16.r, 16.r),
               child: Row(
                 children: [
+                  IconButton(
+                    tooltip: 'Back',
+                    icon: Icon(
+                      Icons.arrow_back_rounded,
+                      color: AppColors.rmPrimary,
+                    ),
+                    onPressed: () => Navigator.of(context).maybePop(),
+                  ),
+                  SizedBox(width: 6.w),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,

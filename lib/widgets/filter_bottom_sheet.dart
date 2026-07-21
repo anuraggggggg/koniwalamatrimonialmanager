@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:koniwalamatrimonial/constants/app_colors.dart';
-import 'package:koniwalamatrimonial/constants/api_constants.dart';
 import 'package:koniwalamatrimonial/owner/providers/registry_profiles_provider.dart';
 import 'package:koniwalamatrimonial/providers/auth_provider.dart';
 import 'package:provider/provider.dart';
@@ -15,11 +14,14 @@ class FilterBottomSheet extends StatefulWidget {
 }
 
 class _FilterBottomSheetState extends State<FilterBottomSheet> {
+  static const RangeValues _defaultAgeRange = RangeValues(18, 60);
+
   String _selectedCategory = 'All';
-  RangeValues _ageRange = const RangeValues(25, 35);
+  RangeValues _ageRange = _defaultAgeRange;
   String _selectedCommunity = 'Any Community';
-  final List<String> _selectedLocations = ['Mumbai', 'London'];
-  int _selectedSkinToneIndex = 0;
+  final List<String> _selectedLocations = [];
+  final TextEditingController _locationController = TextEditingController();
+  int _selectedSkinToneIndex = 4;
   String _selectedGotra = 'All Gotras';
   String _selectedProfession = 'All Professions';
   String _selectedStatus = 'All Status';
@@ -27,6 +29,12 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
 
   final Color _primaryColor = AppColors.primary;
   final Color _backgroundColor = Colors.white;
+
+  @override
+  void dispose() {
+    _locationController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -72,20 +80,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                 ),
               ),
               TextButton(
-                onPressed: () {
-                  setState(() {
-                    _selectedCategory = 'All';
-                    _ageRange = const RangeValues(25, 35);
-                    _selectedCommunity = 'Any Community';
-                    _selectedLocations
-                      ..clear()
-                      ..addAll(['Mumbai', 'London']);
-                    _selectedSkinToneIndex = 0;
-                    _selectedGotra = 'All Gotras';
-                    _selectedProfession = 'All Professions';
-                    _selectedStatus = 'All Status';
-                  });
-                },
+                onPressed: _isApplying ? null : _resetFilters,
                 child: Text(
                   'RESET',
                   style: GoogleFonts.inter(
@@ -209,6 +204,9 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                         SizedBox(width: 12.w),
                         Expanded(
                           child: TextField(
+                            controller: _locationController,
+                            textInputAction: TextInputAction.done,
+                            onSubmitted: _addLocation,
                             decoration: InputDecoration(
                               hintText: 'Search cities...',
                               hintStyle: GoogleFonts.inter(
@@ -216,6 +214,11 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                                 fontSize: 14.sp,
                               ),
                               border: InputBorder.none,
+                              suffixIcon: IconButton(
+                                onPressed: () =>
+                                    _addLocation(_locationController.text),
+                                icon: const Icon(Icons.add_rounded),
+                              ),
                             ),
                           ),
                         ),
@@ -307,82 +310,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
             width: double.infinity,
             height: 56.h,
             child: ElevatedButton(
-              onPressed: () async {
-                if (_isApplying) {
-                  return;
-                }
-
-                final token = Provider.of<AuthProvider>(
-                  context,
-                  listen: false,
-                ).userModel?.accessToken;
-                if (token == null) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Login required to filter profiles.'),
-                    ),
-                  );
-                  return;
-                }
-
-                setState(() => _isApplying = true);
-
-                final category = _enumFilterValue(
-                  _selectedCategory,
-                  allValue: 'All',
-                );
-                final community = _enumFilterValue(
-                  _selectedCommunity,
-                  allValue: 'Any Community',
-                );
-                final gotra = _textFilterValue(
-                  _selectedGotra,
-                  allValue: 'All Gotras',
-                );
-                final profession = _textFilterValue(
-                  _selectedProfession,
-                  allValue: 'All Professions',
-                );
-                final status =
-                    _enumFilterValue(_selectedStatus, allValue: 'All Status') ??
-                    'ACTIVE';
-
-                final filters = {
-                  if (category != null) 'category': category,
-                  'ageRange':
-                      '${_ageRange.start.round()}-${_ageRange.end.round()}',
-                  if (community != null) 'community': community,
-                  if (_selectedLocations.isNotEmpty)
-                    'currentResidential': _selectedLocations.join(','),
-                  'birthPlace': 'Indore',
-                  if (gotra != null) 'gotra': gotra,
-                  if (profession != null) 'profession': profession,
-                  'status': status,
-                  'budget': '10',
-                };
-                final filterUri = Uri.parse(
-                  '${ApiConstants.baseUrl}${ApiConstants.profiles}',
-                ).replace(queryParameters: filters);
-                debugPrint('Filters API: GET $filterUri');
-
-                final applied = await context
-                    .read<RegistryProfilesProvider>()
-                    .filterProfiles(accessToken: token, filters: filters);
-
-                if (!mounted) {
-                  return;
-                }
-
-                setState(() => _isApplying = false);
-
-                if (applied) {
-                  Navigator.pop(context);
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Unable to apply filters.')),
-                  );
-                }
-              },
+              onPressed: _isApplying ? null : _applyFilters,
               style: ElevatedButton.styleFrom(
                 backgroundColor: _primaryColor,
                 shape: RoundedRectangleBorder(
@@ -420,6 +348,172 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
         ],
       ),
     );
+  }
+
+  void _resetLocalFilters() {
+    _selectedCategory = 'All';
+    _ageRange = _defaultAgeRange;
+    _selectedCommunity = 'Any Community';
+    _selectedLocations.clear();
+    _locationController.clear();
+    _selectedSkinToneIndex = 4;
+    _selectedGotra = 'All Gotras';
+    _selectedProfession = 'All Professions';
+    _selectedStatus = 'All Status';
+  }
+
+  void _addLocation(String value) {
+    final location = value.trim();
+    if (location.isEmpty) {
+      return;
+    }
+
+    final alreadySelected = _selectedLocations.any(
+      (item) => item.toLowerCase() == location.toLowerCase(),
+    );
+    if (alreadySelected) {
+      _locationController.clear();
+      return;
+    }
+
+    setState(() {
+      _selectedLocations.add(location);
+      _locationController.clear();
+    });
+  }
+
+  Map<String, String> _buildFilters() {
+    final community = _enumFilterValue(
+      _selectedCommunity,
+      allValue: 'Any Community',
+    );
+    final gotra = _textFilterValue(_selectedGotra, allValue: 'All Gotras');
+    final profession = _textFilterValue(
+      _selectedProfession,
+      allValue: 'All Professions',
+    );
+    final status = _enumFilterValue(_selectedStatus, allValue: 'All Status');
+    final hasAgeFilter =
+        _ageRange.start.round() != _defaultAgeRange.start.round() ||
+        _ageRange.end.round() != _defaultAgeRange.end.round();
+
+    final filters = <String, String>{};
+    if (hasAgeFilter) {
+      filters['ageRange'] =
+          '${_ageRange.start.round()}-${_ageRange.end.round()}';
+    }
+    if (community != null) {
+      filters['community'] = community;
+    }
+    if (_selectedLocations.isNotEmpty) {
+      filters['currentResidential'] = _selectedLocations.join(',');
+    }
+    if (gotra != null) {
+      filters['gotra'] = gotra;
+    }
+    if (profession != null) {
+      filters['profession'] = profession;
+    }
+    if (status != null) {
+      filters['status'] = status;
+    }
+    return filters;
+  }
+
+  String? _selectedPackageFilter() {
+    return _enumFilterValue(_selectedCategory, allValue: 'All');
+  }
+
+  Future<void> _resetFilters() async {
+    if (_isApplying) {
+      return;
+    }
+
+    final token = Provider.of<AuthProvider>(
+      context,
+      listen: false,
+    ).userModel?.accessToken;
+    if (token == null || token.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Login required to load profiles.')),
+      );
+      return;
+    }
+
+    setState(() {
+      _isApplying = true;
+      _resetLocalFilters();
+    });
+
+    await context.read<RegistryProfilesProvider>().fetchProfiles(
+      token,
+      forceRefresh: true,
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() => _isApplying = false);
+    Navigator.pop(context);
+  }
+
+  Future<void> _applyFilters() async {
+    if (_isApplying) {
+      return;
+    }
+
+    final token = Provider.of<AuthProvider>(
+      context,
+      listen: false,
+    ).userModel?.accessToken;
+    if (token == null || token.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Login required to filter profiles.')),
+      );
+      return;
+    }
+
+    FocusScope.of(context).unfocus();
+    _addLocation(_locationController.text);
+
+    final filters = _buildFilters();
+    final packageFilter = _selectedPackageFilter();
+
+    setState(() => _isApplying = true);
+
+    var applied = true;
+    if (filters.isEmpty) {
+      await context.read<RegistryProfilesProvider>().fetchProfiles(
+        token,
+        forceRefresh: true,
+      );
+    } else {
+      applied = await context.read<RegistryProfilesProvider>().filterProfiles(
+        accessToken: token,
+        filters: filters,
+      );
+    }
+
+    if (!mounted) {
+      return;
+    }
+
+    if (applied && packageFilter != null) {
+      context.read<RegistryProfilesProvider>().filterByPackageType(
+        packageFilter,
+      );
+    }
+
+    setState(() => _isApplying = false);
+
+    if (applied) {
+      Navigator.pop(context);
+    } else {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Unable to apply filters.')));
+    }
   }
 
   Widget _buildSectionTitle(String title) {

@@ -295,7 +295,7 @@ class _RelationshipManagerDashboardScreenState
                           Text(
                             'Overview',
                             style: TextStyle(
-                              fontSize: 26.sp,
+                              fontSize: 23.sp,
                               fontWeight: FontWeight.w600,
                               color: AppColors.rmPrimary,
                             ),
