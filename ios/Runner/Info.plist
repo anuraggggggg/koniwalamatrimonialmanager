@@ -26,6 +26,33 @@
 	<true/>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Record voice notes for internal follow-up reminders.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Take profile photos and attach images to client records.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Select profile photos and media attachments from your photo library.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Save generated or selected profile media to your photo library when requested.</string>
+	<key>UIApplicationSceneManifest</key>
+	<dict>
+		<key>UIApplicationSupportsMultipleScenes</key>
+		<false/>
+		<key>UISceneConfigurations</key>
+		<dict>
+			<key>UIWindowSceneSessionRoleApplication</key>
+			<array>
+				<dict>
+					<key>UISceneClassName</key>
+					<string>UIWindowScene</string>
+					<key>UISceneConfigurationName</key>
+					<string>flutter</string>
+					<key>UISceneDelegateClassName</key>
+					<string>$(PRODUCT_MODULE_NAME).SceneDelegate</string>
+					<key>UISceneStoryboardFile</key>
+					<string>Main</string>
+				</dict>
+			</array>
+		</dict>
+	</dict>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>

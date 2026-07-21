@@ -6161,6 +6161,12 @@ class _FollowUpMessageDialogState extends State<_FollowUpMessageDialog> {
   Widget build(BuildContext context) {
     final messageLength = _messageController.text.characters.length;
     final canSend = _messageController.text.trim().isNotEmpty;
+    final maxDialogHeight =
+        (MediaQuery.sizeOf(context).height -
+                MediaQuery.viewInsetsOf(context).bottom -
+                48.h)
+            .clamp(320.h, 680.h)
+            .toDouble();
 
     return Dialog(
       backgroundColor: AppColors.white,
@@ -6168,9 +6174,13 @@ class _FollowUpMessageDialogState extends State<_FollowUpMessageDialog> {
       insetPadding: EdgeInsets.symmetric(horizontal: 22.w, vertical: 24.h),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22.r)),
       child: ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: 430.w),
-        child: Padding(
+        constraints: BoxConstraints(
+          maxWidth: 430.w,
+          maxHeight: maxDialogHeight,
+        ),
+        child: SingleChildScrollView(
           padding: EdgeInsets.fromLTRB(24.w, 24.h, 24.w, 18.h),
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,

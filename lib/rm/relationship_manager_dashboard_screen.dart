@@ -186,7 +186,11 @@ class _RelationshipManagerDashboardScreenState
     final isAccountTab = selectedTab == 2;
     final isMatchesTab = selectedTab == 1;
     final content = isAccountTab
-        ? const RelationshipManagerAccountScreen(showScaffold: false)
+        ? RelationshipManagerAccountScreen(
+            showScaffold: false,
+            onBackPressed: () =>
+                context.read<NavigationProvider>().setIndex(0),
+          )
         : isMatchesTab
         ? RegistryScreen(
             showScaffold: false,

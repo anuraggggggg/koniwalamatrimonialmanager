@@ -15,11 +15,13 @@ class RelationshipManagerAccountScreen extends StatefulWidget {
     super.key,
     this.showScaffold = true,
     this.onMenuPressed,
+    this.onBackPressed,
     this.employeeId,
   });
 
   final bool showScaffold;
   final VoidCallback? onMenuPressed;
+  final VoidCallback? onBackPressed;
   final String? employeeId;
 
   @override
@@ -29,10 +31,6 @@ class RelationshipManagerAccountScreen extends StatefulWidget {
 
 class _RelationshipManagerAccountScreenState
     extends State<RelationshipManagerAccountScreen> {
-  static const int _holidayYear = 2026;
-  static const int _attendanceMonth = 5;
-  static const int _attendanceYear = 2026;
-
   final Dio _dio = Dio();
   final NumberFormat _currencyFormat = NumberFormat.currency(
     symbol: 'Rs. ',
@@ -54,6 +52,10 @@ class _RelationshipManagerAccountScreenState
   _EmployeeAttendanceSummary _attendanceSummary =
       _EmployeeAttendanceSummary.empty();
   List<_EmployeeAttendanceDay> _attendanceDays = const [];
+
+  int get _attendanceMonth => DateTime.now().month;
+  int get _attendanceYear => DateTime.now().year;
+  int get _holidayYear => _attendanceYear;
 
   @override
   void didChangeDependencies() {
@@ -101,6 +103,33 @@ class _RelationshipManagerAccountScreenState
     }
 
     return context.read<AuthProvider>().userModel?.user?.id.trim();
+  }
+
+  String _loggedInUserName() {
+    final name = context.watch<AuthProvider>().userModel?.user?.name.trim();
+    return name == null || name.isEmpty ? 'Relationship Manager' : name;
+  }
+
+  String _loggedInRoleLabel() {
+    final user = context.watch<AuthProvider>().userModel?.user;
+    final department = user?.department?.trim();
+    if (department != null && department.isNotEmpty) {
+      return department;
+    }
+
+    final role = user?.role.trim();
+    if (role == null || role.isEmpty) {
+      return 'Relationship Manager';
+    }
+
+    return role
+        .split('_')
+        .where((part) => part.trim().isNotEmpty)
+        .map((part) {
+          final lower = part.toLowerCase();
+          return '${lower[0].toUpperCase()}${lower.substring(1)}';
+        })
+        .join(' ');
   }
 
   void _requestPayrollHistoryIfNeeded() {
@@ -327,6 +356,10 @@ class _RelationshipManagerAccountScreenState
   }
 
   Widget _buildHeader(BuildContext context) {
+    final backLabel = widget.onBackPressed == null
+        ? 'Back To Employees'
+        : 'Back To Dashboard';
+
     return Container(
       height: 54,
       color: AppColors.lightGreyBg,
@@ -342,13 +375,16 @@ class _RelationshipManagerAccountScreenState
           else
             TextButton.icon(
               onPressed: () {
-                if (Navigator.of(context).canPop()) {
-                  Navigator.of(context).pop();
+                final onBackPressed = widget.onBackPressed;
+                if (onBackPressed != null) {
+                  onBackPressed();
+                  return;
                 }
+                Navigator.of(context).maybePop();
               },
               icon: Icon(Icons.arrow_back, size: 16.sp),
-              label: const Text(
-                'Back To Employees',
+              label: Text(
+                backLabel,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -453,10 +489,10 @@ class _RelationshipManagerAccountScreenState
 
   Widget _buildProfileCard() {
     final employeeName = _attendanceSummary.name.isEmpty
-        ? 'Priya Maheshwari'
+        ? _loggedInUserName()
         : _attendanceSummary.name;
     final designation = _attendanceSummary.designation.isEmpty
-        ? 'Relationship Manager'
+        ? _loggedInRoleLabel()
         : _attendanceSummary.designation;
 
     return Container(
@@ -516,17 +552,17 @@ class _RelationshipManagerAccountScreenState
       _InfoTileData(
         'Department',
         _attendanceSummary.designation.isEmpty
-            ? 'Matching'
+            ? _loggedInRoleLabel()
             : _attendanceSummary.designation,
       ),
-      const _InfoTileData('Joined On', '12 May 2026'),
+      const _InfoTileData('Joined On', 'Not available'),
       _InfoTileData(
         'Reporting Manager',
         _attendanceSummary.reportingManagerName.isEmpty
-            ? 'Sanjay Sharma'
+            ? 'Not assigned'
             : _attendanceSummary.reportingManagerName,
       ),
-      const _InfoTileData('Base Salary', 'Rs. 15,000'),
+      const _InfoTileData('Base Salary', 'Not available'),
     ];
 
     return LayoutBuilder(
@@ -1103,6 +1139,26 @@ String? _nullableString(dynamic value) {
   return text == null || text.isEmpty ? null : text;
 }
 
+Map<String, dynamic>? _asMap(dynamic value) {
+  if (value is Map<String, dynamic>) {
+    return value;
+  }
+  if (value is Map) {
+    return Map<String, dynamic>.from(value);
+  }
+  return null;
+}
+
+String _firstNonEmpty(Iterable<dynamic> values, {String fallback = ''}) {
+  for (final value in values) {
+    final text = value?.toString().trim();
+    if (text != null && text.isNotEmpty) {
+      return text;
+    }
+  }
+  return fallback;
+}
+
 int _asInt(dynamic value) {
   if (value is int) {
     return value;
@@ -1167,13 +1223,14 @@ class _EmployeeAttendanceSummary {
   final int lateDays;
 
   factory _EmployeeAttendanceSummary.empty() {
-    return const _EmployeeAttendanceSummary(
+    final now = DateTime.now();
+    return _EmployeeAttendanceSummary(
       name: '',
       email: '',
       designation: '',
       reportingManagerName: '',
-      month: _RelationshipManagerAccountScreenState._attendanceMonth,
-      year: _RelationshipManagerAccountScreenState._attendanceYear,
+      month: now.month,
+      year: now.year,
       presentDays: 0,
       absentDays: 0,
       leaveDays: 0,
@@ -1186,14 +1243,25 @@ class _EmployeeAttendanceSummary {
     Map<String, dynamic> json,
     List<_EmployeeAttendanceDay> days,
   ) {
-    final reportingManager = json['reportingManager'] is Map
-        ? Map<String, dynamic>.from(json['reportingManager'] as Map)
-        : const <String, dynamic>{};
+    final employee =
+        _asMap(json['employee']) ??
+        _asMap(json['user']) ??
+        _asMap(json['employeeProfile']) ??
+        const <String, dynamic>{};
+    final reportingManager =
+        _asMap(json['reportingManager']) ??
+        _asMap(employee['reportingManager']) ??
+        const <String, dynamic>{};
 
     return _EmployeeAttendanceSummary(
-      name: _asString(json['name']),
-      email: _asString(json['email']),
-      designation: _asString(json['designation']),
+      name: _firstNonEmpty([json['name'], employee['name']]),
+      email: _firstNonEmpty([json['email'], employee['email']]),
+      designation: _firstNonEmpty([
+        json['designation'],
+        employee['designation'],
+        employee['department'],
+        employee['role'],
+      ]),
       reportingManagerName: _asString(reportingManager['name']),
       month: _asInt(json['month']),
       year: _asInt(json['year']),
@@ -1642,7 +1710,7 @@ class _HolidayListTile extends StatelessWidget {
           height: 44.w,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: accent.withOpacity(0.12),
+            color: accent.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Icon(

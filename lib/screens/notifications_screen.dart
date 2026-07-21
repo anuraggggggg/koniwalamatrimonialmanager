@@ -1,11 +1,19 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
+import 'package:koniwalamatrimonial/constants/api_constants.dart';
 import 'package:koniwalamatrimonial/constants/app_colors.dart';
 import 'package:koniwalamatrimonial/models/app_notification.dart';
 import 'package:koniwalamatrimonial/providers/auth_provider.dart';
 import 'package:koniwalamatrimonial/providers/notifications_provider.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 
 class NotificationsScreen extends StatefulWidget {
@@ -178,6 +186,7 @@ class _NotificationCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final accent = _accentColor(item.priority, item.isRead);
+    final accessToken = context.read<AuthProvider>().userModel?.accessToken;
 
     return Container(
       width: double.infinity,
@@ -245,6 +254,16 @@ class _NotificationCard extends StatelessWidget {
                     height: 1.4,
                   ),
                 ),
+                if (item.hasAudio) ...[
+                  SizedBox(height: 12.h),
+                  _NotificationAudioPlayer(
+                    audioUrl: _resolveAssetUrl(item.audioUrl),
+                    accessToken: accessToken,
+                    mimeType: item.audioMimeType,
+                    fileName: item.audioFileName,
+                    accent: accent,
+                  ),
+                ],
                 SizedBox(height: 10.h),
                 Row(
                   children: [
@@ -297,6 +316,11 @@ class _NotificationCard extends StatelessWidget {
         return Icons.account_circle_outlined;
       case 'attendance':
         return Icons.fingerprint_outlined;
+      case 'audio':
+      case 'voice':
+      case 'voice_note':
+      case 'voice-note':
+        return Icons.graphic_eq_rounded;
       default:
         return Icons.notifications_none_rounded;
     }
@@ -334,6 +358,224 @@ class _NotificationCard extends StatelessWidget {
   }
 }
 
+class _NotificationAudioPlayer extends StatefulWidget {
+  const _NotificationAudioPlayer({
+    required this.audioUrl,
+    required this.accessToken,
+    required this.mimeType,
+    required this.fileName,
+    required this.accent,
+  });
+
+  final String audioUrl;
+  final String? accessToken;
+  final String mimeType;
+  final String fileName;
+  final Color accent;
+
+  @override
+  State<_NotificationAudioPlayer> createState() =>
+      _NotificationAudioPlayerState();
+}
+
+class _NotificationAudioPlayerState extends State<_NotificationAudioPlayer> {
+  final AudioPlayer _player = AudioPlayer();
+  StreamSubscription<PlayerState>? _stateSubscription;
+  StreamSubscription<void>? _completeSubscription;
+  String? _localPath;
+  bool _isLoading = false;
+  bool _isPlaying = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _stateSubscription = _player.onPlayerStateChanged.listen((state) {
+      if (!mounted) {
+        return;
+      }
+      setState(() => _isPlaying = state == PlayerState.playing);
+    });
+    _completeSubscription = _player.onPlayerComplete.listen((_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() => _isPlaying = false);
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant _NotificationAudioPlayer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.audioUrl != widget.audioUrl) {
+      _player.stop();
+      _localPath = null;
+      _isPlaying = false;
+      _error = null;
+    }
+  }
+
+  @override
+  void dispose() {
+    _stateSubscription?.cancel();
+    _completeSubscription?.cancel();
+    _player.dispose();
+    super.dispose();
+  }
+
+  Future<void> _togglePlayback() async {
+    if (_isPlaying) {
+      await _player.pause();
+      return;
+    }
+
+    if (widget.audioUrl.trim().isEmpty) {
+      setState(() => _error = 'Voice note is not available.');
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      final path = await _loadAudioFile();
+      await _player.play(
+        DeviceFileSource(
+          path,
+          mimeType: _playbackMimeType(path, widget.mimeType),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() => _error = 'Unable to play voice note.');
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<String> _loadAudioFile() async {
+    final existingPath = _localPath;
+    if (existingPath != null && File(existingPath).existsSync()) {
+      return existingPath;
+    }
+
+    final url = widget.audioUrl.trim();
+    final dataBytes = _bytesFromDataUrl(url);
+    if (dataBytes != null) {
+      final file = await _writeTempAudio(dataBytes, url);
+      _localPath = file.path;
+      return file.path;
+    }
+
+    final response = await http.get(
+      Uri.parse(url),
+      headers: _authHeadersForUrl(url, widget.accessToken),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception('Audio download failed with ${response.statusCode}');
+    }
+
+    final file = await _writeTempAudio(response.bodyBytes, url);
+    _localPath = file.path;
+    return file.path;
+  }
+
+  Future<File> _writeTempAudio(List<int> bytes, String url) async {
+    final directory = await getTemporaryDirectory();
+    final extension = _audioExtension(widget.mimeType, widget.fileName, url);
+    final file = File(
+      '${directory.path}/notification_audio_${url.hashCode.abs()}$extension',
+    );
+    await file.writeAsBytes(bytes, flush: true);
+    return file;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
+      decoration: BoxDecoration(
+        color: widget.accent.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(10.r),
+        border: Border.all(color: widget.accent.withValues(alpha: 0.18)),
+      ),
+      child: Row(
+        children: [
+          InkWell(
+            onTap: _isLoading ? null : _togglePlayback,
+            borderRadius: BorderRadius.circular(999.r),
+            child: Container(
+              width: 36.r,
+              height: 36.r,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: widget.accent,
+                shape: BoxShape.circle,
+              ),
+              child: _isLoading
+                  ? const SizedBox(
+                      width: 15,
+                      height: 15,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : Icon(
+                      _isPlaying ? Icons.pause_rounded : Icons.play_arrow,
+                      color: Colors.white,
+                      size: 22.sp,
+                    ),
+            ),
+          ),
+          SizedBox(width: 10.w),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Voice note',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.inter(
+                    color: AppColors.rmHeading,
+                    fontSize: 13.sp,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                SizedBox(height: 2.h),
+                Text(
+                  _error ?? (_isPlaying ? 'Playing' : 'Tap to play'),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.inter(
+                    color: _error == null
+                        ? AppColors.rmBodyText
+                        : AppColors.danger,
+                    fontSize: 12.sp,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Icon(
+            Icons.graphic_eq_rounded,
+            color: widget.accent.withValues(alpha: 0.78),
+            size: 20.sp,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _PriorityChip extends StatelessWidget {
   const _PriorityChip({required this.label, required this.color});
 
@@ -360,4 +602,107 @@ class _PriorityChip extends StatelessWidget {
       ),
     );
   }
+}
+
+Map<String, String>? _authHeadersForUrl(String url, String? accessToken) {
+  if (accessToken == null || accessToken.trim().isEmpty) {
+    return null;
+  }
+
+  final base = Uri.parse(ApiConstants.baseUrl);
+  final uri = Uri.tryParse(url);
+  if (uri == null || uri.host != base.host) {
+    return null;
+  }
+
+  return {'Authorization': 'Bearer $accessToken'};
+}
+
+List<int>? _bytesFromDataUrl(String value) {
+  final match = RegExp(r'^data:[^,]*;base64,(.+)$').firstMatch(value.trim());
+  if (match == null) {
+    return null;
+  }
+  try {
+    return base64Decode(match.group(1)!);
+  } catch (_) {
+    return null;
+  }
+}
+
+String _resolveAssetUrl(String value) {
+  final raw = value.trim();
+  if (raw.isEmpty) {
+    return '';
+  }
+  if (raw.startsWith('//')) {
+    return 'https:$raw';
+  }
+  final uri = Uri.tryParse(raw);
+  if (uri != null && uri.hasScheme) {
+    return raw;
+  }
+
+  final base = Uri.parse(ApiConstants.baseUrl);
+  final origin = '${base.scheme}://${base.authority}';
+  if (raw.startsWith('/')) {
+    return '$origin$raw';
+  }
+  return '${ApiConstants.baseUrl}/$raw';
+}
+
+String _audioExtension(String mimeType, String fileName, String url) {
+  final normalized = mimeType.toLowerCase();
+  final path = '${Uri.tryParse(url)?.path ?? ''} $fileName'.toLowerCase();
+  for (final extension in ['.ogg', '.opus', '.mp3', '.m4a', '.wav', '.amr']) {
+    if (path.contains(extension)) {
+      return extension;
+    }
+  }
+
+  if (normalized.contains('ogg')) {
+    return '.ogg';
+  }
+  if (normalized.contains('mpeg') || normalized.contains('mp3')) {
+    return '.mp3';
+  }
+  if (normalized.contains('mp4') || normalized.contains('m4a')) {
+    return '.m4a';
+  }
+  if (normalized.contains('wav')) {
+    return '.wav';
+  }
+  if (normalized.contains('amr')) {
+    return '.amr';
+  }
+
+  if (normalized.contains('webm')) {
+    return '.webm';
+  }
+  return '.ogg';
+}
+
+String? _playbackMimeType(String path, String mimeType) {
+  final lowerPath = path.toLowerCase();
+  if (lowerPath.endsWith('.wav')) {
+    return 'audio/wav';
+  }
+  if (lowerPath.endsWith('.m4a')) {
+    return 'audio/mp4';
+  }
+  if (lowerPath.endsWith('.mp3')) {
+    return 'audio/mpeg';
+  }
+  if (lowerPath.endsWith('.ogg') || lowerPath.endsWith('.opus')) {
+    return 'audio/ogg';
+  }
+  if (lowerPath.endsWith('.webm')) {
+    return null;
+  }
+
+  final normalized = mimeType.trim().toLowerCase();
+  if (normalized.isEmpty || normalized.contains('webm')) {
+    return null;
+  }
+  return mimeType;
 }

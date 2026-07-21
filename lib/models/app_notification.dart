@@ -8,6 +8,9 @@ class AppNotification {
     required this.createdAt,
     required this.isRead,
     required this.targetRoute,
+    required this.audioUrl,
+    required this.audioMimeType,
+    required this.audioFileName,
     required this.raw,
   });
 
@@ -19,7 +22,12 @@ class AppNotification {
   final String createdAt;
   final bool isRead;
   final String targetRoute;
+  final String audioUrl;
+  final String audioMimeType;
+  final String audioFileName;
   final Map<String, dynamic> raw;
+
+  bool get hasAudio => audioUrl.trim().isNotEmpty;
 
   factory AppNotification.fromJson(Map<String, dynamic> json) {
     final id = _readText(
@@ -77,6 +85,15 @@ class AppNotification {
           fallback: _readText(json['actionUrl']),
         ),
       ),
+      audioUrl: _audioUrlFromJson(json),
+      audioMimeType: _audioMimeTypeFromJson(json),
+      audioFileName: _firstDeepText(json, const [
+        'audioFileName',
+        'fileName',
+        'mediaFileName',
+        'originalName',
+        'name',
+      ]),
       raw: json,
     );
   }
@@ -166,6 +183,139 @@ class AppNotification {
       return false;
     }
     return fallback;
+  }
+
+  static String _firstDeepText(
+    Map<String, dynamic> json,
+    List<String> keys, {
+    String fallback = '',
+  }) {
+    final direct = _firstTextFromMap(json, keys);
+    if (direct.isNotEmpty) {
+      return direct;
+    }
+
+    for (final nestedKey in const [
+      'audio',
+      'voiceNote',
+      'voice_note',
+      'media',
+      'attachment',
+      'file',
+      'metadata',
+      'payload',
+      'data',
+    ]) {
+      final nested = _readMap(json[nestedKey]);
+      if (nested == null) {
+        continue;
+      }
+
+      final nestedValue = _firstDeepText(nested, keys);
+      if (nestedValue.isNotEmpty) {
+        return nestedValue;
+      }
+    }
+
+    return fallback;
+  }
+
+  static String _audioUrlFromJson(Map<String, dynamic> json) {
+    final directAudio = _firstDeepText(json, const [
+      'audioUrl',
+      'voiceNoteUrl',
+      'voiceUrl',
+      'voice_note_url',
+      'recordingUrl',
+      'recording_url',
+    ]);
+    if (directAudio.isNotEmpty) {
+      return directAudio;
+    }
+
+    for (final nestedKey in const [
+      'audio',
+      'voiceNote',
+      'voice_note',
+      'recording',
+    ]) {
+      final nested = _readMap(json[nestedKey]);
+      if (nested == null) {
+        continue;
+      }
+
+      final nestedAudio = _firstDeepText(nested, const [
+        'url',
+        'path',
+        'mediaUrl',
+        'fileUrl',
+        'audioUrl',
+        'voiceNoteUrl',
+      ]);
+      if (nestedAudio.isNotEmpty) {
+        return nestedAudio;
+      }
+    }
+
+    if (!_looksLikeAudioNotification(json)) {
+      return '';
+    }
+
+    return _firstDeepText(json, const ['mediaUrl', 'fileUrl', 'url', 'path']);
+  }
+
+  static String _audioMimeTypeFromJson(Map<String, dynamic> json) {
+    final mimeType = _firstDeepText(json, const [
+      'audioMimeType',
+      'mimeType',
+      'mediaMimeType',
+      'contentType',
+    ]);
+    return mimeType.isEmpty ? 'audio/ogg' : mimeType;
+  }
+
+  static bool _looksLikeAudioNotification(Map<String, dynamic> json) {
+    final text = [
+      json['type'],
+      json['title'],
+      json['subject'],
+      json['heading'],
+      json['message'],
+      json['description'],
+      json['body'],
+      json['content'],
+      _audioMimeTypeFromJson(json),
+    ].map((value) => value?.toString().toLowerCase() ?? '').join(' ');
+
+    return text.contains('voice') ||
+        text.contains('audio') ||
+        text.contains('recording') ||
+        text.contains('audio/');
+  }
+
+  static String _firstTextFromMap(Map<String, dynamic> json, List<String> keys) {
+    for (final key in keys) {
+      final value = json[key];
+      if (value is Map || value is List) {
+        continue;
+      }
+
+      final text = _readText(value);
+      if (text.isNotEmpty) {
+        return text;
+      }
+    }
+    return '';
+  }
+
+  static Map<String, dynamic>? _readMap(dynamic value) {
+    if (value is Map<String, dynamic>) {
+      return value;
+    }
+    if (value is Map) {
+      return Map<String, dynamic>.from(value);
+    }
+    return null;
   }
 
   static String _titleFromType(String type) {
