@@ -56,6 +56,8 @@ class _RelationshipManagerDashboardScreenState
     extends State<RelationshipManagerDashboardScreen> {
   final Color _maroon = AppColors.rmPrimary;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  String _selectedSmartStage = 'Converted';
+  String _selectedQueueFilter = 'Today';
   String? _requestedSummaryAccessToken;
   String? _requestedWhatsappAccessToken;
   String? _requestedLeadsAccessToken;
@@ -188,8 +190,7 @@ class _RelationshipManagerDashboardScreenState
     final content = isAccountTab
         ? RelationshipManagerAccountScreen(
             showScaffold: false,
-            onBackPressed: () =>
-                context.read<NavigationProvider>().setIndex(0),
+            onBackPressed: () => context.read<NavigationProvider>().setIndex(0),
           )
         : isMatchesTab
         ? RegistryScreen(
@@ -313,9 +314,19 @@ class _RelationshipManagerDashboardScreenState
                           SizedBox(height: _RmMetrics.sectionGap.h),
                           _AIMatches(),
                           SizedBox(height: _RmMetrics.sectionGap.h),
-                          _SmartFilters(),
+                          _SmartFilters(
+                            selectedStage: _selectedSmartStage,
+                            onStageSelected: (stage) {
+                              setState(() => _selectedSmartStage = stage);
+                            },
+                          ),
                           SizedBox(height: _RmMetrics.sectionGap.h),
-                          _ActionQueue(),
+                          _ActionQueue(
+                            selectedFilter: _selectedQueueFilter,
+                            onFilterSelected: (filter) {
+                              setState(() => _selectedQueueFilter = filter);
+                            },
+                          ),
                           SizedBox(height: _RmMetrics.sectionGap.h),
                           _LeadConversationFocus(),
                         ],
@@ -1877,18 +1888,38 @@ String _profileStatus(RegistryProfileItem profile) {
       : profile.packageType;
 }
 
-List<String> _topLeadStageLabels(List<RmLeadItem> leads) {
-  final counts = <String, int>{};
+List<String> _dashboardSmartStageLabels(List<RmLeadItem> leads) {
+  final labelsByKey = <String, String>{'converted': 'Converted', 'new': 'New'};
+  final countsByKey = <String, int>{};
+
   for (final lead in leads) {
     final label = lead.stageLabel.trim();
     if (label.isEmpty || label == '-') {
       continue;
     }
-    counts[label] = (counts[label] ?? 0) + 1;
+    final key = _dashboardStageKey(label);
+    labelsByKey[key] = label;
+    countsByKey[key] = (countsByKey[key] ?? 0) + 1;
   }
-  final entries = counts.entries.toList()
-    ..sort((first, second) => second.value.compareTo(first.value));
-  return entries.map((entry) => '${entry.key} ${entry.value}').toList();
+
+  final orderedKeys = <String>['converted', 'new'];
+  final extraKeys =
+      countsByKey.keys.where((key) => !orderedKeys.contains(key)).toList()
+        ..sort((first, second) {
+          final countCompare = (countsByKey[second] ?? 0).compareTo(
+            countsByKey[first] ?? 0,
+          );
+          if (countCompare != 0) {
+            return countCompare;
+          }
+          return first.compareTo(second);
+        });
+
+  orderedKeys.addAll(extraKeys.take(3));
+  return orderedKeys
+      .map((key) => labelsByKey[key])
+      .whereType<String>()
+      .toList(growable: false);
 }
 
 class _ConversationItem extends StatelessWidget {
@@ -2407,11 +2438,27 @@ class _MatchCard extends StatelessWidget {
 }
 
 class _SmartFilters extends StatelessWidget {
+  const _SmartFilters({
+    required this.selectedStage,
+    required this.onStageSelected,
+  });
+
+  final String selectedStage;
+  final ValueChanged<String> onStageSelected;
+
   @override
   Widget build(BuildContext context) {
     final leads = context.watch<RmLeadsProvider>().leads;
     final followUps = context.watch<LeadFollowUpsProvider>().leads;
-    final stageLabels = _topLeadStageLabels(leads).take(3).toList();
+    final stageCounts = _leadStageCounts(leads);
+    final stageLabels = _dashboardSmartStageLabels(leads);
+    final selectedStageKey = _dashboardStageKey(selectedStage);
+    final filteredLeads = leads
+        .where(
+          (lead) => _dashboardStageKey(lead.stageLabel) == selectedStageKey,
+        )
+        .toList(growable: false);
+    final previewLeads = filteredLeads.take(3).toList(growable: false);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -2439,12 +2486,29 @@ class _SmartFilters extends StatelessWidget {
             message: 'No live lead stages found yet.',
           )
         else
-          Wrap(
-            spacing: _RmMetrics.itemGap.w,
-            runSpacing: _RmMetrics.itemGap.h,
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              for (int index = 0; index < stageLabels.length; index++)
-                _FilterChip(label: stageLabels[index], isSelected: index == 0),
+              Wrap(
+                spacing: _RmMetrics.itemGap.w,
+                runSpacing: _RmMetrics.itemGap.h,
+                children: [
+                  for (final stageLabel in stageLabels)
+                    _FilterChip(
+                      label: stageLabel,
+                      count: stageCounts[_dashboardStageKey(stageLabel)] ?? 0,
+                      isSelected:
+                          _dashboardStageKey(stageLabel) == selectedStageKey,
+                      onTap: () => onStageSelected(stageLabel),
+                    ),
+                ],
+              ),
+              SizedBox(height: _RmMetrics.contentGap.h),
+              _SmartFilterResultCard(
+                selectedStage: selectedStage,
+                total: filteredLeads.length,
+                leads: previewLeads,
+              ),
             ],
           ),
       ],
@@ -2453,12 +2517,31 @@ class _SmartFilters extends StatelessWidget {
 }
 
 class _ActionQueue extends StatelessWidget {
+  const _ActionQueue({
+    required this.selectedFilter,
+    required this.onFilterSelected,
+  });
+
+  final String selectedFilter;
+  final ValueChanged<String> onFilterSelected;
+
   @override
   Widget build(BuildContext context) {
     final followUpsProvider = context.watch<LeadFollowUpsProvider>();
-    final queueItems = _dashboardQueueItems(
+    final filteredLeads = _dashboardQueueLeadsForFilter(
       followUpsProvider.leads,
+      selectedFilter,
+    );
+    final queueItems = _dashboardQueueItems(
+      filteredLeads,
     ).take(2).toList(growable: false);
+    final counts = {
+      for (final filter in _dashboardQueueFilters)
+        filter: _dashboardQueueLeadsForFilter(
+          followUpsProvider.leads,
+          filter,
+        ).length,
+    };
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -2481,13 +2564,18 @@ class _ActionQueue extends StatelessWidget {
           ),
         ),
         SizedBox(height: _RmMetrics.contentGap.h),
-        Row(
+        Wrap(
+          spacing: _RmMetrics.itemGap.w,
+          runSpacing: _RmMetrics.itemGap.h,
           children: [
-            _FilterChip(label: 'Today', isSelected: true),
-            SizedBox(width: _RmMetrics.itemGap.w),
-            _FilterChip(label: 'Needs Reply', isSelected: false),
-            SizedBox(width: _RmMetrics.itemGap.w),
-            _FilterChip(label: 'Overdue', isSelected: false, isUrgent: true),
+            for (final filter in _dashboardQueueFilters)
+              _FilterChip(
+                label: filter,
+                count: counts[filter] ?? 0,
+                isSelected: selectedFilter == filter,
+                isUrgent: filter == 'Overdue',
+                onTap: () => onFilterSelected(filter),
+              ),
           ],
         ),
         SizedBox(height: _RmMetrics.contentGap.h),
@@ -2499,8 +2587,8 @@ class _ActionQueue extends StatelessWidget {
         else if (followUpsProvider.error != null && queueItems.isEmpty)
           _DashboardInlineMessage(message: followUpsProvider.error!)
         else if (queueItems.isEmpty)
-          const _DashboardInlineMessage(
-            message: 'No live follow-up actions need attention.',
+          _DashboardInlineMessage(
+            message: 'No $selectedFilter actions need attention.',
           )
         else
           for (int index = 0; index < queueItems.length; index++) ...[
@@ -2525,54 +2613,247 @@ class _ActionQueue extends StatelessWidget {
 
 class _FilterChip extends StatelessWidget {
   final String label;
+  final int? count;
   final bool isSelected;
   final bool isUrgent;
+  final VoidCallback? onTap;
 
   const _FilterChip({
     required this.label,
+    this.count,
     required this.isSelected,
     this.isUrgent = false,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: _RmMetrics.cardPadding.w,
-        vertical: _RmMetrics.itemGap.h,
-      ),
-      decoration: BoxDecoration(
-        color: isSelected ? AppColors.rmPrimary : AppColors.white,
+    final foregroundColor = isSelected
+        ? AppColors.white
+        : (isUrgent ? AppColors.danger : AppColors.rmHeading);
+
+    return Material(
+      color: AppColors.transparent,
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(24.r),
-        border: Border.all(
-          color: isSelected ? AppColors.rmPrimary : AppColors.rmBorder,
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (isUrgent) ...[
-            Container(
-              width: 8.w,
-              height: 8.w,
-              decoration: const BoxDecoration(
-                color: AppColors.danger,
-                shape: BoxShape.circle,
-              ),
-            ),
-            SizedBox(width: _RmMetrics.smallGap.w),
-          ],
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 14.sp, // Increased from 14.sp
-              fontWeight: FontWeight.w500,
-              color: isSelected
-                  ? AppColors.white
-                  : (isUrgent ? AppColors.danger : AppColors.rmHeading),
+        child: Container(
+          padding: EdgeInsets.symmetric(
+            horizontal: _RmMetrics.cardPadding.w,
+            vertical: _RmMetrics.itemGap.h,
+          ),
+          decoration: BoxDecoration(
+            color: isSelected ? AppColors.rmPrimary : AppColors.white,
+            borderRadius: BorderRadius.circular(24.r),
+            border: Border.all(
+              color: isSelected ? AppColors.rmPrimary : AppColors.rmBorder,
             ),
           ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (isUrgent) ...[
+                Container(
+                  width: 8.w,
+                  height: 8.w,
+                  decoration: BoxDecoration(
+                    color: isSelected ? AppColors.white : AppColors.danger,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                SizedBox(width: _RmMetrics.smallGap.w),
+              ],
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 14.sp,
+                  fontWeight: FontWeight.w700,
+                  color: foregroundColor,
+                ),
+              ),
+              if (count != null) ...[
+                SizedBox(width: 6.w),
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 7.w, vertical: 2.h),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? AppColors.white.withValues(alpha: 0.18)
+                        : AppColors.rmSoftPink,
+                    borderRadius: BorderRadius.circular(999.r),
+                  ),
+                  child: Text(
+                    '$count',
+                    style: TextStyle(
+                      fontSize: 11.sp,
+                      fontWeight: FontWeight.w900,
+                      color: foregroundColor,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SmartFilterResultCard extends StatelessWidget {
+  const _SmartFilterResultCard({
+    required this.selectedStage,
+    required this.total,
+    required this.leads,
+  });
+
+  final String selectedStage;
+  final int total;
+  final List<RmLeadItem> leads;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(_RmMetrics.cardPadding.w),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(12.r),
+        border: Border.all(color: AppColors.rmPaleRoseBorder),
+        boxShadow: const [
+          BoxShadow(
+            color: AppColors.rmCardShadow,
+            blurRadius: 14,
+            offset: Offset(0, 6),
+          ),
         ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '$selectedStage Leads',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.inter(
+                    color: AppColors.rmHeading,
+                    fontSize: 15.sp,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+              Text(
+                '$total',
+                style: GoogleFonts.inter(
+                  color: AppColors.rmPrimary,
+                  fontSize: 14.sp,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: _RmMetrics.itemGap.h),
+          if (leads.isEmpty)
+            Text(
+              'No leads match this filter right now.',
+              style: GoogleFonts.inter(
+                color: AppColors.rmMutedText,
+                fontSize: 13.sp,
+                fontWeight: FontWeight.w600,
+              ),
+            )
+          else
+            Column(
+              children: [
+                for (int index = 0; index < leads.length; index++) ...[
+                  _SmartFilterLeadRow(lead: leads[index]),
+                  if (index != leads.length - 1)
+                    Divider(height: 14.h, color: AppColors.rmDivider),
+                ],
+                if (total > leads.length) ...[
+                  Divider(height: 14.h, color: AppColors.rmDivider),
+                  Text(
+                    '+${total - leads.length} more in this stage',
+                    style: GoogleFonts.inter(
+                      color: AppColors.rmMutedText,
+                      fontSize: 12.sp,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SmartFilterLeadRow extends StatelessWidget {
+  const _SmartFilterLeadRow({required this.lead});
+
+  final RmLeadItem lead;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: () =>
+          Navigator.of(context).pushNamed(AppRoutes.relationshipManagerLeads),
+      borderRadius: BorderRadius.circular(8.r),
+      child: Padding(
+        padding: EdgeInsets.symmetric(vertical: 4.h),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 16.r,
+              backgroundColor: AppColors.rmSoftPink,
+              child: Text(
+                lead.initials,
+                style: GoogleFonts.inter(
+                  color: AppColors.rmPrimary,
+                  fontSize: 11.sp,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+            SizedBox(width: 10.w),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    lead.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(
+                      color: AppColors.rmHeading,
+                      fontSize: 13.sp,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  SizedBox(height: 2.h),
+                  Text(
+                    lead.phone,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(
+                      color: AppColors.rmMutedText,
+                      fontSize: 12.sp,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.chevron_right_rounded,
+              color: AppColors.rmMutedText,
+              size: 20.sp,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -2598,6 +2879,26 @@ class _DashboardQueueItemData {
   final String focus;
   final String source;
   final bool isOverdue;
+}
+
+const List<String> _dashboardQueueFilters = ['Today', 'Needs Reply', 'Overdue'];
+
+List<LeadFollowUpItem> _dashboardQueueLeadsForFilter(
+  List<LeadFollowUpItem> leads,
+  String filter,
+) {
+  switch (filter) {
+    case 'Today':
+      return leads.where(_hasFollowUpDueToday).toList(growable: false);
+    case 'Needs Reply':
+      return leads.where((lead) => lead.isWaiting).toList(growable: false);
+    case 'Overdue':
+      return leads
+          .where((lead) => lead.hasOverdueFollowUp)
+          .toList(growable: false);
+    default:
+      return leads;
+  }
 }
 
 List<_DashboardQueueItemData> _dashboardQueueItems(
